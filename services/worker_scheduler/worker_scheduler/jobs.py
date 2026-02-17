@@ -610,24 +610,198 @@ def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
 
 
 def compute_daily_flow_features(session: Session) -> int:
-    return 0
+    from core.db.models import ForeignRoom, MlFeature
+    from core.ml.features_v2 import compute_foreign_flow_features
+
+    rows = session.exec(select(ForeignRoom)).all()
+    if not rows:
+        return 0
+    df = pd.DataFrame([r.model_dump() for r in rows])
+    df["as_of_date"] = pd.to_datetime(df["timestamp"]).dt.date
+    daily = df.sort_values(["symbol", "timestamp"]).groupby(["symbol", "as_of_date"], as_index=False).last()
+    daily["net_foreign_val"] = daily["fbuy_val"].fillna(0.0) - daily["fsell_val"].fillna(0.0)
+    adv = pd.DataFrame([r.model_dump() for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()])
+    if adv.empty:
+        return 0
+    adv["as_of_date"] = pd.to_datetime(adv["timestamp"]).dt.date
+    adv = adv[["symbol", "as_of_date", "value_vnd"]].rename(columns={"value_vnd": "adv20_value"})
+    ff = compute_foreign_flow_features(
+        daily[["symbol", "as_of_date", "net_foreign_val", "current_room", "total_room"]],
+        adv,
+    )
+    up = 0
+    for _, r in ff.iterrows():
+        obj = session.exec(
+            select(MlFeature)
+            .where(MlFeature.symbol == str(r["symbol"]))
+            .where(MlFeature.as_of_date == r["as_of_date"])
+            .where(MlFeature.feature_version == "v2")
+        ).first()
+        payload = {
+            "net_foreign_val_5d": float(r.get("net_foreign_val_5d") or 0.0),
+            "net_foreign_val_20d": float(r.get("net_foreign_val_20d") or 0.0),
+            "foreign_flow_intensity": float(r.get("foreign_flow_intensity") or 0.0),
+            "foreign_room_util": float(r.get("foreign_room_util") or 0.0),
+        }
+        if obj:
+            obj.features_json.update(payload)
+            session.add(obj)
+        else:
+            session.add(MlFeature(symbol=str(r["symbol"]), as_of_date=r["as_of_date"], feature_version="v2", features_json=payload))
+        up += 1
+    session.commit()
+    return up
 
 
 def compute_daily_orderbook_features(session: Session) -> int:
-    return 0
+    from core.db.models import MlFeature, QuoteL2
+    from core.ml.features_v2 import compute_orderbook_daily_features
+
+    rows = session.exec(select(QuoteL2)).all()
+    if not rows:
+        return 0
+    df = pd.DataFrame([r.model_dump() for r in rows])
+    ob = compute_orderbook_daily_features(df)
+    up = 0
+    for _, r in ob.iterrows():
+        obj = session.exec(
+            select(MlFeature)
+            .where(MlFeature.symbol == str(r["symbol"]))
+            .where(MlFeature.as_of_date == r["as_of_date"])
+            .where(MlFeature.feature_version == "v2")
+        ).first()
+        payload = {
+            "imb_1_day": float(r.get("imb_1_day") or 0.0),
+            "imb_3_day": float(r.get("imb_3_day") or 0.0),
+            "spread_day": float(r.get("spread_day") or 0.0),
+        }
+        if obj:
+            obj.features_json.update(payload)
+            session.add(obj)
+        else:
+            session.add(MlFeature(symbol=str(r["symbol"]), as_of_date=r["as_of_date"], feature_version="v2", features_json=payload))
+        up += 1
+    session.commit()
+    return up
 
 
 def compute_intraday_daily_features(session: Session) -> int:
-    return 0
+    from core.db.models import MlFeature
+    from core.ml.features_v2 import compute_intraday_daily_features as _compute
+
+    bars = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1m")).all()
+    if not bars:
+        return 0
+    df = pd.DataFrame([r.model_dump() for r in bars])
+    intr = _compute(df)
+    up = 0
+    for _, r in intr.iterrows():
+        obj = session.exec(
+            select(MlFeature)
+            .where(MlFeature.symbol == str(r["symbol"]))
+            .where(MlFeature.as_of_date == r["as_of_date"])
+            .where(MlFeature.feature_version == "v2")
+        ).first()
+        payload = {
+            "rv_day": float(r.get("rv_day") or 0.0),
+            "vol_first_hour_ratio": float(r.get("vol_first_hour_ratio") or 0.0),
+        }
+        if obj:
+            obj.features_json.update(payload)
+            session.add(obj)
+        else:
+            session.add(MlFeature(symbol=str(r["symbol"]), as_of_date=r["as_of_date"], feature_version="v2", features_json=payload))
+        up += 1
+    session.commit()
+    return up
 
 
 def compute_ml_labels_rank_z(session: Session) -> int:
-    return 0
+    from core.db.models import MlFeature
+    from core.ml.features import build_ml_features
+    from core.ml.targets import compute_rank_z_label
+
+    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
+    if not prices:
+        return 0
+    df = build_ml_features(pd.DataFrame([p.model_dump() for p in prices]))
+    df = compute_rank_z_label(df, col="y_excess")
+    up = 0
+    for _, r in df.dropna(subset=["y_rank_z"]).iterrows():
+        obj = session.exec(
+            select(MlFeature)
+            .where(MlFeature.symbol == str(r["symbol"]))
+            .where(MlFeature.as_of_date == r["as_of_date"])
+            .where(MlFeature.feature_version == "v2")
+        ).first()
+        payload = {"y_rank_z": float(r["y_rank_z"]), "y_excess": float(r.get("y_excess", 0.0))}
+        if obj:
+            obj.features_json.update(payload)
+            session.add(obj)
+        else:
+            session.add(MlFeature(symbol=str(r["symbol"]), as_of_date=r["as_of_date"], feature_version="v2", features_json=payload))
+        up += 1
+    session.commit()
+    return up
 
 
 def train_models_v2(session: Session) -> int:
-    return 0
+    from core.db.models import MlPrediction
+    from core.ml.features import build_ml_features, feature_columns
+    from core.ml.models_v2 import MlModelV2Bundle
+    from core.ml.targets import compute_rank_z_label
+
+    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
+    if not prices:
+        return 0
+    feat = build_ml_features(pd.DataFrame([p.model_dump() for p in prices]))
+    feat = compute_rank_z_label(feat, col="y_excess").dropna(subset=["y_rank_z"])
+    cols = feature_columns(feat)
+    model = MlModelV2Bundle().fit(feat[cols], feat["y_rank_z"])
+    comp = model.predict_components(feat[cols])
+    up = 0
+    for i, (_, r) in enumerate(feat.iterrows()):
+        old = session.exec(
+            select(MlPrediction)
+            .where(MlPrediction.model_id == "ensemble_v2")
+            .where(MlPrediction.symbol == str(r["symbol"]))
+            .where(MlPrediction.as_of_date == r["as_of_date"])
+        ).first()
+        meta = {
+            "score_final": float(comp["score_final"][i]),
+            "mu": float(comp["mu"][i]),
+            "uncert": float(comp["uncert"][i]),
+            "score_rank_z": float(comp["score_rank_z"][i]),
+        }
+        if old:
+            old.y_hat = float(comp["score_final"][i])
+            old.meta = meta
+            session.add(old)
+        else:
+            session.add(MlPrediction(model_id="ensemble_v2", symbol=str(r["symbol"]), as_of_date=r["as_of_date"], y_hat=float(comp["score_final"][i]), meta=meta))
+        up += 1
+    session.commit()
+    return up
 
 
 def run_diagnostics_v2(session: Session) -> int:
-    return 0
+    from core.db.models import DiagnosticsMetric, DiagnosticsRun, MlPrediction
+    from core.ml.diagnostics import run_diagnostics
+    from core.ml.features import build_ml_features
+
+    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
+    preds = session.exec(select(MlPrediction).where(MlPrediction.model_id == "ensemble_v2")).all()
+    if not prices or not preds:
+        return 0
+    f = build_ml_features(pd.DataFrame([p.model_dump() for p in prices]))
+    p = pd.DataFrame([x.model_dump() for x in preds])
+    p["score_final"] = p["meta"].apply(lambda m: float((m or {}).get("score_final", 0.0)) if isinstance(m, dict) else 0.0)
+    d = f.merge(p[["symbol", "as_of_date", "score_final"]], on=["symbol", "as_of_date"], how="inner")
+    d["net_ret"] = d["y_excess"].fillna(0.0)
+    metrics = run_diagnostics(d)
+    run_id = f"diag-{dt.datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    session.add(DiagnosticsRun(run_id=run_id, model_id="ensemble_v2", config_hash="worker"))
+    for k, v in metrics.items():
+        session.add(DiagnosticsMetric(run_id=run_id, metric_name=k, metric_value=float(v)))
+    session.commit()
+    return len(metrics)

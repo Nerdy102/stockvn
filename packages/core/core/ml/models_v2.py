@@ -12,93 +12,88 @@ if _HAS_SK:
     from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
 
 
-class _FallbackMean:
+def _hgb_params() -> dict:
+    return {
+        "learning_rate": 0.05,
+        "max_depth": 6,
+        "max_leaf_nodes": 31,
+        "min_samples_leaf": 200,
+        "l2_regularization": 1.0,
+        "max_iter": 400,
+        "early_stopping": True,
+        "validation_fraction": 0.1,
+        "random_state": 42,
+    }
+
+
+class _FallbackModel:
     def __init__(self, quantile: float | None = None) -> None:
         self.quantile = quantile
-        self.val = 0.0
+        self.constant_ = 0.0
 
     def fit(self, _x, y):
         arr = np.asarray(y, dtype=float)
-        if self.quantile is None:
-            self.val = float(np.nanmean(arr))
-        else:
-            self.val = float(np.nanquantile(arr, self.quantile))
+        self.constant_ = float(np.nanquantile(arr, self.quantile)) if self.quantile is not None else float(np.nanmean(arr))
         return self
 
     def predict(self, x):
-        return np.full(shape=(len(x),), fill_value=self.val)
+        return np.full((len(x),), self.constant_, dtype=float)
+
+
+def ridge_rank_v2():
+    if _HAS_SK:
+        return Pipeline([("scaler", StandardScaler()), ("model", Ridge(alpha=10.0, fit_intercept=True))])
+    return _FallbackModel()
+
+
+def hgbr_rank_v2():
+    if _HAS_SK:
+        return HistGradientBoostingRegressor(loss="squared_error", **_hgb_params())
+    return _FallbackModel()
+
+
+def hgbr_quantiles_v2() -> tuple[object, object, object]:
+    if _HAS_SK:
+        return (
+            HistGradientBoostingRegressor(loss="quantile", quantile=0.1, **_hgb_params()),
+            HistGradientBoostingRegressor(loss="quantile", quantile=0.5, **_hgb_params()),
+            HistGradientBoostingRegressor(loss="quantile", quantile=0.9, **_hgb_params()),
+        )
+    return (_FallbackModel(0.1), _FallbackModel(0.5), _FallbackModel(0.9))
 
 
 class MlModelV2Bundle:
     def __init__(self) -> None:
-        if _HAS_SK:
-            self.ridge_rank_v2 = Pipeline(
-                [("scaler", StandardScaler()), ("model", Ridge(alpha=10.0, fit_intercept=True))]
-            )
-            self.hgbr_rank_v2 = HistGradientBoostingRegressor(
-                loss="squared_error",
-                learning_rate=0.05,
-                max_depth=6,
-                max_leaf_nodes=31,
-                min_samples_leaf=200,
-                l2_regularization=1.0,
-                max_iter=400,
-                early_stopping=True,
-                validation_fraction=0.1,
-                random_state=42,
-            )
-
-            def _q(q: float):
-                return HistGradientBoostingRegressor(
-                    loss="quantile",
-                    quantile=q,
-                    learning_rate=0.05,
-                    max_depth=6,
-                    max_leaf_nodes=31,
-                    min_samples_leaf=200,
-                    l2_regularization=1.0,
-                    max_iter=400,
-                    early_stopping=True,
-                    validation_fraction=0.1,
-                    random_state=42,
-                )
-
-            self.hgbr_q10_v2 = _q(0.1)
-            self.hgbr_q50_v2 = _q(0.5)
-            self.hgbr_q90_v2 = _q(0.9)
-        else:
-            self.ridge_rank_v2 = _FallbackMean(None)
-            self.hgbr_rank_v2 = _FallbackMean(None)
-            self.hgbr_q10_v2 = _FallbackMean(0.1)
-            self.hgbr_q50_v2 = _FallbackMean(0.5)
-            self.hgbr_q90_v2 = _FallbackMean(0.9)
+        self.ridge = ridge_rank_v2()
+        self.hgbr = hgbr_rank_v2()
+        self.q10, self.q50, self.q90 = hgbr_quantiles_v2()
 
     def fit(self, x, y):
-        self.ridge_rank_v2.fit(x, y)
-        self.hgbr_rank_v2.fit(x, y)
-        self.hgbr_q10_v2.fit(x, y)
-        self.hgbr_q50_v2.fit(x, y)
-        self.hgbr_q90_v2.fit(x, y)
+        self.ridge.fit(x, y)
+        self.hgbr.fit(x, y)
+        self.q10.fit(x, y)
+        self.q50.fit(x, y)
+        self.q90.fit(x, y)
         return self
 
     def predict_components(self, x) -> dict[str, np.ndarray]:
-        q10 = np.asarray(self.hgbr_q10_v2.predict(x), dtype=float)
-        q50 = np.asarray(self.hgbr_q50_v2.predict(x), dtype=float)
-        q90 = np.asarray(self.hgbr_q90_v2.predict(x), dtype=float)
-        ordered = np.sort(np.vstack([q10, q50, q90]), axis=0)
-        q10, q50, q90 = ordered[0], ordered[1], ordered[2]
-        mu = q50
-        uncert = q90 - q10
+        pred_q10 = np.asarray(self.q10.predict(x), dtype=float)
+        pred_q50 = np.asarray(self.q50.predict(x), dtype=float)
+        pred_q90 = np.asarray(self.q90.predict(x), dtype=float)
+        ordered = np.sort(np.vstack([pred_q10, pred_q50, pred_q90]), axis=0)
+        pred_q10, pred_q50, pred_q90 = ordered
+        mu = pred_q50
+        uncert = pred_q90 - pred_q10
         score_final = mu - 0.35 * uncert
-        rank = np.asarray(self.hgbr_rank_v2.predict(x), dtype=float)
+        score_rank_z = np.asarray(self.hgbr.predict(x), dtype=float)
         return {
-            "ridge_rank_v2": np.asarray(self.ridge_rank_v2.predict(x), dtype=float),
-            "hgbr_rank_v2": rank,
-            "hgbr_q10_v2": q10,
-            "hgbr_q50_v2": q50,
-            "hgbr_q90_v2": q90,
+            "ridge_rank_v2": np.asarray(self.ridge.predict(x), dtype=float),
+            "hgbr_rank_v2": score_rank_z,
+            "hgbr_q10_v2": pred_q10,
+            "hgbr_q50_v2": pred_q50,
+            "hgbr_q90_v2": pred_q90,
             "mu": mu,
             "uncert": uncert,
-            "score_rank_z": rank,
             "score_final": score_final,
+            "score_rank_z": score_rank_z,
         }
