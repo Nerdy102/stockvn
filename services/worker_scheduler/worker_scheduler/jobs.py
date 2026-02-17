@@ -747,7 +747,9 @@ def compute_ml_labels_rank_z(session: Session) -> int:
 
 def train_models_v2(session: Session) -> int:
     from core.db.models import MlPrediction
+    from core.db.models import ForeignRoom, QuoteL2
     from core.ml.features import build_ml_features, feature_columns
+    from core.ml.features_v2 import build_features_v2
     from core.ml.models_v2 import MlModelV2Bundle
     from core.ml.targets import compute_rank_z_label
 
@@ -755,7 +757,16 @@ def train_models_v2(session: Session) -> int:
     if not prices:
         return 0
     feat = build_ml_features(pd.DataFrame([p.model_dump() for p in prices]))
-    feat = compute_rank_z_label(feat, col="y_excess").dropna(subset=["y_rank_z"])
+    feat = compute_rank_z_label(feat, col="y_excess")
+    fr = pd.DataFrame([r.model_dump() for r in session.exec(select(ForeignRoom)).all()])
+    if not fr.empty:
+        fr["as_of_date"] = pd.to_datetime(fr["timestamp"]).dt.date
+        fr = fr.groupby(["symbol", "as_of_date"], as_index=False).last()
+        fr["net_foreign_val"] = fr["fbuy_val"].fillna(0.0) - fr["fsell_val"].fillna(0.0)
+    quotes = pd.DataFrame([r.model_dump() for r in session.exec(select(QuoteL2)).all()])
+    intraday = pd.DataFrame([r.model_dump() for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1m")).all()])
+    feat = build_features_v2(feat, None, fr if not fr.empty else None, quotes if not quotes.empty else None, intraday if not intraday.empty else None)
+    feat = feat.dropna(subset=["y_rank_z"])
     cols = feature_columns(feat)
     model = MlModelV2Bundle().fit(feat[cols], feat["y_rank_z"])
     comp = model.predict_components(feat[cols])
@@ -786,14 +797,24 @@ def train_models_v2(session: Session) -> int:
 
 def run_diagnostics_v2(session: Session) -> int:
     from core.db.models import DiagnosticsMetric, DiagnosticsRun, MlPrediction
+    from core.db.models import ForeignRoom, QuoteL2
     from core.ml.diagnostics import run_diagnostics
     from core.ml.features import build_ml_features
+    from core.ml.features_v2 import build_features_v2
 
     prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
     preds = session.exec(select(MlPrediction).where(MlPrediction.model_id == "ensemble_v2")).all()
     if not prices or not preds:
         return 0
     f = build_ml_features(pd.DataFrame([p.model_dump() for p in prices]))
+    fr = pd.DataFrame([r.model_dump() for r in session.exec(select(ForeignRoom)).all()])
+    if not fr.empty:
+        fr["as_of_date"] = pd.to_datetime(fr["timestamp"]).dt.date
+        fr = fr.groupby(["symbol", "as_of_date"], as_index=False).last()
+        fr["net_foreign_val"] = fr["fbuy_val"].fillna(0.0) - fr["fsell_val"].fillna(0.0)
+    quotes = pd.DataFrame([r.model_dump() for r in session.exec(select(QuoteL2)).all()])
+    intraday = pd.DataFrame([r.model_dump() for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1m")).all()])
+    f = build_features_v2(f, None, fr if not fr.empty else None, quotes if not quotes.empty else None, intraday if not intraday.empty else None)
     p = pd.DataFrame([x.model_dump() for x in preds])
     p["score_final"] = p["meta"].apply(lambda m: float((m or {}).get("score_final", 0.0)) if isinstance(m, dict) else 0.0)
     d = f.merge(p[["symbol", "as_of_date", "score_final"]], on=["symbol", "as_of_date"], how="inner")

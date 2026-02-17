@@ -18,3 +18,14 @@ def test_ml_train_backtest_dev() -> None:
     r2 = c.post('/ml/backtest', json={})
     assert r2.status_code == 200
     assert 'disclaimer' in r2.json()
+
+
+def test_ml_predict_fields_v2() -> None:
+    c = TestClient(create_app())
+    c.post('/ml/train')
+    r = c.get('/ml/predict', params={'date': '05-10-2024', 'universe': 'ALL'})
+    assert r.status_code == 200
+    rows = r.json()
+    if rows:
+        for k in ['symbol', 'date', 'score_final', 'mu', 'uncert', 'score_rank_z']:
+            assert k in rows[0]

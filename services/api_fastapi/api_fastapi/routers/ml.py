@@ -17,6 +17,7 @@ from core.db.models import (
     QuoteL2,
     Ticker,
 )
+from core.market_rules import clamp_qty_to_board_lot
 from core.ml.backtest import run_sensitivity, run_stress, run_walk_forward
 from core.ml.diagnostics import run_diagnostics
 from core.ml.features import build_ml_features, feature_columns
@@ -170,10 +171,12 @@ def predict(
 
     rows = list(db.exec(q.offset(offset).limit(limit)).all())
     if universe != "ALL":
-        tickers = {t.symbol for t in db.exec(select(Ticker)).all()}
         if universe == "VNINDEX":
-            tickers = {"VNINDEX"}
-        rows = [r for r in rows if r.symbol in tickers]
+            rows = [r for r in rows if r.symbol == "VNINDEX"]
+        elif universe == "VN30":
+            # Offline fallback: approximate VN30 by top 30 non-index symbols by available predictions
+            symbols = sorted({r.symbol for r in rows if r.symbol != "VNINDEX"})[:30]
+            rows = [r for r in rows if r.symbol in set(symbols)]
 
     return [
         {
@@ -236,20 +239,39 @@ def backtest(payload: dict | None = None, db: Session = Depends(get_db), setting
         cols = feature_columns(feat)
         curve, metrics = run_walk_forward(feat, cols)
 
-        sample = feat.copy()
-        sample["score_final"] = sample["y_rank_z"]
-        sample["uncert"] = 0.1
-        sample = sample[(sample["exchange_HOSE"] + sample.get("exchange_HNX", 0) + sample.get("exchange_UPCOM", 0)) > 0]
-        sample = sample[sample["adv20_value"] >= 1e9]
-        sample = sample.sort_values("score_final", ascending=False).head(30)
-        weights = build_weights_ivp_uncertainty(sample)
-        regime = "risk_off" if float(sample.get("regime_risk_off", pd.Series([0])).mean()) > 0.5 else "sideways"
+        latest = feat[feat["as_of_date"] == feat["as_of_date"].max()].copy()
+        pred_latest = pd.DataFrame([
+            p.model_dump() for p in db.exec(select(MlPrediction).where(MlPrediction.model_id == "ensemble_v2").where(MlPrediction.as_of_date == latest["as_of_date"].iloc[0])).all()
+        ])
+        if pred_latest.empty:
+            latest["score_final"] = latest["y_rank_z"]
+            latest["uncert"] = 0.1
+        else:
+            pred_latest["score_final"] = pred_latest["meta"].apply(lambda m: float((m or {}).get("score_final", 0.0)) if isinstance(m, dict) else 0.0)
+            pred_latest["uncert"] = pred_latest["meta"].apply(lambda m: float((m or {}).get("uncert", 0.0)) if isinstance(m, dict) else 0.0)
+            latest = latest.merge(pred_latest[["symbol", "as_of_date", "score_final", "uncert"]], on=["symbol", "as_of_date"], how="left")
+            latest["score_final"] = latest["score_final"].fillna(latest["y_rank_z"])
+            latest["uncert"] = latest["uncert"].fillna(0.1)
+
+        latest = latest[latest["symbol"] != "VNINDEX"]
+        latest = latest[latest["adv20_value"] >= 1e9]
+        latest = latest.sort_values("score_final", ascending=False).head(30)
+
+        weights = build_weights_ivp_uncertainty(latest)
+        regime = "sideways"
+        if "regime_risk_off" in latest and float(latest["regime_risk_off"].mean()) > 0.5:
+            regime = "risk_off"
+        elif "regime_trend_up" in latest and float(latest["regime_trend_up"].mean()) > 0.5:
+            regime = "trend_up"
+
         weights = apply_constraints_ordered(weights, nav=1_000_000_000.0, risk_off=(regime == "risk_off"))
         weights = apply_exposure_overlay(weights, regime=regime)
         weights["target_w"] = weights["w"]
         weights["current_w"] = 0.0
-        weights["qty"] = 100
-        weights["order_notional"] = weights["w"] * 1_000_000_000.0
+        px = latest.set_index("symbol")["close"].to_dict() if "close" in latest else {}
+        weights["px"] = weights["symbol"].map(px).fillna(10_000.0)
+        weights["qty"] = ((weights["w"] * 1_000_000_000.0) / weights["px"]).astype(int).map(clamp_qty_to_board_lot)
+        weights["order_notional"] = weights["qty"] * weights["px"]
         weights = apply_no_trade_band(weights)
         metrics["selected_names_v2"] = float(len(weights))
 

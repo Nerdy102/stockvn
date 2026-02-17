@@ -12,6 +12,10 @@ def test_alpha_v2_smoke_walkforward() -> None:
     assert d.status_code == 200
     body = d.json()
     assert body.get('metrics')
+    metrics = body['metrics']
+    for key in ['rank_ic_mean', 'ic_decay_1', 'ic_decay_21', 'sharpe_lo', 'sharpe_hi']:
+        assert key in metrics
+        assert metrics[key] == metrics[key]
     bt = c.post('/ml/backtest', json={'mode': 'v2'})
     assert bt.status_code == 200
     assert 'walk_forward' in bt.json()
