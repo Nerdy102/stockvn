@@ -56,3 +56,32 @@ def calc_fill_ratio(
     if s == "SELL" and at_lower_limit:
         ratio *= cfg.limit_down_sell_penalty
     return float(min(1.0, max(0.0, ratio)))
+
+
+from core import market_rules as mr
+
+
+def apply_total_cost_model(
+    *,
+    price: float,
+    side: str,
+    order_notional: float,
+    adtv: float,
+    atr14: float,
+    close: float,
+    at_upper_limit: bool = False,
+    at_lower_limit: bool = False,
+    instrument_type: str = "stock",
+) -> tuple[float, float, float]:
+    """Return (exec_price, slippage_bps, fill_ratio)."""
+    bps = calc_slippage_bps(order_notional, adtv, atr14, close, SlippageConfig())
+    slipped = apply_execution_slippage(price, side, bps)
+    rounded = mr.round_price(slipped, side=side, instrument_type=instrument_type)
+    fill = calc_fill_ratio(
+        side,
+        "MARKET",
+        at_upper_limit=at_upper_limit,
+        at_lower_limit=at_lower_limit,
+        cfg=FillConfig(),
+    )
+    return float(rounded), float(bps), float(fill)

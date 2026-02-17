@@ -85,3 +85,11 @@ class FeesTaxes:
             slippage_cost=float(slippage_cost),
             net_pnl=float(net),
         )
+
+
+def compute_fee_tax_breakdown(notional: float, gross_sell_value: float = 0.0, div_cash: float = 0.0, commission_rate: float = 0.0015) -> dict[str, float]:
+    return {
+        "commission": compute_commission(notional, commission_rate),
+        "sell_tax": compute_sell_tax(gross_sell_value),
+        "dividend_withholding": compute_dividend_withholding(div_cash),
+    }
