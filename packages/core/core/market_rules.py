@@ -226,12 +226,95 @@ def load_market_rules(path: str | Path) -> MarketRules:
 
 def round_price(
     price: float,
+    side: str | None = None,
+    instrument_type: str = "stock",
+    is_put_through: bool = False,
     *,
-    path: str | Path,
-    instrument: str = "stock",
-    put_through: bool = False,
-    direction: str = "nearest",
+    path: str | Path = "configs/market_rules_vn.yaml",
+    instrument: str | None = None,
+    put_through: bool | None = None,
+    direction: str | None = None,
 ) -> float:
+    """Round price with side-based API and backward-compatible kwargs."""
+    inst = instrument if instrument is not None else instrument_type
+    pt = put_through if put_through is not None else is_put_through
+    if direction is None:
+        if side is None:
+            direction = "nearest"
+        else:
+            direction = "up" if str(side).upper() == "BUY" else "down"
     return load_market_rules(path).round_price(
-        price, instrument=instrument, put_through=put_through, direction=direction
+        price, instrument=inst, put_through=pt, direction=direction
     )
+
+
+def tick_size(
+    price: float,
+    instrument_type: str,
+    is_put_through: bool = False,
+    *,
+    path: str | Path = "configs/market_rules_vn.yaml",
+) -> int:
+    return load_market_rules(path).get_tick_size(
+        price=price, instrument=instrument_type, put_through=is_put_through
+    )
+
+
+def clamp_qty_to_board_lot(qty: int, board_lot: int = 100) -> int:
+    if qty <= 0:
+        return 0
+    return int(qty // board_lot * board_lot)
+
+
+def round_price_by_side(
+    price: float,
+    side: str,
+    instrument_type: str,
+    is_put_through: bool = False,
+    *,
+    path: str | Path = "configs/market_rules_vn.yaml",
+) -> int:
+    direction = "up" if str(side).upper() == "BUY" else "down"
+    return int(
+        load_market_rules(path).round_price(
+            price,
+            instrument=instrument_type,
+            put_through=is_put_through,
+            direction=direction,
+        )
+    )
+
+
+def calc_price_limits(
+    ref_price: float,
+    limit_type: str = "normal",
+    *,
+    path: str | Path = "configs/market_rules_vn.yaml",
+) -> tuple[float, float]:
+    return load_market_rules(path).calc_price_limits(reference_price=ref_price, context=limit_type)
+
+
+def validate_order(
+    symbol: str,
+    price: float,
+    qty: int,
+    session: str,
+    instrument_type: str,
+    *,
+    reference_price: float | None = None,
+    path: str | Path = "configs/market_rules_vn.yaml",
+) -> list[str]:
+    rules = load_market_rules(path)
+    violations: list[str] = []
+    if session not in {s.name for s in rules.sessions}:
+        violations.append("invalid_session")
+    if qty <= 0:
+        violations.append("qty_non_positive")
+    if qty >= 100 and qty % int(rules.quantity_rules.get("board_lot", 100)) != 0:
+        violations.append("qty_not_board_lot")
+    if not rules.validate_tick(price, instrument=instrument_type):
+        violations.append("invalid_tick")
+    ref = reference_price if reference_price is not None else price
+    if not rules.validate_price_limit(price, reference_price=ref):
+        violations.append("price_limit_violation")
+    return violations

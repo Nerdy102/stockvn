@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     APP_ENV: str = Field(default="local")
+    DEV_MODE: bool = Field(default=True)
     LOG_LEVEL: str = Field(default="INFO")
 
     DATA_PROVIDER: str = Field(default="csv")

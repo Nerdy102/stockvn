@@ -316,3 +316,87 @@ class DriftMetric(SQLModel, table=True):
     metric_name: str = Field(index=True)
     metric_value: float
     alert: bool = False
+
+
+class BronzeFile(SQLModel, table=True):
+    __tablename__ = "bronze_files"
+    __table_args__ = (Index("ix_bronze_files_provider_channel_date", "provider", "channel", "date"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    provider: str = Field(index=True)
+    channel: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    filepath: str
+    rows: int = 0
+    sha256: str = Field(index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class LastProcessed(SQLModel, table=True):
+    __tablename__ = "last_processed"
+    __table_args__ = (
+        Index(
+            "ix_last_processed_scope",
+            "provider",
+            "channel",
+            "symbol",
+            "timeframe",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    provider: str = Field(index=True)
+    channel: str = Field(index=True)
+    symbol: str = Field(default="", index=True)
+    timeframe: str = Field(default="", index=True)
+    last_ts_utc: dt.datetime | None = None
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class MlFeature(SQLModel, table=True):
+    __tablename__ = "ml_features"
+    __table_args__ = (
+        Index("ix_ml_features_symbol_asof", "symbol", "as_of_date"),
+        Index("ux_ml_features", "symbol", "as_of_date", "feature_version", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    as_of_date: dt.date = Field(index=True)
+    feature_version: str = Field(default="v1", index=True)
+    features_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class MlPrediction(SQLModel, table=True):
+    __tablename__ = "ml_predictions"
+    __table_args__ = (
+        Index("ux_ml_predictions", "model_id", "symbol", "as_of_date", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    symbol: str = Field(index=True)
+    as_of_date: dt.date = Field(index=True)
+    y_hat: float
+    meta: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class BacktestRun(SQLModel, table=True):
+    __tablename__ = "backtest_runs"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_hash: str = Field(index=True)
+    config_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    summary_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class BacktestEquityCurve(SQLModel, table=True):
+    __tablename__ = "backtest_equity_curve"
+    __table_args__ = (Index("ix_backtest_equity_run_date", "run_id", "date", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: int = Field(index=True)
+    date: dt.date = Field(index=True)
+    equity: float

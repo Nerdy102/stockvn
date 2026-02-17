@@ -25,7 +25,7 @@ def get_prices(
     timeframe: str = Query("1D"),
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=2000),
+    limit: int = Query(default=1000, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),

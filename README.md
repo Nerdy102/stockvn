@@ -156,3 +156,15 @@ Screen definition bằng YAML: `configs/screens/*.yaml`
 - Bronze/Silver idempotent ingest + checkpoint: `packages/data/data/etl/pipeline.py`.
 - Incremental indicator state engine: `worker_scheduler.jobs.compute_indicators_incremental`.
 - Architecture doc: `docs/ssi_pipeline_architecture.md`.
+
+## SSI Contract
+- Offline SSI contract parsing with alias/typo tolerant raw models and deterministic mapping.
+- See `docs/ssi_contract.md` for fields and mapping.
+
+## ML Alpha Pipeline
+- Fixed models: Ridge + HistGradientBoostingRegressor + fixed ensemble (0.2/0.8).
+- Purged CV + embargo + offline walk-forward utilities under `core/ml/`.
+
+## Backtest Correctness & Costs
+- Net reporting includes commission, sell tax, slippage, and fill penalties.
+- Disclaimer: past performance does not guarantee future results; overfit/liquidity/limit risks apply.

@@ -13,6 +13,7 @@ from core.settings import get_settings
 from sqlmodel import Session, select
 
 from data.adapters.ssi_mapper import SSIMapper
+from data.bronze.writer import BronzeWriter
 from data.schemas.ssi_fcdata import DailyOhlcRecord
 
 log = logging.getLogger(__name__)
@@ -109,6 +110,9 @@ def ingest_from_fixtures(
 
     bronze_added = 0
     silver_rows = 0
+    writer = BronzeWriter()
+    writer.write_batch(session, provider="ssi_fcdata", channel="DailyOhlc", payloads=prices_payload)
+
     for rec in prices_payload:
         parsed = DailyOhlcRecord.model_validate(rec)
         added = append_bronze(

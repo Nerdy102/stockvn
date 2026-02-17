@@ -18,6 +18,7 @@ from api_fastapi.routers import (
     health,
     portfolio,
     prices,
+    ml,
     screeners,
     signals,
     tickers,
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(signals.router)
     app.include_router(portfolio.router)
     app.include_router(alerts.router)
+    app.include_router(ml.router)
 
     @app.on_event("startup")
     def _startup() -> None:

@@ -39,7 +39,7 @@ def test_prices_endpoint_bounded_default_range() -> None:
     r = client.get("/prices", params={"symbol": "AAA", "timeframe": "1D"})
     assert r.status_code == 200
     data = r.json()
-    assert len(data) <= 400
+    assert len(data) <= 1000
 
 
 def test_tickers_pagination() -> None:

@@ -12,10 +12,12 @@ class SsiFastConnectProvider(BaseMarketDataProvider):
     """SSI FastConnect provider stub for offline-safe operation."""
 
     def __init__(self) -> None:
-        self.consumer_id = os.getenv("SSI_CONSUMER_ID", "")
-        self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", "")
-        self.private_key_path = os.getenv("SSI_PRIVATE_KEY_PATH", "")
+        self.base_url = os.getenv("SSI_FCDATA_BASE_URL", "https://fc-data.ssi.com.vn/api/v2")
+        self.consumer_id = os.getenv("SSI_CONSUMER_ID", os.getenv("consumerID", ""))
+        self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+        self.private_key_path = os.getenv("SSI_PRIVATE_KEY_PATH", os.getenv("privateKeyPath", ""))
         self.access_token = os.getenv("SSI_ACCESS_TOKEN", "")
+        self.token_cache_file = os.getenv("SSI_TOKEN_CACHE_FILE", "")
 
     def _ensure(self) -> None:
         if not (self.consumer_id and self.consumer_secret and self.private_key_path):
@@ -60,3 +62,13 @@ class SsiFastConnectProvider(BaseMarketDataProvider):
         """Streaming stub for SSI websocket/channel integration (disabled by default)."""
         self._ensure()
         raise NotImplementedError
+
+
+    def set_access_token(self, token: str) -> None:
+        self.access_token = token
+        if self.token_cache_file:
+            try:
+                with open(self.token_cache_file, "w", encoding="utf-8") as f:
+                    f.write(token)
+            except OSError:
+                pass
