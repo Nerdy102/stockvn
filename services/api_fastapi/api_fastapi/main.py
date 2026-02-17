@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 from core.db.models import Ticker
 from core.db.session import create_db_and_tables, get_engine
@@ -29,11 +30,23 @@ setup_logging(settings.LOG_LEVEL)
 log = logging.getLogger(__name__)
 
 
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    create_db_and_tables(settings.DATABASE_URL)
+    engine = get_engine(settings.DATABASE_URL)
+    with Session(engine) as session:
+        if session.exec(select(Ticker)).first() is None:
+            provider = get_provider(settings)
+            ensure_seeded(session, provider, settings)
+    yield
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="VN Invest Toolkit API",
         version="0.1.0",
         description="Offline demo + production scaffold (educational; not investment advice).",
+        lifespan=_lifespan,
     )
 
     app.add_middleware(
@@ -53,15 +66,6 @@ def create_app() -> FastAPI:
     app.include_router(portfolio.router)
     app.include_router(alerts.router)
     app.include_router(ml.router)
-
-    @app.on_event("startup")
-    def _startup() -> None:
-        create_db_and_tables(settings.DATABASE_URL)
-        engine = get_engine(settings.DATABASE_URL)
-        with Session(engine) as session:
-            if session.exec(select(Ticker)).first() is None:
-                provider = get_provider(settings)
-                ensure_seeded(session, provider, settings)
 
     return app
 

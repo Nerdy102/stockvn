@@ -400,3 +400,24 @@ class BacktestEquityCurve(SQLModel, table=True):
     run_id: int = Field(index=True)
     date: dt.date = Field(index=True)
     equity: float
+
+
+class DiagnosticsRun(SQLModel, table=True):
+    __tablename__ = "diagnostics_runs"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    model_id: str = Field(index=True)
+    config_hash: str = Field(index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class DiagnosticsMetric(SQLModel, table=True):
+    __tablename__ = "diagnostics_metrics"
+    __table_args__ = (Index("ix_diag_metric_run_name", "run_id", "metric_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    metric_name: str = Field(index=True)
+    metric_value: float
+    metric_json: JsonDict | None = Field(default=None, sa_column=Column(JSON, nullable=True))

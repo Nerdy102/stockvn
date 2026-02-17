@@ -168,3 +168,10 @@ Screen definition bằng YAML: `configs/screens/*.yaml`
 ## Backtest Correctness & Costs
 - Net reporting includes commission, sell tax, slippage, and fill penalties.
 - Disclaimer: past performance does not guarantee future results; overfit/liquidity/limit risks apply.
+
+
+## ALPHA v2
+- Ranking label: train on `y_rank_z` (cross-sectional z-scored percentile rank of `y_excess`).
+- Uncertainty-aware score: `score_final = mu - 0.35 * uncert` using quantile HGBR outputs.
+- Cost-aware portfolio rules: IVP + uncertainty penalty + ordered constraints + no-trade band.
+- Reports/backtests are NET of fees/taxes/slippage/fill penalties and include risk disclaimers.

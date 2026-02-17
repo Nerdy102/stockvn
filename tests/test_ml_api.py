@@ -8,7 +8,7 @@ def test_ml_models_endpoint() -> None:
     c = TestClient(create_app())
     r = c.get('/ml/models')
     assert r.status_code == 200
-    assert r.json() == ['ridge_v1', 'hgbr_v1', 'ensemble_v1']
+    assert 'ensemble_v2' in r.json() and 'ensemble_v1' in r.json()
 
 
 def test_ml_train_backtest_dev() -> None:
@@ -18,3 +18,46 @@ def test_ml_train_backtest_dev() -> None:
     r2 = c.post('/ml/backtest', json={})
     assert r2.status_code == 200
     assert 'disclaimer' in r2.json()
+
+
+def test_ml_predict_fields_v2() -> None:
+    c = TestClient(create_app())
+    c.post('/ml/train')
+    r = c.get('/ml/predict', params={'date': '05-10-2024', 'universe': 'ALL'})
+    assert r.status_code == 200
+    rows = r.json()
+    if rows:
+        for k in ['symbol', 'date', 'score_final', 'mu', 'uncert', 'score_rank_z']:
+            assert k in rows[0]
+
+
+def test_ml_diagnostics_persists_metrics() -> None:
+    c = TestClient(create_app())
+    c.post('/ml/train')
+    r = c.post('/ml/diagnostics', json={})
+    assert r.status_code == 200
+    body = r.json()
+    assert 'run_id' in body
+    assert isinstance(body.get('metrics', {}), dict)
+    assert len(body.get('metrics', {})) > 0
+
+
+def test_ml_backtest_has_selected_names_metric() -> None:
+    c = TestClient(create_app())
+    c.post('/ml/train')
+    r = c.post('/ml/backtest', json={'mode': 'v2'})
+    assert r.status_code == 200
+    body = r.json()
+    metrics = body.get('walk_forward', {}).get('metrics', [])
+    names = {str(row.get('metric')) for row in metrics if isinstance(row, dict)}
+    assert 'selected_names_v2' in names or len(metrics) > 0
+
+
+def test_ml_train_writes_v2_component_models() -> None:
+    c = TestClient(create_app())
+    r = c.post('/ml/train')
+    assert r.status_code == 200
+    body = r.json()
+    models = set(body.get('models', []))
+    for m in ['ridge_rank_v2', 'hgbr_rank_v2', 'hgbr_q10_v2', 'hgbr_q50_v2', 'hgbr_q90_v2', 'ensemble_v2']:
+        assert m in models

@@ -17,7 +17,7 @@ def test_integration_ingest_compute_train_backtest_smoke() -> None:
 
     c = TestClient(create_app())
     assert c.get("/health").status_code == 200
-    assert c.get("/ml/models").json() == ["ridge_v1", "hgbr_v1", "ensemble_v1"]
+    assert "ensemble_v2" in c.get("/ml/models").json()
     tr = c.post("/ml/train")
     assert tr.status_code == 200
     bt = c.post("/ml/backtest", json={"mode": "smoke"})
