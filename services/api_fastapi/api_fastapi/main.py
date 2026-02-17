@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from core.db.models import Ticker
 from core.db.session import create_db_and_tables, get_engine
-from core.logging import get_logger, setup_logging
+from core.logging import get_logger, request_id_context, setup_logging
 from core.settings import get_settings
 from data.providers.factory import get_provider
 from fastapi import FastAPI, Request
@@ -53,7 +53,8 @@ def create_app() -> FastAPI:
     async def add_request_id(request: Request, call_next):
         request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
         request.state.request_id = request_id
-        response = await call_next(request)
+        with request_id_context(request_id):
+            response = await call_next(request)
         response.headers["x-request-id"] = request_id
         return response
 
