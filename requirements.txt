@@ -17,3 +17,5 @@ zstandard>=0.22
 orjson>=3.10
 hypothesis>=6.112
 tenacity>=8.2
+redis>=5.0
+websockets>=12.0

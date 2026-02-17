@@ -11,11 +11,13 @@ from data.providers.factory import get_provider
 from sqlmodel import Session, select
 
 from worker_scheduler.jobs import (
+    cleanup_stream_dedup_job,
     compute_data_quality_metrics_job,
     compute_drift_metrics_job,
     compute_factor_scores,
     compute_indicators,
     compute_technical_setups,
+    consume_ssi_stream_to_bronze_silver,
     ensure_seeded,
     generate_alerts,
     ingest_prices_job,
@@ -59,9 +61,23 @@ def main() -> None:
             compute_drift_metrics_job(session)
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
+    def job_consume_stream() -> None:
+        job_log = get_logger(__name__, job_id="consume_ssi_stream")
+        with Session(engine) as session:
+            consume_ssi_stream_to_bronze_silver(session)
+        job_log.info("worker_job_completed", extra={"event": "worker_job"})
+
+    def job_cleanup_dedup() -> None:
+        job_log = get_logger(__name__, job_id="cleanup_stream_dedup")
+        with Session(engine) as session:
+            cleanup_stream_dedup_job(session)
+        job_log.info("worker_job_completed", extra={"event": "worker_job"})
+
     if args.once:
         job_ingest()
         job_compute()
+        job_consume_stream()
+        job_cleanup_dedup()
         return
 
     scheduler = BlockingScheduler(timezone="UTC")
@@ -77,6 +93,21 @@ def main() -> None:
         "interval",
         minutes=args.interval_minutes,
         id="compute_all",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_consume_stream,
+        "interval",
+        seconds=5,
+        id="consume_ssi_stream",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_cleanup_dedup,
+        "cron",
+        hour=0,
+        minute=5,
+        id="cleanup_stream_dedup",
         replace_existing=True,
     )
 
