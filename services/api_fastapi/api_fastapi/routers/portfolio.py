@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 
 from api_fastapi.deps import get_db
 from core.db.models import Portfolio, PriceOHLCV, Ticker, Trade
+from core.execution_model import load_execution_assumptions, slippage_bps
 from core.fees_taxes import FeesTaxes
 from core.portfolio.analytics import (
     brinson_attribution_mvp,
@@ -24,6 +25,7 @@ from core.portfolio.analytics import (
     suggest_rebalance,
     time_weighted_return,
 )
+from core.regime import classify_market_regime
 from core.settings import get_settings
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
@@ -111,6 +113,7 @@ def import_trades(portfolio_id: int, trades: List[TradeIn], db: Session = Depend
 def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     settings = get_settings()
     fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
+    exec_assump = load_execution_assumptions(settings.EXECUTION_MODEL_PATH)
     broker = settings.BROKER_NAME
 
     trades = db.exec(select(Trade).where(Trade.portfolio_id == portfolio_id)).all()
@@ -191,8 +194,15 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[
         sec = str(sec_map.get(sym, "Unknown"))
         unreal_by_sector[sec] = unreal_by_sector.get(sec, 0.0) + float(pos.unrealized_pnl)
 
-    # Rebalance suggestions (default rules)
-    rebalance = suggest_rebalance(positions, tick_df, cash=cash_now, rules=None)
+    vn_close = panel.get("VNINDEX", pd.Series(dtype=float)).dropna()
+    regime_series = classify_market_regime(vn_close)
+    regime_state = str(regime_series.iloc[-1]) if not regime_series.empty else "sideway"
+
+    # Rebalance suggestions (default rules + regime)
+    rebalance = suggest_rebalance(positions, tick_df, cash=cash_now, rules=None, regime_state=regime_state)
+
+    # assumptions panel payload
+    sample_slippage_bps = slippage_bps(order_notional=1_000_000_000, adtv=20_000_000_000, atr_pct=0.02, assumptions=exec_assump)
 
     return {
         "portfolio_id": portfolio_id,
@@ -212,7 +222,23 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[
             "formula_note": "market=benchmark_return; selection=selection_effect; timing_proxy=allocation+interaction (MVP).",
         },
         "rebalance_mvp": rebalance,
-        "notes": "Cost basis: Average Cost. Fees/taxes apply per configs/fees_taxes.yaml. Values are demo (synthetic).",
+        "assumptions": {
+            "fees_taxes": {
+                "commission_default": fees.default_commission_rate,
+                "sell_tax_rate": fees.sell_tax_rate,
+                "dividend_tax_rate": fees.dividend_tax_rate,
+            },
+            "execution": {
+                "base_slippage_bps": exec_assump.base_slippage_bps,
+                "k1_participation": exec_assump.k1_participation,
+                "k2_volatility": exec_assump.k2_volatility,
+                "limit_up_buy_fill_ratio": exec_assump.limit_up_buy_fill_ratio,
+                "limit_down_sell_fill_ratio": exec_assump.limit_down_sell_fill_ratio,
+                "sample_slippage_bps": sample_slippage_bps,
+            },
+            "regime": {"state": regime_state},
+        },
+        "notes": "Cost basis: Average Cost. Fees/taxes apply per configs/fees_taxes.yaml. Past performance does not guarantee future results; costs and fill assumptions materially affect outcomes.",
     }
 
 

@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from core.quant_utils import neutralize_by_group, robust_zscore
+
 
 @dataclass(frozen=True)
 class FactorOutput:
@@ -14,13 +16,13 @@ class FactorOutput:
     raw_metrics: pd.DataFrame
 
 
-def _zscore(s: pd.Series) -> pd.Series:
-    x = pd.to_numeric(s, errors="coerce").replace([np.inf, -np.inf], np.nan)
-    mu = float(x.mean())
-    sd = float(x.std(ddof=0))
-    if sd == 0.0 or np.isnan(sd):
-        return pd.Series(0.0, index=s.index)
-    return (x - mu) / sd
+def _safe_ratio(numer: pd.Series, denom: pd.Series, allow_negative_denom: bool = False) -> pd.Series:
+    n = pd.to_numeric(numer, errors="coerce")
+    d = pd.to_numeric(denom, errors="coerce")
+    d = d.where(d != 0)
+    if not allow_negative_denom:
+        d = d.where(d > 0)
+    return n / d
 
 
 def compute_factors(
@@ -28,6 +30,10 @@ def compute_factors(
     fundamentals: pd.DataFrame,
     prices: pd.DataFrame,
     benchmark_symbol: str = "VNINDEX",
+    winsor_lower_q: float = 0.01,
+    winsor_upper_q: float = 0.99,
+    sector_neutral: bool = False,
+    size_neutral: bool = False,
 ) -> FactorOutput:
     """Compute factor scores (Value/Quality/Momentum/LowVol/Dividend).
 
@@ -65,24 +71,24 @@ def compute_factors(
     uni["market_cap"] = uni["last_close"] * pd.to_numeric(uni["shares_outstanding"], errors="coerce").fillna(0.0)
 
     mc = uni["market_cap"].replace(0, np.nan)
-    ni = pd.to_numeric(uni.get("net_income_ttm_vnd"), errors="coerce").replace(0, np.nan)
-    eq = pd.to_numeric(uni.get("equity_vnd"), errors="coerce").replace(0, np.nan)
-    assets = pd.to_numeric(uni.get("total_assets_vnd"), errors="coerce").replace(0, np.nan)
+    ni = pd.to_numeric(uni.get("net_income_ttm_vnd"), errors="coerce")
+    eq = pd.to_numeric(uni.get("equity_vnd"), errors="coerce")
+    assets = pd.to_numeric(uni.get("total_assets_vnd"), errors="coerce")
 
     # Value
-    uni["PE"] = mc / ni
-    uni["PB"] = mc / eq
-    uni["EARNINGS_YIELD"] = ni / mc
+    uni["PE"] = _safe_ratio(mc, ni)  # NI<=0 -> NaN
+    uni["PB"] = _safe_ratio(mc, eq)  # equity<=0 -> NaN
+    uni["EARNINGS_YIELD"] = _safe_ratio(ni, mc)
 
     # Quality (common)
-    uni["ROE"] = ni / eq
-    uni["ROA"] = ni / assets
-    uni["CFO_TO_NI"] = pd.to_numeric(uni.get("cfo_ttm_vnd"), errors="coerce") / ni
+    uni["ROE"] = _safe_ratio(ni, eq)
+    uni["ROA"] = _safe_ratio(ni, assets)
+    uni["CFO_TO_NI"] = _safe_ratio(pd.to_numeric(uni.get("cfo_ttm_vnd"), errors="coerce"), ni, allow_negative_denom=True)
 
     # Non-fin leverage
-    uni["NET_DEBT_TO_EBITDA"] = pd.to_numeric(uni.get("net_debt_vnd"), errors="coerce") / pd.to_numeric(
-        uni.get("ebitda_ttm_vnd"), errors="coerce"
-    ).replace(0, np.nan)
+    uni["NET_DEBT_TO_EBITDA"] = _safe_ratio(
+        pd.to_numeric(uni.get("net_debt_vnd"), errors="coerce"), pd.to_numeric(uni.get("ebitda_ttm_vnd"), errors="coerce")
+    )
 
     # Bank metrics
     uni["BANK_NIM"] = pd.to_numeric(uni.get("nim"), errors="coerce")
@@ -93,7 +99,7 @@ def compute_factors(
     uni["BANK_CAR"] = pd.to_numeric(uni.get("car"), errors="coerce")
 
     # Dividend
-    uni["DIV_YIELD"] = pd.to_numeric(uni.get("dividends_ttm_vnd"), errors="coerce") / mc
+    uni["DIV_YIELD"] = _safe_ratio(pd.to_numeric(uni.get("dividends_ttm_vnd"), errors="coerce"), mc)
 
     # Momentum
     def _mom(sym: str, n: int) -> float:
@@ -115,29 +121,49 @@ def compute_factors(
     uni["VOL_120D"] = rets.rolling(120).std(ddof=0).iloc[-1].reindex(uni.index) if not rets.empty else np.nan
 
     # Scores (higher better)
-    value_score = _zscore(-uni["PE"]) + _zscore(-uni["PB"]) + _zscore(uni["EARNINGS_YIELD"])
+    rz = lambda x: robust_zscore(x, lower_q=winsor_lower_q, upper_q=winsor_upper_q)
+    value_score = rz(-uni["PE"]) + rz(-uni["PB"]) + rz(uni["EARNINGS_YIELD"])
 
     quality_non_fin = (
-        _zscore(uni["ROE"])
-        + _zscore(uni["ROA"])
-        + _zscore(uni["CFO_TO_NI"])
-        + _zscore(-uni["NET_DEBT_TO_EBITDA"])
+        rz(uni["ROE"])
+        + rz(uni["ROA"])
+        + rz(uni["CFO_TO_NI"])
+        + rz(-uni["NET_DEBT_TO_EBITDA"])
     )
 
     quality_bank = (
-        _zscore(uni["BANK_CASA"])
-        + _zscore(-uni["BANK_CIR"])
-        + _zscore(-uni["BANK_NPL"])
-        + _zscore(uni["BANK_LLR"])
-        + _zscore(uni["BANK_CAR"])
+        rz(uni["BANK_CASA"])
+        + rz(-uni["BANK_CIR"])
+        + rz(-uni["BANK_NPL"])
+        + rz(uni["BANK_LLR"])
+        + rz(uni["BANK_CAR"])
     )
 
     is_bank = pd.to_numeric(uni.get("is_bank"), errors="coerce").fillna(0).astype(int) == 1
     quality_score = quality_non_fin.where(~is_bank, other=quality_bank)
 
-    momentum_score = _zscore(uni["MOM_3M"]) + _zscore(uni["MOM_6M"]) + _zscore(uni["MOM_12M"])
-    lowvol_score = _zscore(-uni["VOL_60D"]) + _zscore(-uni["VOL_120D"])
-    dividend_score = _zscore(uni["DIV_YIELD"])
+    momentum_score = rz(uni["MOM_3M"]) + rz(uni["MOM_6M"]) + rz(uni["MOM_12M"])
+    lowvol_score = rz(-uni["VOL_60D"]) + rz(-uni["VOL_120D"])
+    dividend_score = rz(uni["DIV_YIELD"])
+
+    if sector_neutral:
+        sector = uni.get("sector", pd.Series("Unknown", index=uni.index))
+        value_score = neutralize_by_group(value_score, sector)
+        quality_score = neutralize_by_group(quality_score, sector)
+        momentum_score = neutralize_by_group(momentum_score, sector)
+        lowvol_score = neutralize_by_group(lowvol_score, sector)
+        dividend_score = neutralize_by_group(dividend_score, sector)
+
+    if size_neutral:
+        try:
+            size_bucket = pd.qcut(np.log(uni["market_cap"].replace(0, np.nan)), q=5, duplicates="drop").astype(str)
+            value_score = neutralize_by_group(value_score, size_bucket)
+            quality_score = neutralize_by_group(quality_score, size_bucket)
+            momentum_score = neutralize_by_group(momentum_score, size_bucket)
+            lowvol_score = neutralize_by_group(lowvol_score, size_bucket)
+            dividend_score = neutralize_by_group(dividend_score, size_bucket)
+        except Exception:
+            pass
 
     scores = pd.DataFrame(
         {

@@ -340,25 +340,36 @@ def suggest_rebalance(
     tickers: pd.DataFrame,
     cash: float,
     rules: Optional[Dict[str, float]] = None,
+    regime_state: str = "sideway",
 ) -> Dict[str, Any]:
-    """Simple rebalance suggestion (MVP).
+    """Risk-aware rebalance suggestion (MVP).
 
     rules:
       - target_cash_weight (default 0.10)
-      - max_single_name_weight (default 0.25)
-      - max_sector_weight (default 0.35)
-
-    Output suggests NOTIONAL adjustments (sell/buy) to meet constraints (heuristic).
+      - max_single_name_weight (default 0.10)
+      - max_sector_weight (default 0.25)
+      - board_lot (default 100)
+      - beta_cap (default 1.1)
+      - participation_limit (default 0.05)
+      - days_to_exit (default 3)
+      - min_signal_strength (default 0.0 placeholder)
     """
     rules = rules or {}
     target_cash = float(rules.get("target_cash_weight", 0.10))
-    max_name = float(rules.get("max_single_name_weight", 0.25))
-    max_sector = float(rules.get("max_sector_weight", 0.35))
+    max_name = float(rules.get("max_single_name_weight", 0.10))
+    max_sector = float(rules.get("max_sector_weight", 0.25))
+    board_lot = int(rules.get("board_lot", 100))
+    beta_cap = float(rules.get("beta_cap", 1.1))
+    participation_limit = float(rules.get("participation_limit", 0.05))
+    days_to_exit = float(rules.get("days_to_exit", 3.0))
 
     if not positions:
         return {"rules": rules, "suggestions": [], "note": "No positions."}
 
     sec_map = tickers.set_index("symbol")["sector"].to_dict()
+    beta_map = tickers.set_index("symbol").get("beta", pd.Series(dtype=float)).to_dict()
+    adtv_map = tickers.set_index("symbol").get("adtv_20d", pd.Series(dtype=float)).to_dict()
+
     mv = pd.Series({s: p.market_value for s, p in positions.items()})
     total = float(mv.sum() + cash)
     if total <= 0:
@@ -366,42 +377,93 @@ def suggest_rebalance(
     if total <= 0:
         return {"rules": rules, "suggestions": [], "note": "No market value."}
 
+    # Regime overlay: risk-off => higher cash buffer
+    if regime_state == "risk_off":
+        target_cash = max(target_cash, 0.2)
+
     w_name = mv / total
-    # sector weights
     w_sector = w_name.groupby(w_name.index.map(lambda s: sec_map.get(s, "Unknown"))).sum()
 
     suggestions: List[Dict[str, Any]] = []
-
-    # Ensure cash target by raising cash via sells if needed
     cash_w = float(cash / total)
     need_cash = max(0.0, target_cash - cash_w) * total
 
-    # Step 1: Reduce overweight names
+    def _notional_to_qty(sym: str, notional: float) -> float:
+        px = float(positions[sym].market_price or 0.0)
+        if px <= 0:
+            return 0.0
+        q = int(notional / px)
+        return float((q // board_lot) * board_lot)
+
+    # Step 1: Reduce overweight names (survival-first)
     for sym, wt in w_name.sort_values(ascending=False).items():
         if wt > max_name:
             excess = (wt - max_name) * total
-            suggestions.append({"action": "SELL", "symbol": sym, "notional_vnd": float(excess), "reason": "max_single_name_weight"})
+            qty = _notional_to_qty(sym, excess)
+            if qty <= 0:
+                continue
+            notional = qty * float(positions[sym].market_price)
+            adtv = float(adtv_map.get(sym, 0.0) or 0.0)
+            liq_cap = adtv * participation_limit * days_to_exit if adtv > 0 else notional
+            notional = min(notional, liq_cap)
+            suggestions.append({
+                "action": "SELL", "symbol": sym, "quantity": qty, "notional_vnd": float(notional),
+                "reason": "max_single_name_weight", "odd_lot_flag": bool(qty % board_lot != 0),
+            })
 
     # Step 2: Reduce overweight sectors
     for sec, wt in w_sector.sort_values(ascending=False).items():
         if wt > max_sector:
             excess = (wt - max_sector) * total
-            # sell proportionally from symbols in that sector
             syms = [s for s in w_name.index if sec_map.get(s, "Unknown") == sec]
-            for s in syms:
-                part = float(w_name[s] / wt) if wt > 0 else 0.0
-                suggestions.append({"action": "SELL", "symbol": s, "notional_vnd": float(excess * part), "reason": "max_sector_weight"})
+            for s_ in syms:
+                part = float(w_name[s_] / wt) if wt > 0 else 0.0
+                target_notional = excess * part
+                qty = _notional_to_qty(s_, target_notional)
+                if qty <= 0:
+                    continue
+                suggestions.append({
+                    "action": "SELL", "symbol": s_, "quantity": qty,
+                    "notional_vnd": float(qty * positions[s_].market_price), "reason": "max_sector_weight",
+                    "odd_lot_flag": bool(qty % board_lot != 0),
+                })
 
-    # Step 3: If need cash, raise from largest weights not already suggested
+    # Step 3: Raise cash if needed
     if need_cash > 0:
         for sym, wt in w_name.sort_values(ascending=False).items():
             if need_cash <= 0:
                 break
             take = min(need_cash, float(wt * total * 0.25))
-            if take <= 0:
+            qty = _notional_to_qty(sym, take)
+            if qty <= 0:
                 continue
-            suggestions.append({"action": "SELL", "symbol": sym, "notional_vnd": float(take), "reason": "target_cash_weight"})
-            need_cash -= take
+            notional = float(qty * positions[sym].market_price)
+            suggestions.append({
+                "action": "SELL", "symbol": sym, "quantity": qty, "notional_vnd": notional,
+                "reason": "target_cash_weight", "odd_lot_flag": bool(qty % board_lot != 0),
+            })
+            need_cash -= notional
 
-    note = "Heuristic suggestions by notional. Convert to quantity using current price & tick/lot rules."
-    return {"rules": {"target_cash_weight": target_cash, "max_single_name_weight": max_name, "max_sector_weight": max_sector}, "suggestions": suggestions, "note": note}
+    # Beta cap diagnostic (portfolio-level)
+    w = (mv / mv.sum()) if mv.sum() > 0 else pd.Series(dtype=float)
+    port_beta = float(sum(float(w.get(sym, 0.0)) * float(beta_map.get(sym, 1.0) or 1.0) for sym in w.index)) if not w.empty else 0.0
+
+    note = "Heuristic suggestions include board-lot rounding, liquidity caps, cash buffer and risk overlay."
+    return {
+        "rules": {
+            "target_cash_weight": target_cash,
+            "max_single_name_weight": max_name,
+            "max_sector_weight": max_sector,
+            "board_lot": board_lot,
+            "beta_cap": beta_cap,
+            "participation_limit": participation_limit,
+            "days_to_exit": days_to_exit,
+        },
+        "diagnostics": {
+            "regime_state": regime_state,
+            "portfolio_beta_est": port_beta,
+            "beta_cap_breached": bool(port_beta > beta_cap),
+        },
+        "suggestions": suggestions,
+        "note": note,
+    }

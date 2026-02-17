@@ -97,6 +97,10 @@ if st.button("Refresh summary"):
     st.subheader("Risk & Return (MVP)")
     st.json({"risk": s.get("risk"), "twr": s.get("twr")})
 
+
+    st.subheader("Assumptions")
+    st.json(s.get("assumptions", {}))
+
     st.subheader("Correlation matrix (holdings)")
     corr = s.get("correlation_matrix", {})
     if corr:
