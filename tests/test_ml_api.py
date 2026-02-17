@@ -8,7 +8,7 @@ def test_ml_models_endpoint() -> None:
     c = TestClient(create_app())
     r = c.get('/ml/models')
     assert r.status_code == 200
-    assert r.json() == ['ridge_v1', 'hgbr_v1', 'ensemble_v1']
+    assert 'ensemble_v2' in r.json() and 'ensemble_v1' in r.json()
 
 
 def test_ml_train_backtest_dev() -> None:

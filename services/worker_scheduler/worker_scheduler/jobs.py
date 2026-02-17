@@ -607,3 +607,27 @@ def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
     session.add(run)
     session.commit()
     return metrics
+
+
+def compute_daily_flow_features(session: Session) -> int:
+    return 0
+
+
+def compute_daily_orderbook_features(session: Session) -> int:
+    return 0
+
+
+def compute_intraday_daily_features(session: Session) -> int:
+    return 0
+
+
+def compute_ml_labels_rank_z(session: Session) -> int:
+    return 0
+
+
+def train_models_v2(session: Session) -> int:
+    return 0
+
+
+def run_diagnostics_v2(session: Session) -> int:
+    return 0
