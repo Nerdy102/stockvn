@@ -15,11 +15,14 @@ router = APIRouter(tags=["tickers"])
 def list_tickers(
     exchange: Optional[str] = Query(default=None),
     sector: Optional[str] = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> List[Ticker]:
     q = select(Ticker)
     if exchange:
-        q = q.where(Ticker.exchange == exchange)
+        q = q.where(Ticker.exchange == exchange.upper())
     if sector:
         q = q.where(Ticker.sector == sector)
+    q = q.order_by(Ticker.symbol).offset(offset).limit(limit)
     return list(db.exec(q).all())

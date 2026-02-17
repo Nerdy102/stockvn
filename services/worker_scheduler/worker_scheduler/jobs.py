@@ -15,17 +15,19 @@ from core.db.models import (
     AlertRule,
     FactorScore,
     Fundamental,
+    IndicatorState,
     IndicatorValue,
     PriceOHLCV,
     Signal,
     Ticker,
 )
 from core.factors import compute_factors
-from core.indicators import add_indicators
+from core.indicators import RSIState, add_indicators, ema_incremental, rsi_incremental
 from core.signals.dsl import evaluate
 from core.settings import Settings
 from core.technical import detect_breakout, detect_pullback, detect_trend, detect_volume_spike
 from data.etl.ingest import ingest_fundamentals, ingest_prices, ingest_tickers
+from data.etl.pipeline import ingest_from_fixtures
 from data.providers.base import BaseMarketDataProvider
 
 log = logging.getLogger(__name__)
@@ -354,3 +356,59 @@ def generate_alerts(session: Session) -> None:
                 )
     session.commit()
     log.info("Alerts generated (MVP).")
+
+
+
+def ingest_ssi_fixtures_job(session: Session) -> dict[str, int]:
+    """Offline ingest for SSI fixtures with bronze/silver/checkpoint."""
+    return ingest_from_fixtures(session)
+
+
+def compute_indicators_incremental(session: Session, timeframe: str = "1D") -> int:
+    """Incremental EMA20 + RSI14 updates; only processes rows newer than saved state."""
+    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == timeframe).order_by(PriceOHLCV.symbol, PriceOHLCV.timestamp)).all()
+    if not prices:
+        return 0
+    df = pd.DataFrame([p.model_dump() for p in prices])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    updates = 0
+
+    for sym, g in df.groupby("symbol"):
+        ema_state_row = session.get(IndicatorState, (sym, timeframe, "EMA20"))
+        rsi_state_row = session.get(IndicatorState, (sym, timeframe, "RSI14"))
+
+        ema_prev = float(ema_state_row.state_json.get("ema")) if ema_state_row and "ema" in ema_state_row.state_json else None
+        ema_last_ts = pd.to_datetime(ema_state_row.state_json.get("last_ts")) if ema_state_row and ema_state_row.state_json.get("last_ts") else None
+
+        rsi_state = RSIState()
+        rsi_last_ts = None
+        if rsi_state_row:
+            payload = rsi_state_row.state_json
+            rsi_state = RSIState(
+                avg_gain=float(payload.get("avg_gain", 0.0)),
+                avg_loss=float(payload.get("avg_loss", 0.0)),
+                prev_close=float(payload.get("prev_close")) if payload.get("prev_close") is not None else None,
+                warmup_count=int(payload.get("warmup_count", 0)),
+            )
+            rsi_last_ts = pd.to_datetime(payload.get("last_ts")) if payload.get("last_ts") else None
+
+        for _, row in g.sort_values("timestamp").iterrows():
+            ts = pd.to_datetime(row["timestamp"])
+            if ema_last_ts is not None and ts <= ema_last_ts and rsi_last_ts is not None and ts <= rsi_last_ts:
+                continue
+
+            ema_prev = ema_incremental(float(row["close"]), ema_prev, span=20)
+            rsi_val, rsi_state = rsi_incremental(float(row["close"]), rsi_state, window=14)
+
+            session.merge(IndicatorValue(symbol=sym, timeframe=timeframe, timestamp=ts.to_pydatetime(), name="EMA20_INC", value=float(ema_prev)))
+            session.merge(IndicatorValue(symbol=sym, timeframe=timeframe, timestamp=ts.to_pydatetime(), name="RSI14_INC", value=float(rsi_val)))
+            updates += 1
+
+            ema_last_ts = ts
+            rsi_last_ts = ts
+
+        session.merge(IndicatorState(symbol=sym, timeframe=timeframe, indicator_name="EMA20", state_json={"ema": ema_prev, "last_ts": ema_last_ts.isoformat() if ema_last_ts is not None else None}))
+        session.merge(IndicatorState(symbol=sym, timeframe=timeframe, indicator_name="RSI14", state_json={"avg_gain": rsi_state.avg_gain, "avg_loss": rsi_state.avg_loss, "prev_close": rsi_state.prev_close, "warmup_count": rsi_state.warmup_count, "last_ts": rsi_last_ts.isoformat() if rsi_last_ts is not None else None}))
+
+    session.commit()
+    return updates

@@ -24,6 +24,18 @@ class Settings(BaseSettings):
 
     API_BASE_URL: str = Field(default="http://localhost:8000")
 
+    SSI_CONSUMER_ID: str = Field(default="")
+    SSI_CONSUMER_SECRET: str = Field(default="")
+    SSI_PRIVATE_KEY_PATH: str = Field(default="")
+
+    INGEST_BATCH_SIZE: int = Field(default=500)
+    INGEST_ERROR_KILL_SWITCH_THRESHOLD: int = Field(default=100)
+    INGEST_SCHEMA_DRIFT_KILL_SWITCH_THRESHOLD: int = Field(default=200)
+
+    API_DEFAULT_LIMIT: int = Field(default=200)
+    API_MAX_LIMIT: int = Field(default=2000)
+    API_DEFAULT_DAYS: int = Field(default=365)
+
 
 def get_settings() -> Settings:
     return Settings()
