@@ -1,0 +1,1 @@
+"""SSI stream ingestor service."""

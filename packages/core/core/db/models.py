@@ -359,6 +359,20 @@ class LastProcessed(SQLModel, table=True):
     updated_at: dt.datetime = Field(default_factory=utcnow)
 
 
+class StreamDedup(SQLModel, table=True):
+    __tablename__ = "stream_dedup"
+    __table_args__ = (
+        Index("ux_stream_dedup_provider_rtype_hash", "provider", "rtype", "payload_hash", unique=True),
+        Index("ix_stream_dedup_first_seen_at", "first_seen_at"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    provider: str = Field(index=True)
+    rtype: str = Field(index=True)
+    payload_hash: str = Field(index=True)
+    first_seen_at: dt.datetime = Field(default_factory=utcnow)
+
+
 class MlFeature(SQLModel, table=True):
     __tablename__ = "ml_features"
     __table_args__ = (

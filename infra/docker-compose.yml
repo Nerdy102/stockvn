@@ -1,6 +1,11 @@
 version: "3.9"
 
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -16,10 +21,11 @@ services:
     build:
       context: ..
       dockerfile: infra/Dockerfile
-    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps python -m uvicorn api_fastapi.main:app --host 0.0.0.0 --port 8000"]
+    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m uvicorn api_fastapi.main:app --host 0.0.0.0 --port 8000"]
     environment:
-      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps"
+      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps"
       DATABASE_URL: postgresql+psycopg2://vninv:vninv@postgres:5432/vninv
+      REDIS_URL: redis://redis:6379/0
       DATA_PROVIDER: csv
       DEMO_DATA_DIR: /app/data_demo
       MARKET_RULES_PATH: /app/configs/market_rules_vn.yaml
@@ -29,15 +35,17 @@ services:
       - "8000:8000"
     depends_on:
       - postgres
+      - redis
 
   worker:
     build:
       context: ..
       dockerfile: infra/Dockerfile
-    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps python -m worker_scheduler.main --interval-minutes 15"]
+    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m worker_scheduler.main --interval-minutes 15"]
     environment:
-      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps"
+      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps"
       DATABASE_URL: postgresql+psycopg2://vninv:vninv@postgres:5432/vninv
+      REDIS_URL: redis://redis:6379/0
       DATA_PROVIDER: csv
       DEMO_DATA_DIR: /app/data_demo
       MARKET_RULES_PATH: /app/configs/market_rules_vn.yaml
@@ -45,14 +53,29 @@ services:
       BROKER_NAME: demo_broker
     depends_on:
       - postgres
+      - redis
+
+  stream_ingestor:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m stream_ingestor.main"]
+    environment:
+      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps"
+      DATABASE_URL: postgresql+psycopg2://vninv:vninv@postgres:5432/vninv
+      REDIS_URL: redis://redis:6379/0
+      SSI_STREAM_SUBSCRIBE_UNIVERSE: VN30,VNINDEX
+    depends_on:
+      - postgres
+      - redis
 
   dashboard:
     build:
       context: ..
       dockerfile: infra/Dockerfile
-    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps python -m streamlit run apps/dashboard_streamlit/app.py --server.port 8501 --server.address 0.0.0.0"]
+    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m streamlit run apps/dashboard_streamlit/app.py --server.port 8501 --server.address 0.0.0.0"]
     environment:
-      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps"
+      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps"
       API_BASE_URL: http://api:8000
     ports:
       - "8501:8501"

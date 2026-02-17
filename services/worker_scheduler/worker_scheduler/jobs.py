@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import math
+import os
 from pathlib import Path
 from typing import Any
 
@@ -33,9 +35,17 @@ from core.technical import detect_breakout, detect_pullback, detect_trend, detec
 from data.etl.ingest import ingest_fundamentals, ingest_prices, ingest_tickers
 from data.etl.pipeline import ingest_from_fixtures
 from data.providers.base import BaseMarketDataProvider
+from data.providers.ssi_fastconnect.mapper_stream import map_stream_payload
+from data.repository.ssi_stream_ingest import SsiStreamIngestRepository
 from sqlmodel import Session, select
 
 log = get_logger(__name__)
+
+def _create_redis_client(redis_url: str):
+    from redis import Redis
+
+    return Redis.from_url(redis_url, decode_responses=True)
+
 
 
 def _safe_float(x: Any, default: float = 0.0) -> float:
@@ -410,6 +420,86 @@ def ingest_ssi_fixtures_job(session: Session) -> dict[str, int]:
     return ingest_from_fixtures(session)
 
 
+def cleanup_stream_dedup_job(session: Session) -> int:
+    repo = SsiStreamIngestRepository(session)
+    deleted = repo.cleanup_dedup_older_than_days(days=14)
+    repo.commit()
+    return deleted
+
+
+def consume_ssi_stream_to_bronze_silver(session: Session) -> dict[str, int]:
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    consumer_name = os.getenv("SSI_STREAM_CONSUMER", "worker-1")
+    stream_keys = [f"ssi:{name}" for name in ["X", "X-QUOTE", "X-TRADE", "R", "MI", "B", "F", "OL"]]
+    redis_client = _create_redis_client(redis_url)
+
+    for stream_key in stream_keys:
+        try:
+            redis_client.xgroup_create(stream_key, "silver_writer", id="0", mkstream=True)
+        except Exception as exc:
+            if "BUSYGROUP" not in str(exc):
+                raise
+
+    repo = SsiStreamIngestRepository(session)
+    rows = redis_client.xreadgroup(
+        groupname="silver_writer",
+        consumername=consumer_name,
+        streams={k: ">" for k in stream_keys},
+        count=500,
+        block=500,
+    )
+
+    processed = 0
+    skipped = 0
+    acked = 0
+    seen_hashes: set[tuple[str, str]] = set()
+
+    for stream_key, messages in rows:
+        for msg_id, fields in messages:
+            payload_raw = str(fields.get("payload") or "{}")
+            rtype = str(fields.get("rtype") or stream_key.split(":", 1)[-1])
+            channel = f"ssi_stream_{rtype}"
+            payload_hash = repo.payload_hash(payload_raw)
+
+            if (rtype, payload_hash) in seen_hashes or repo.is_duplicate("ssi_stream", rtype, payload_hash):
+                redis_client.xack(stream_key, "silver_writer", msg_id)
+                skipped += 1
+                acked += 1
+                continue
+
+            try:
+                payload_obj = json.loads(payload_raw)
+                mapped_rtype, mapped_items = map_stream_payload(payload_obj)
+                repo.append_bronze(
+                    channel=channel,
+                    payload_hash=payload_hash,
+                    payload=payload_raw,
+                    rtype=mapped_rtype,
+                )
+                for kind, item in mapped_items:
+                    if kind == "quote":
+                        repo.upsert_quote(item)
+                    elif kind == "trade":
+                        repo.upsert_trade(item)
+                    elif kind == "foreign_room":
+                        repo.upsert_foreign_room(item)
+                    elif kind == "index":
+                        repo.upsert_index(item)
+                    elif kind == "bar":
+                        repo.upsert_bar(item)
+                repo.mark_dedup("ssi_stream", rtype, payload_hash)
+                repo.commit()
+                seen_hashes.add((rtype, payload_hash))
+                redis_client.xack(stream_key, "silver_writer", msg_id)
+                acked += 1
+                processed += 1
+            except Exception:
+                session.rollback()
+                raise
+
+    return {"processed": processed, "skipped": skipped, "acked": acked}
+
+
 def compute_indicators_incremental(session: Session, timeframe: str = "1D") -> int:
     """Incremental EMA20 + RSI14 updates; only processes rows newer than saved state."""
     prices = session.exec(
@@ -747,8 +837,7 @@ def compute_ml_labels_rank_z(session: Session) -> int:
 
 
 def train_models_v2(session: Session) -> int:
-    from core.db.models import MlPrediction
-    from core.db.models import ForeignRoom, QuoteL2
+    from core.db.models import ForeignRoom, MlPrediction, QuoteL2
     from core.ml.features import build_ml_features, feature_columns
     from core.ml.features_v2 import build_features_v2
     from core.ml.models_v2 import MlModelV2Bundle
@@ -813,8 +902,7 @@ def train_models_v2(session: Session) -> int:
 
 
 def run_diagnostics_v2(session: Session) -> int:
-    from core.db.models import DiagnosticsMetric, DiagnosticsRun, MlPrediction
-    from core.db.models import ForeignRoom, QuoteL2
+    from core.db.models import DiagnosticsMetric, DiagnosticsRun, ForeignRoom, MlPrediction, QuoteL2
     from core.ml.diagnostics import run_diagnostics
     from core.ml.features import build_ml_features
     from core.ml.features_v2 import build_features_v2
