@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -23,10 +22,10 @@ class Position:
 
 def compute_positions_avg_cost(
     trades: pd.DataFrame,
-    latest_prices: Dict[str, float],
+    latest_prices: dict[str, float],
     fees_taxes: FeesTaxes,
     broker_name: str = "demo_broker",
-) -> Tuple[Dict[str, Position], pd.DataFrame]:
+) -> tuple[dict[str, Position], pd.DataFrame]:
     """Average cost basis positions + realized P&L.
 
     FIXED: SELL clamp quantity *before* notional/commission/tax to avoid fee/tax on wrong qty.
@@ -35,10 +34,14 @@ def compute_positions_avg_cost(
     t["trade_date"] = pd.to_datetime(t["trade_date"]).dt.date
     t["side"] = t["side"].astype(str).str.upper()
     t["strategy_tag"] = t.get("strategy_tag", "").astype(str)
-    t = t.sort_values(["trade_date", "id"], na_position="last") if "id" in t.columns else t.sort_values(["trade_date"])
+    t = (
+        t.sort_values(["trade_date", "id"], na_position="last")
+        if "id" in t.columns
+        else t.sort_values(["trade_date"])
+    )
 
-    state: Dict[str, Dict[str, float]] = {}
-    realized_rows: List[Dict[str, Any]] = []
+    state: dict[str, dict[str, float]] = {}
+    realized_rows: list[dict[str, Any]] = []
 
     for _, row in t.iterrows():
         sym = str(row["symbol"])
@@ -93,7 +96,7 @@ def compute_positions_avg_cost(
         else:
             raise ValueError(f"Unknown side: {side}")
 
-    positions: Dict[str, Position] = {}
+    positions: dict[str, Position] = {}
     for sym, st in state.items():
         qty = float(st["qty"])
         if qty <= 0:
@@ -120,7 +123,7 @@ def _simulate_cash_holdings(
     cash_start: float,
     fees_taxes: FeesTaxes,
     broker_name: str,
-) -> Tuple[pd.Series, pd.DataFrame]:
+) -> tuple[pd.Series, pd.DataFrame]:
     """Simulate daily cash & holdings (units) across price_panel.index.
 
     FIXED: SELL clamp before notional/fees/taxes.
@@ -128,15 +131,19 @@ def _simulate_cash_holdings(
     t = trades.copy()
     t["trade_date"] = pd.to_datetime(t["trade_date"]).dt.date
     t["side"] = t["side"].astype(str).str.upper()
-    t = t.sort_values(["trade_date", "id"], na_position="last") if "id" in t.columns else t.sort_values(["trade_date"])
+    t = (
+        t.sort_values(["trade_date", "id"], na_position="last")
+        if "id" in t.columns
+        else t.sort_values(["trade_date"])
+    )
 
     dates = list(price_panel.index)
-    holdings: Dict[str, float] = {c: 0.0 for c in price_panel.columns}
+    holdings: dict[str, float] = {c: 0.0 for c in price_panel.columns}
     cash = float(cash_start)
-    cash_series: List[float] = []
-    hold_rows: List[Dict[str, float]] = []
+    cash_series: list[float] = []
+    hold_rows: list[dict[str, float]] = []
 
-    by_date: Dict[Any, pd.DataFrame] = {d: df for d, df in t.groupby("trade_date")}
+    by_date: dict[Any, pd.DataFrame] = {d: df for d, df in t.groupby("trade_date")}
 
     for d in dates:
         if d in by_date:
@@ -174,17 +181,23 @@ def _simulate_cash_holdings(
     return cash_s, hold_df
 
 
-def infer_start_cash(trades: pd.DataFrame, fees_taxes: FeesTaxes, broker_name: str = "demo_broker") -> float:
+def infer_start_cash(
+    trades: pd.DataFrame, fees_taxes: FeesTaxes, broker_name: str = "demo_broker"
+) -> float:
     """Infer a non-negative starting cash so that cash does not go negative (MVP helper)."""
     t = trades.copy()
     if t.empty:
         return 0.0
     t["trade_date"] = pd.to_datetime(t["trade_date"]).dt.date
     t["side"] = t["side"].astype(str).str.upper()
-    t = t.sort_values(["trade_date", "id"], na_position="last") if "id" in t.columns else t.sort_values(["trade_date"])
+    t = (
+        t.sort_values(["trade_date", "id"], na_position="last")
+        if "id" in t.columns
+        else t.sort_values(["trade_date"])
+    )
     cash = 0.0
     min_cash = 0.0
-    positions: Dict[str, float] = {}
+    positions: dict[str, float] = {}
     for _, r in t.iterrows():
         sym = str(r["symbol"])
         side = str(r["side"])
@@ -219,9 +232,11 @@ def compute_portfolio_value_series(
     cash_start: float,
     fees_taxes: FeesTaxes,
     broker_name: str = "demo_broker",
-) -> Tuple[pd.Series, pd.Series]:
+) -> tuple[pd.Series, pd.Series]:
     """Daily portfolio value series (MVP). Returns (value_series, cash_series)."""
-    cash_s, hold_df = _simulate_cash_holdings(trades, price_panel, cash_start, fees_taxes, broker_name)
+    cash_s, hold_df = _simulate_cash_holdings(
+        trades, price_panel, cash_start, fees_taxes, broker_name
+    )
     mv = (hold_df * price_panel).sum(axis=1)
     val = (cash_s + mv).rename("portfolio_value")
     return val, cash_s
@@ -234,7 +249,9 @@ def time_weighted_return(value_series: pd.Series) -> float:
     return float(v.iloc[-1] / v.iloc[0] - 1.0)
 
 
-def portfolio_risk_summary(portfolio_values: pd.Series, benchmark_close: pd.Series) -> Dict[str, float]:
+def portfolio_risk_summary(
+    portfolio_values: pd.Series, benchmark_close: pd.Series
+) -> dict[str, float]:
     pv = portfolio_values.dropna()
     if len(pv) < 10:
         return {"volatility": 0.0, "max_drawdown": 0.0, "beta": 0.0, "var_95": 0.0}
@@ -248,7 +265,7 @@ def portfolio_risk_summary(portfolio_values: pd.Series, benchmark_close: pd.Seri
     }
 
 
-def exposure_by_sector(positions: Dict[str, Position], tickers: pd.DataFrame) -> Dict[str, float]:
+def exposure_by_sector(positions: dict[str, Position], tickers: pd.DataFrame) -> dict[str, float]:
     """Exposure by sector based on current market value."""
     if not positions:
         return {}
@@ -256,14 +273,14 @@ def exposure_by_sector(positions: Dict[str, Position], tickers: pd.DataFrame) ->
     if total <= 0:
         return {}
     sec_map = tickers.set_index("symbol")["sector"].to_dict()
-    out: Dict[str, float] = {}
+    out: dict[str, float] = {}
     for sym, pos in positions.items():
         sec = str(sec_map.get(sym, "Unknown"))
         out[sec] = out.get(sec, 0.0) + (pos.market_value / total)
     return dict(sorted(out.items(), key=lambda x: x[1], reverse=True))
 
 
-def concentration_metrics(positions: Dict[str, Position]) -> Dict[str, Any]:
+def concentration_metrics(positions: dict[str, Position]) -> dict[str, Any]:
     if not positions:
         return {"top_weights": [], "hhi": 0.0}
     mv = pd.Series({k: v.market_value for k, v in positions.items()})
@@ -273,10 +290,13 @@ def concentration_metrics(positions: Dict[str, Position]) -> Dict[str, Any]:
     w = mv / total
     top = w.sort_values(ascending=False).head(5)
     hhi = float((w**2).sum())
-    return {"top_weights": [{"symbol": s, "weight": float(wt)} for s, wt in top.items()], "hhi": hhi}
+    return {
+        "top_weights": [{"symbol": s, "weight": float(wt)} for s, wt in top.items()],
+        "hhi": hhi,
+    }
 
 
-def realized_pnl_breakdown(realized: pd.DataFrame) -> Dict[str, Any]:
+def realized_pnl_breakdown(realized: pd.DataFrame) -> dict[str, Any]:
     if realized.empty:
         return {"by_day": [], "by_strategy": []}
     r = realized.copy()
@@ -285,7 +305,9 @@ def realized_pnl_breakdown(realized: pd.DataFrame) -> Dict[str, Any]:
     by_strat = r.groupby("strategy_tag")["realized_pnl"].sum().sort_values(ascending=False)
     return {
         "by_day": [{"trade_date": str(k), "realized_pnl": float(v)} for k, v in by_day.items()],
-        "by_strategy": [{"strategy_tag": str(k), "realized_pnl": float(v)} for k, v in by_strat.items()],
+        "by_strategy": [
+            {"strategy_tag": str(k), "realized_pnl": float(v)} for k, v in by_strat.items()
+        ],
     }
 
 
@@ -302,7 +324,7 @@ def brinson_attribution_mvp(
     r_port: pd.Series,
     w_bench: pd.Series,
     r_bench: pd.Series,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Brinson-style attribution (MVP).
 
     - Allocation effect: Σ (Wp - Wb) * (Rb - Rb_total)
@@ -314,7 +336,9 @@ def brinson_attribution_mvp(
     - selection ~ selection effect
     - timing_proxy ~ allocation + interaction (MVP proxy)
     """
-    sectors = sorted(set(w_port.index) | set(w_bench.index) | set(r_port.index) | set(r_bench.index))
+    sectors = sorted(
+        set(w_port.index) | set(w_bench.index) | set(r_port.index) | set(r_bench.index)
+    )
     w_p = w_port.reindex(sectors).fillna(0.0)
     w_b = w_bench.reindex(sectors).fillna(0.0)
     r_p = r_port.reindex(sectors).fillna(0.0)
@@ -336,12 +360,12 @@ def brinson_attribution_mvp(
 
 
 def suggest_rebalance(
-    positions: Dict[str, Position],
+    positions: dict[str, Position],
     tickers: pd.DataFrame,
     cash: float,
-    rules: Optional[Dict[str, float]] = None,
+    rules: dict[str, float] | None = None,
     regime_state: str = "sideway",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Risk-aware rebalance suggestion (MVP).
 
     rules:
@@ -384,7 +408,7 @@ def suggest_rebalance(
     w_name = mv / total
     w_sector = w_name.groupby(w_name.index.map(lambda s: sec_map.get(s, "Unknown"))).sum()
 
-    suggestions: List[Dict[str, Any]] = []
+    suggestions: list[dict[str, Any]] = []
     cash_w = float(cash / total)
     need_cash = max(0.0, target_cash - cash_w) * total
 
@@ -406,10 +430,16 @@ def suggest_rebalance(
             adtv = float(adtv_map.get(sym, 0.0) or 0.0)
             liq_cap = adtv * participation_limit * days_to_exit if adtv > 0 else notional
             notional = min(notional, liq_cap)
-            suggestions.append({
-                "action": "SELL", "symbol": sym, "quantity": qty, "notional_vnd": float(notional),
-                "reason": "max_single_name_weight", "odd_lot_flag": bool(qty % board_lot != 0),
-            })
+            suggestions.append(
+                {
+                    "action": "SELL",
+                    "symbol": sym,
+                    "quantity": qty,
+                    "notional_vnd": float(notional),
+                    "reason": "max_single_name_weight",
+                    "odd_lot_flag": bool(qty % board_lot != 0),
+                }
+            )
 
     # Step 2: Reduce overweight sectors
     for sec, wt in w_sector.sort_values(ascending=False).items():
@@ -422,11 +452,16 @@ def suggest_rebalance(
                 qty = _notional_to_qty(s_, target_notional)
                 if qty <= 0:
                     continue
-                suggestions.append({
-                    "action": "SELL", "symbol": s_, "quantity": qty,
-                    "notional_vnd": float(qty * positions[s_].market_price), "reason": "max_sector_weight",
-                    "odd_lot_flag": bool(qty % board_lot != 0),
-                })
+                suggestions.append(
+                    {
+                        "action": "SELL",
+                        "symbol": s_,
+                        "quantity": qty,
+                        "notional_vnd": float(qty * positions[s_].market_price),
+                        "reason": "max_sector_weight",
+                        "odd_lot_flag": bool(qty % board_lot != 0),
+                    }
+                )
 
     # Step 3: Raise cash if needed
     if need_cash > 0:
@@ -438,15 +473,25 @@ def suggest_rebalance(
             if qty <= 0:
                 continue
             notional = float(qty * positions[sym].market_price)
-            suggestions.append({
-                "action": "SELL", "symbol": sym, "quantity": qty, "notional_vnd": notional,
-                "reason": "target_cash_weight", "odd_lot_flag": bool(qty % board_lot != 0),
-            })
+            suggestions.append(
+                {
+                    "action": "SELL",
+                    "symbol": sym,
+                    "quantity": qty,
+                    "notional_vnd": notional,
+                    "reason": "target_cash_weight",
+                    "odd_lot_flag": bool(qty % board_lot != 0),
+                }
+            )
             need_cash -= notional
 
     # Beta cap diagnostic (portfolio-level)
     w = (mv / mv.sum()) if mv.sum() > 0 else pd.Series(dtype=float)
-    port_beta = float(sum(float(w.get(sym, 0.0)) * float(beta_map.get(sym, 1.0) or 1.0) for sym in w.index)) if not w.empty else 0.0
+    port_beta = (
+        float(sum(float(w.get(sym, 0.0)) * float(beta_map.get(sym, 1.0) or 1.0) for sym in w.index))
+        if not w.empty
+        else 0.0
+    )
 
     note = "Heuristic suggestions include board-lot rounding, liquidity caps, cash buffer and risk overlay."
     return {

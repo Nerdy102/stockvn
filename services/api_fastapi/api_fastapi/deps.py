@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Generator
-
-from fastapi import Depends
-from sqlmodel import Session
+from collections.abc import Generator
 
 from core.db.session import get_engine
 from core.settings import Settings, get_settings
+from fastapi import Depends
+from sqlmodel import Session
 
 
 def get_db(settings: Settings = Depends(get_settings)) -> Generator[Session, None, None]:

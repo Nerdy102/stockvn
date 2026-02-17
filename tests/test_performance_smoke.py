@@ -3,9 +3,8 @@ from __future__ import annotations
 import datetime as dt
 import time
 
-from sqlmodel import Session, SQLModel, create_engine
-
 from core.db.models import PriceOHLCV
+from sqlmodel import Session, SQLModel, create_engine
 from worker_scheduler.jobs import compute_indicators_incremental
 
 

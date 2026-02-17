@@ -1,17 +1,35 @@
 from __future__ import annotations
 
 import pandas as pd
-
 from core.fees_taxes import FeesTaxes
 from core.portfolio.analytics import compute_positions_avg_cost
 
 
 def test_sell_clamp_fee_tax() -> None:
-    fees = FeesTaxes(sell_tax_rate=0.001, dividend_tax_rate=0.05, default_commission_rate=0.0015, broker_commission={})
+    fees = FeesTaxes(
+        sell_tax_rate=0.001,
+        dividend_tax_rate=0.05,
+        default_commission_rate=0.0015,
+        broker_commission={},
+    )
     trades = pd.DataFrame(
         [
-            {"trade_date": "2025-01-01", "symbol": "AAA", "side": "BUY", "quantity": 100, "price": 10000, "strategy_tag": "x"},
-            {"trade_date": "2025-01-02", "symbol": "AAA", "side": "SELL", "quantity": 200, "price": 11000, "strategy_tag": "x"},
+            {
+                "trade_date": "2025-01-01",
+                "symbol": "AAA",
+                "side": "BUY",
+                "quantity": 100,
+                "price": 10000,
+                "strategy_tag": "x",
+            },
+            {
+                "trade_date": "2025-01-02",
+                "symbol": "AAA",
+                "side": "SELL",
+                "quantity": 200,
+                "price": 11000,
+                "strategy_tag": "x",
+            },
         ]
     )
     latest = {"AAA": 11000}

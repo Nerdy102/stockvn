@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-from sqlmodel import Session, select
-
-from api_fastapi.deps import get_db
 from core.db.models import Portfolio, PriceOHLCV, Ticker, Trade
 from core.execution_model import load_execution_assumptions, slippage_bps
 from core.fees_taxes import FeesTaxes
@@ -27,6 +22,11 @@ from core.portfolio.analytics import (
 )
 from core.regime import classify_market_regime
 from core.settings import get_settings
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlmodel import Session, select
+
+from api_fastapi.deps import get_db
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
@@ -52,7 +52,7 @@ class RebalanceRules(BaseModel):
 
 
 @router.get("", response_model=list[Portfolio])
-def list_portfolios(db: Session = Depends(get_db)) -> List[Portfolio]:
+def list_portfolios(db: Session = Depends(get_db)) -> list[Portfolio]:
     return list(db.exec(select(Portfolio)).all())
 
 
@@ -66,10 +66,12 @@ def create_portfolio(payload: CreatePortfolioRequest, db: Session = Depends(get_
 
 
 @router.post("/{portfolio_id}/trades/import")
-def import_trades(portfolio_id: int, trades: List[TradeIn], db: Session = Depends(get_db)) -> Dict[str, Any]:
+def import_trades(
+    portfolio_id: int, trades: list[TradeIn], db: Session = Depends(get_db)
+) -> dict[str, Any]:
     settings = get_settings()
-    fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
     broker = settings.BROKER_NAME
+    fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
 
     inserted = 0
     for t in trades:
@@ -110,15 +112,21 @@ def import_trades(portfolio_id: int, trades: List[TradeIn], db: Session = Depend
 
 
 @router.get("/{portfolio_id}/summary")
-def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     settings = get_settings()
-    fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
     exec_assump = load_execution_assumptions(settings.EXECUTION_MODEL_PATH)
     broker = settings.BROKER_NAME
+    fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
 
     trades = db.exec(select(Trade).where(Trade.portfolio_id == portfolio_id)).all()
     if not trades:
-        return {"portfolio_id": portfolio_id, "positions": [], "realized": [], "risk": {}, "twr": 0.0}
+        return {
+            "portfolio_id": portfolio_id,
+            "positions": [],
+            "realized": [],
+            "risk": {},
+            "twr": 0.0,
+        }
 
     tdf = pd.DataFrame([t.model_dump() for t in trades])
 
@@ -145,7 +153,9 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[
     port_panel = panel.drop(columns=["VNINDEX"], errors="ignore")
 
     cash_start = infer_start_cash(tdf, fees, broker_name=broker)
-    port_val, cash_series = compute_portfolio_value_series(tdf, port_panel, cash_start, fees, broker_name=broker)
+    port_val, cash_series = compute_portfolio_value_series(
+        tdf, port_panel, cash_start, fees, broker_name=broker
+    )
     twr = time_weighted_return(port_val)
     risk = portfolio_risk_summary(port_val, bench)
 
@@ -161,7 +171,11 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[
 
     # Attribution (MVP, 20D sector returns)
     lookback = 20
-    sym_ret_20d = (panel.tail(lookback).iloc[-1] / panel.tail(lookback).iloc[0] - 1.0).dropna() if panel.shape[0] >= lookback else pd.Series(dtype=float)
+    sym_ret_20d = (
+        (panel.tail(lookback).iloc[-1] / panel.tail(lookback).iloc[0] - 1.0).dropna()
+        if panel.shape[0] >= lookback
+        else pd.Series(dtype=float)
+    )
 
     sec_map = tick_df.set_index("symbol")["sector"].to_dict()
     pos_mv = pd.Series({s: p.market_value for s, p in positions.items()})
@@ -169,18 +183,40 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[
     w_port = (pos_mv / total_mv) if total_mv > 0 else pd.Series(dtype=float)
     w_port_sec = w_port.groupby(w_port.index.map(lambda s: sec_map.get(s, "Unknown"))).sum()
 
-    port_sec_ret = sym_ret_20d.drop(labels=["VNINDEX"], errors="ignore").groupby(
-        sym_ret_20d.drop(labels=["VNINDEX"], errors="ignore").index.map(lambda s: sec_map.get(s, "Unknown"))
-    ).mean()
+    port_sec_ret = (
+        sym_ret_20d.drop(labels=["VNINDEX"], errors="ignore")
+        .groupby(
+            sym_ret_20d.drop(labels=["VNINDEX"], errors="ignore").index.map(
+                lambda s: sec_map.get(s, "Unknown")
+            )
+        )
+        .mean()
+    )
 
-    mcap = tick_df.set_index("symbol")["market_cap"].astype(float).drop(labels=["VNINDEX"], errors="ignore")
+    mcap = (
+        tick_df.set_index("symbol")["market_cap"]
+        .astype(float)
+        .drop(labels=["VNINDEX"], errors="ignore")
+    )
     w_bench_sym = (mcap / mcap.sum()) if mcap.sum() > 0 else pd.Series(dtype=float)
-    w_bench_sec = w_bench_sym.groupby(w_bench_sym.index.map(lambda s: sec_map.get(s, "Unknown"))).sum()
-    bench_sec_ret = sym_ret_20d.drop(labels=["VNINDEX"], errors="ignore").groupby(
-        sym_ret_20d.drop(labels=["VNINDEX"], errors="ignore").index.map(lambda s: sec_map.get(s, "Unknown"))
-    ).mean()
+    w_bench_sec = w_bench_sym.groupby(
+        w_bench_sym.index.map(lambda s: sec_map.get(s, "Unknown"))
+    ).sum()
+    bench_sec_ret = (
+        sym_ret_20d.drop(labels=["VNINDEX"], errors="ignore")
+        .groupby(
+            sym_ret_20d.drop(labels=["VNINDEX"], errors="ignore").index.map(
+                lambda s: sec_map.get(s, "Unknown")
+            )
+        )
+        .mean()
+    )
 
-    attribution = brinson_attribution_mvp(w_port_sec, port_sec_ret, w_bench_sec, bench_sec_ret) if not w_bench_sec.empty else {}
+    attribution = (
+        brinson_attribution_mvp(w_port_sec, port_sec_ret, w_bench_sec, bench_sec_ret)
+        if not w_bench_sec.empty
+        else {}
+    )
 
     # PnL breakdown
     realized_breakdown = realized_pnl_breakdown(realized)
@@ -189,7 +225,7 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[
     cash_now = float(cash_series.iloc[-1]) if not cash_series.empty else float(cash_start)
 
     # Sector PnL: unrealized by sector (MVP)
-    unreal_by_sector: Dict[str, float] = {}
+    unreal_by_sector: dict[str, float] = {}
     for sym, pos in positions.items():
         sec = str(sec_map.get(sym, "Unknown"))
         unreal_by_sector[sec] = unreal_by_sector.get(sec, 0.0) + float(pos.unrealized_pnl)
@@ -199,10 +235,14 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[
     regime_state = str(regime_series.iloc[-1]) if not regime_series.empty else "sideway"
 
     # Rebalance suggestions (default rules + regime)
-    rebalance = suggest_rebalance(positions, tick_df, cash=cash_now, rules=None, regime_state=regime_state)
+    rebalance = suggest_rebalance(
+        positions, tick_df, cash=cash_now, rules=None, regime_state=regime_state
+    )
 
     # assumptions panel payload
-    sample_slippage_bps = slippage_bps(order_notional=1_000_000_000, adtv=20_000_000_000, atr_pct=0.02, assumptions=exec_assump)
+    sample_slippage_bps = slippage_bps(
+        order_notional=1_000_000_000, adtv=20_000_000_000, atr_pct=0.02, assumptions=exec_assump
+    )
 
     return {
         "portfolio_id": portfolio_id,
@@ -243,12 +283,12 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> Dict[
 
 
 @router.post("/{portfolio_id}/rebalance-suggest")
-def rebalance_suggest(portfolio_id: int, payload: RebalanceRules, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def rebalance_suggest(
+    portfolio_id: int, payload: RebalanceRules, db: Session = Depends(get_db)
+) -> dict[str, Any]:
     s = portfolio_summary(portfolio_id, db)
     if not s.get("positions"):
         return {"portfolio_id": portfolio_id, "suggestions": [], "note": "No positions"}
-    settings = get_settings()
-    fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
     # reconstruct positions dict (minimal)
     from core.portfolio.analytics import Position  # local import
 

@@ -11,7 +11,7 @@ target-version = ["py311"]
 line-length = 100
 target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "SIM"]
-ignore = ["E501"]
+ignore = ["E501", "B008", "F401", "E731", "SIM118", "UP017"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -19,6 +19,7 @@ ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

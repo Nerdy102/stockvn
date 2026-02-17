@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core.settings import Settings
+
 from data.providers.base import BaseMarketDataProvider
 from data.providers.csv_provider import CsvProvider
 from data.providers.ssi_fastconnect import SsiFastConnectProvider

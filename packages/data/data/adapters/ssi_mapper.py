@@ -4,7 +4,7 @@ import datetime as dt
 from dataclasses import dataclass, field
 from typing import Any
 
-from data.schemas.ssi_fcdata import DailyOhlcRecord, DailyStockPriceRecord, VN_TZ
+from data.schemas.ssi_fcdata import VN_TZ, DailyOhlcRecord, DailyStockPriceRecord
 
 
 @dataclass
@@ -31,7 +31,9 @@ class SSIMapper:
         return base.astimezone(dt.timezone.utc).replace(tzinfo=None)
 
     @staticmethod
-    def _flags_for_invariants(open_px: float, high: float, low: float, close: float, volume: float) -> list[str]:
+    def _flags_for_invariants(
+        open_px: float, high: float, low: float, close: float, volume: float
+    ) -> list[str]:
         flags: list[str] = []
         if min(open_px, high, low, close, volume) < 0:
             flags.append("negative_value")

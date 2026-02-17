@@ -1,21 +1,19 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
+from core.db.models import Fundamental
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select
 
 from api_fastapi.deps import get_db
-from core.db.models import Fundamental
 
 router = APIRouter(tags=["fundamentals"])
 
 
 @router.get("/fundamentals", response_model=list[Fundamental])
 def list_fundamentals(
-    symbol: Optional[str] = Query(default=None),
+    symbol: str | None = Query(default=None),
     db: Session = Depends(get_db),
-) -> List[Fundamental]:
+) -> list[Fundamental]:
     q = select(Fundamental)
     if symbol:
         q = q.where(Fundamental.symbol == symbol)

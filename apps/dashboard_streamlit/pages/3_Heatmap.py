@@ -5,8 +5,10 @@ import plotly.express as px
 import streamlit as st
 
 from apps.dashboard_streamlit.lib.api import get
+from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
 
 st.header("Heatmap: Sector / Top Movers / Breadth / Correlation")
+render_global_disclaimer()
 
 tickers = get("/tickers")
 df_t = pd.DataFrame(tickers)

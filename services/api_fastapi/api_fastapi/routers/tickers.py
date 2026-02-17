@@ -1,24 +1,22 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
+from core.db.models import Ticker
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select
 
 from api_fastapi.deps import get_db
-from core.db.models import Ticker
 
 router = APIRouter(tags=["tickers"])
 
 
 @router.get("/tickers", response_model=list[Ticker])
 def list_tickers(
-    exchange: Optional[str] = Query(default=None),
-    sector: Optional[str] = Query(default=None),
+    exchange: str | None = Query(default=None),
+    sector: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-) -> List[Ticker]:
+) -> list[Ticker]:
     q = select(Ticker)
     if exchange:
         q = q.where(Ticker.exchange == exchange.upper())

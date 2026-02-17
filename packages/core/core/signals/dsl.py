@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 from core.indicators import ema, rsi, sma
 
-
-Token = Tuple[str, str]
+Token = tuple[str, str]
 
 _TOKEN_RE = re.compile(
     r"""
@@ -23,8 +21,8 @@ _TOKEN_RE = re.compile(
 )
 
 
-def tokenize(expr: str) -> List[Token]:
-    tokens: List[Token] = []
+def tokenize(expr: str) -> list[Token]:
+    tokens: list[Token] = []
     pos = 0
     while pos < len(expr):
         m = _TOKEN_RE.match(expr, pos)
@@ -51,7 +49,7 @@ def tokenize(expr: str) -> List[Token]:
 
 
 class Node:
-    def eval(self, df: pd.DataFrame, cache: Dict[str, pd.Series]) -> pd.Series:
+    def eval(self, df: pd.DataFrame, cache: dict[str, pd.Series]) -> pd.Series:
         raise NotImplementedError
 
 
@@ -59,7 +57,7 @@ class Node:
 class Number(Node):
     value: float
 
-    def eval(self, df: pd.DataFrame, cache: Dict[str, pd.Series]) -> pd.Series:
+    def eval(self, df: pd.DataFrame, cache: dict[str, pd.Series]) -> pd.Series:
         return pd.Series(self.value, index=df.index, dtype=float)
 
 
@@ -67,7 +65,7 @@ class Number(Node):
 class SeriesRef(Node):
     name: str
 
-    def eval(self, df: pd.DataFrame, cache: Dict[str, pd.Series]) -> pd.Series:
+    def eval(self, df: pd.DataFrame, cache: dict[str, pd.Series]) -> pd.Series:
         if self.name not in df.columns:
             raise KeyError(f"Unknown series: {self.name}")
         return pd.to_numeric(df[self.name], errors="coerce").astype(float)
@@ -78,7 +76,7 @@ class Unary(Node):
     op: str
     rhs: Node
 
-    def eval(self, df: pd.DataFrame, cache: Dict[str, pd.Series]) -> pd.Series:
+    def eval(self, df: pd.DataFrame, cache: dict[str, pd.Series]) -> pd.Series:
         v = self.rhs.eval(df, cache)
         if self.op == "-":
             return -v
@@ -93,7 +91,7 @@ class Binary(Node):
     lhs: Node
     rhs: Node
 
-    def eval(self, df: pd.DataFrame, cache: Dict[str, pd.Series]) -> pd.Series:
+    def eval(self, df: pd.DataFrame, cache: dict[str, pd.Series]) -> pd.Series:
         a = self.lhs.eval(df, cache)
         b = self.rhs.eval(df, cache)
 
@@ -130,9 +128,9 @@ class Binary(Node):
 @dataclass
 class Func(Node):
     name: str
-    args: List[Node]
+    args: list[Node]
 
-    def eval(self, df: pd.DataFrame, cache: Dict[str, pd.Series]) -> pd.Series:
+    def eval(self, df: pd.DataFrame, cache: dict[str, pd.Series]) -> pd.Series:
         fn = self.name.upper()
         if fn == "SMA":
             return _fn_ma(df, cache, kind="sma", args=self.args)
@@ -151,13 +149,13 @@ class Func(Node):
         raise ValueError(f"Unknown function: {self.name}")
 
 
-def _as_int(node: Node, df: pd.DataFrame, cache: Dict[str, pd.Series]) -> int:
+def _as_int(node: Node, df: pd.DataFrame, cache: dict[str, pd.Series]) -> int:
     s = node.eval(df, cache)
     v = float(s.iloc[-1])
     return int(round(v))
 
 
-def _fn_ma(df: pd.DataFrame, cache: Dict[str, pd.Series], kind: str, args: List[Node]) -> pd.Series:
+def _fn_ma(df: pd.DataFrame, cache: dict[str, pd.Series], kind: str, args: list[Node]) -> pd.Series:
     # SMA(20) => SMA(close, 20)
     if len(args) == 1:
         window = _as_int(args[0], df, cache)
@@ -170,7 +168,7 @@ def _fn_ma(df: pd.DataFrame, cache: Dict[str, pd.Series], kind: str, args: List[
     return sma(src, window) if kind == "sma" else ema(src, window)
 
 
-def _fn_rsi(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node]) -> pd.Series:
+def _fn_rsi(df: pd.DataFrame, cache: dict[str, pd.Series], args: list[Node]) -> pd.Series:
     if len(args) == 1:
         window = _as_int(args[0], df, cache)
         src = pd.to_numeric(df["close"], errors="coerce").astype(float)
@@ -182,7 +180,7 @@ def _fn_rsi(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node]) -> 
     return rsi(src, window)
 
 
-def _fn_avg(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node]) -> pd.Series:
+def _fn_avg(df: pd.DataFrame, cache: dict[str, pd.Series], args: list[Node]) -> pd.Series:
     if len(args) != 2:
         raise ValueError("AVG expects 2 arguments")
     src = args[0].eval(df, cache).astype(float)
@@ -190,7 +188,7 @@ def _fn_avg(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node]) -> 
     return src.rolling(window=window, min_periods=window).mean()
 
 
-def _fn_ref(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node]) -> pd.Series:
+def _fn_ref(df: pd.DataFrame, cache: dict[str, pd.Series], args: list[Node]) -> pd.Series:
     if len(args) != 2:
         raise ValueError("REF expects 2 arguments")
     src = args[0].eval(df, cache).astype(float)
@@ -198,7 +196,7 @@ def _fn_ref(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node]) -> 
     return src.shift(n)
 
 
-def _fn_crossover(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node]) -> pd.Series:
+def _fn_crossover(df: pd.DataFrame, cache: dict[str, pd.Series], args: list[Node]) -> pd.Series:
     if len(args) != 2:
         raise ValueError("CROSSOVER expects 2 arguments")
     a = args[0].eval(df, cache).astype(float)
@@ -207,7 +205,7 @@ def _fn_crossover(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node
     return out.fillna(False).astype(bool)
 
 
-def _fn_crossunder(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Node]) -> pd.Series:
+def _fn_crossunder(df: pd.DataFrame, cache: dict[str, pd.Series], args: list[Node]) -> pd.Series:
     if len(args) != 2:
         raise ValueError("CROSSUNDER expects 2 arguments")
     a = args[0].eval(df, cache).astype(float)
@@ -217,14 +215,14 @@ def _fn_crossunder(df: pd.DataFrame, cache: Dict[str, pd.Series], args: List[Nod
 
 
 class Parser:
-    def __init__(self, tokens: List[Token]):
+    def __init__(self, tokens: list[Token]):
         self.tokens = tokens
         self.i = 0
 
     def _peek(self) -> Token:
         return self.tokens[self.i]
 
-    def _eat(self, ttype: str, value: Optional[str] = None) -> Token:
+    def _eat(self, ttype: str, value: str | None = None) -> Token:
         tok = self._peek()
         if tok[0] != ttype:
             raise ValueError(f"Expected {ttype}, got {tok}")
@@ -297,7 +295,7 @@ class Parser:
             name = self._eat("IDENT")[1]
             if self._peek() == ("OP", "("):
                 self._eat("OP", "(")
-                args: List[Node] = []
+                args: list[Node] = []
                 if self._peek() != ("OP", ")"):
                     args.append(self._parse_or())
                     while self._peek() == ("OP", ","):
@@ -316,5 +314,5 @@ def parse(expr: str) -> Node:
 def evaluate(expr: str, df: pd.DataFrame) -> pd.Series:
     """Evaluate DSL expression on OHLCV DataFrame."""
     node = parse(expr)
-    cache: Dict[str, pd.Series] = {}
+    cache: dict[str, pd.Series] = {}
     return node.eval(df, cache)

@@ -4,13 +4,12 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-from sqlmodel import Session, select
-
 from core.db.models import PriceOHLCV, Trade
 from core.db.session import create_db_and_tables, get_engine
 from core.fees_taxes import FeesTaxes
 from core.portfolio.analytics import compute_positions_avg_cost
 from core.settings import get_settings
+from sqlmodel import Session, select
 
 settings = get_settings()
 

@@ -4,7 +4,6 @@ import pandas as pd
 
 from core.indicators import ema
 
-
 REGIME_TREND_UP = "trend_up"
 REGIME_SIDEWAY = "sideway"
 REGIME_RISK_OFF = "risk_off"

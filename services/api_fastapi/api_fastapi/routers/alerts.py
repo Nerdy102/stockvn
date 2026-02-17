@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
+from core.db.models import AlertEvent, AlertRule
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from api_fastapi.deps import get_db
-from core.db.models import AlertEvent, AlertRule
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -16,11 +14,15 @@ class CreateRuleRequest(BaseModel):
     name: str
     timeframe: str = "1D"
     expression: str
-    symbols: Optional[List[str]] = None
+    symbols: list[str] | None = None
 
 
 @router.get("/rules", response_model=list[AlertRule])
-def list_rules(limit: int = Query(default=200, ge=1, le=2000), offset: int = Query(default=0, ge=0), db: Session = Depends(get_db)) -> List[AlertRule]:
+def list_rules(
+    limit: int = Query(default=200, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[AlertRule]:
     q = select(AlertRule).order_by(AlertRule.created_at.desc()).offset(offset).limit(limit)
     return list(db.exec(q).all())
 
@@ -42,6 +44,10 @@ def create_rule(payload: CreateRuleRequest, db: Session = Depends(get_db)) -> Al
 
 
 @router.get("/events", response_model=list[AlertEvent])
-def list_events(limit: int = Query(default=200, ge=1, le=2000), offset: int = Query(default=0, ge=0), db: Session = Depends(get_db)) -> List[AlertEvent]:
+def list_events(
+    limit: int = Query(default=200, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[AlertEvent]:
     q = select(AlertEvent).order_by(AlertEvent.triggered_at.desc()).offset(offset).limit(limit)
     return list(db.exec(q).all())

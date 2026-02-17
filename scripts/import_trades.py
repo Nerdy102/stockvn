@@ -4,12 +4,11 @@ import argparse
 import hashlib
 
 import pandas as pd
-from sqlmodel import Session, select
-
 from core.db.models import Portfolio, Trade
 from core.db.session import create_db_and_tables, get_engine
 from core.fees_taxes import FeesTaxes
 from core.settings import get_settings
+from sqlmodel import Session, select
 
 settings = get_settings()
 

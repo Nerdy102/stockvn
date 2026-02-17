@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Generate synthetic demo CSV data (offline).
 
 This script is OPTIONAL (repo already includes data_demo/).
@@ -41,19 +39,70 @@ def main() -> None:
     rules = load_market_rules(args.rules)
 
     tickers = [
-        ("FVNA", "FVN Alpha Bank", "HOSE", "Banks", "Commercial Bank", 38500, 2400000000, 5500000, True, False, "KQKD;policy"),
-        ("FVNB", "FVN Beta Securities", "HOSE", "Securities", "Brokerage", 22500, 1200000000, 4200000, False, True, "liquidity;cycle"),
+        (
+            "FVNA",
+            "FVN Alpha Bank",
+            "HOSE",
+            "Banks",
+            "Commercial Bank",
+            38500,
+            2400000000,
+            5500000,
+            True,
+            False,
+            "KQKD;policy",
+        ),
+        (
+            "FVNB",
+            "FVN Beta Securities",
+            "HOSE",
+            "Securities",
+            "Brokerage",
+            22500,
+            1200000000,
+            4200000,
+            False,
+            True,
+            "liquidity;cycle",
+        ),
     ]
-    benchmark = ("VNINDEX", "VN-Index (Synthetic)", "HOSE", "Index", "Benchmark", 1250.0, 0, 0, False, False, "")
+    benchmark = (
+        "VNINDEX",
+        "VN-Index (Synthetic)",
+        "HOSE",
+        "Index",
+        "Benchmark",
+        1250.0,
+        0,
+        0,
+        False,
+        False,
+        "",
+    )
 
     # tickers_demo.csv
     with (outdir / "tickers_demo.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["symbol","name","exchange","sector","industry","shares_outstanding","market_cap","is_bank","is_broker","tags"])
+        w.writerow(
+            [
+                "symbol",
+                "name",
+                "exchange",
+                "sector",
+                "industry",
+                "shares_outstanding",
+                "market_cap",
+                "is_bank",
+                "is_broker",
+                "tags",
+            ]
+        )
         for sym, name, ex, sec, ind, base_px, shares, *_ in tickers:
             mcap = float(base_px) * float(shares)
             w.writerow([sym, name, ex, sec, ind, shares, int(mcap), 0, 0, ""])
-        w.writerow([benchmark[0], benchmark[1], benchmark[2], benchmark[3], benchmark[4], 0, 0, 0, 0, ""])
+        w.writerow(
+            [benchmark[0], benchmark[1], benchmark[2], benchmark[3], benchmark[4], 0, 0, 0, 0, ""]
+        )
 
     start = dt.date(2025, 3, 3)
     end = dt.date(2026, 2, 13)
@@ -71,7 +120,9 @@ def main() -> None:
             open_ = prev_close * (1.0 + 0.003 * rng.gauss(0.0, 1.0))
             high = max(open_, close) * (1.0 + abs(0.006 * rng.gauss(0.0, 1.0)))
             low = min(open_, close) * (1.0 - abs(0.006 * rng.gauss(0.0, 1.0)))
-            volume = int(max(100, base_vol * (1.0 + 0.35 * rng.gauss(0.0, 1.0)))) if base_vol > 0 else 0
+            volume = (
+                int(max(100, base_vol * (1.0 + 0.35 * rng.gauss(0.0, 1.0)))) if base_vol > 0 else 0
+            )
 
             if symbol != "VNINDEX":
                 open_ = rules.round_price(open_, instrument="stock")
@@ -84,14 +135,14 @@ def main() -> None:
 
     with (outdir / "prices_demo_1d.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["date","symbol","open","high","low","close","volume","value_vnd"])
+        w.writerow(["date", "symbol", "open", "high", "low", "close", "volume", "value_vnd"])
         for sym, *_rest in tickers:
-            base_px = float([x for x in tickers if x[0] == sym][0][5])
+            base_px: float = float([x for x in tickers if x[0] == sym][0][5])
             base_vol = int([x for x in tickers if x[0] == sym][0][7])
-            for dday, o, h, l, c, v in gen_daily(sym, base_px, base_vol):
-                w.writerow([dday.isoformat(), sym, o, h, l, c, v, int(c * v)])
-        for dday, o, h, l, c, v in gen_daily("VNINDEX", float(benchmark[5]), 0):
-            w.writerow([dday.isoformat(), "VNINDEX", o, h, l, c, v, 0])
+            for dday, o, h, low_px, c, v in gen_daily(sym, base_px, base_vol):
+                w.writerow([dday.isoformat(), sym, o, h, low_px, c, v, int(c * v)])
+        for dday, o, h, low_px, c, v in gen_daily("VNINDEX", float(benchmark[5]), 0):
+            w.writerow([dday.isoformat(), "VNINDEX", o, h, low_px, c, v, 0])
 
     print(f"Generated demo data to: {outdir}")
 

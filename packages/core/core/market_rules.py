@@ -3,9 +3,9 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 
 @dataclass(frozen=True)
@@ -14,14 +14,14 @@ class TradingSession:
     start: dt.time
     end: dt.time
     matching: str
-    order_types: List[str]
+    order_types: list[str]
     notes: str = ""
 
 
 @dataclass(frozen=True)
 class TickRule:
-    gte: Optional[float]
-    lt: Optional[float]
+    gte: float | None
+    lt: float | None
     tick: int
     note: str = ""
 
@@ -33,22 +33,22 @@ class MarketRules:
     market: str
     timezone: str
 
-    sessions: List[TradingSession]
-    put_through_sessions: List[Tuple[dt.time, dt.time]]
+    sessions: list[TradingSession]
+    put_through_sessions: list[tuple[dt.time, dt.time]]
 
-    quantity_rules: Dict[str, int]
-    tick_rules_stocks: List[TickRule]
+    quantity_rules: dict[str, int]
+    tick_rules_stocks: list[TickRule]
     tick_etf_cw: int
     tick_put_through: int
 
-    price_limits: Dict[str, float]
-    special_cases: Dict[str, Any]
+    price_limits: dict[str, float]
+    special_cases: dict[str, Any]
 
     @staticmethod
-    def from_yaml(path: str | Path) -> "MarketRules":
+    def from_yaml(path: str | Path) -> MarketRules:
         data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
-        sessions: List[TradingSession] = []
+        sessions: list[TradingSession] = []
         for s in data.get("trading_hours", []) or []:
             sessions.append(
                 TradingSession(
@@ -61,11 +61,11 @@ class MarketRules:
                 )
             )
 
-        pts: List[Tuple[dt.time, dt.time]] = []
+        pts: list[tuple[dt.time, dt.time]] = []
         for s in (data.get("put_through", {}) or {}).get("sessions", []) or []:
             pts.append((_parse_time(str(s["start"])), _parse_time(str(s["end"]))))
 
-        tick_rules: List[TickRule] = []
+        tick_rules: list[TickRule] = []
         for r in (data.get("tick_size", {}) or {}).get("stocks_funds", []) or []:
             tick_rules.append(
                 TickRule(
@@ -85,8 +85,12 @@ class MarketRules:
             put_through_sessions=pts,
             quantity_rules={k: int(v) for k, v in (data.get("quantity_rules", {}) or {}).items()},
             tick_rules_stocks=tick_rules,
-            tick_etf_cw=int(((data.get("tick_size", {}) or {}).get("etf_cw", {}) or {}).get("tick", 10)),
-            tick_put_through=int(((data.get("tick_size", {}) or {}).get("put_through", {}) or {}).get("tick", 1)),
+            tick_etf_cw=int(
+                ((data.get("tick_size", {}) or {}).get("etf_cw", {}) or {}).get("tick", 10)
+            ),
+            tick_put_through=int(
+                ((data.get("tick_size", {}) or {}).get("put_through", {}) or {}).get("tick", 1)
+            ),
             price_limits={
                 k: float(v)
                 for k, v in (data.get("price_limits", {}) or {}).items()
@@ -104,7 +108,9 @@ class MarketRules:
                 return True
         return False
 
-    def get_tick_size(self, price: float, instrument: str = "stock", put_through: bool = False) -> int:
+    def get_tick_size(
+        self, price: float, instrument: str = "stock", put_through: bool = False
+    ) -> int:
         """Get tick size for given price and instrument."""
         if put_through:
             return self.tick_put_through
@@ -118,7 +124,9 @@ class MarketRules:
             return r.tick
         return 1
 
-    def validate_tick(self, price: float, instrument: str = "stock", put_through: bool = False) -> bool:
+    def validate_tick(
+        self, price: float, instrument: str = "stock", put_through: bool = False
+    ) -> bool:
         tick = self.get_tick_size(price, instrument=instrument, put_through=put_through)
         if tick <= 0:
             return True
@@ -153,12 +161,58 @@ class MarketRules:
             return float(self.price_limits[context])
         return float(self.price_limits.get("normal", 0.07))
 
-    def validate_price_limit(self, price: float, reference_price: float, context: str = "normal") -> bool:
+    def validate_price_limit(
+        self, price: float, reference_price: float, context: str = "normal"
+    ) -> bool:
         """Validate price within +/- limit vs reference."""
         pct = self.price_limit_pct(context=context)
         upper = reference_price * (1.0 + pct)
         lower = reference_price * (1.0 - pct)
         return (lower - 1e-9) <= price <= (upper + 1e-9)
+
+    def calc_price_limits(
+        self, reference_price: float, context: str = "normal"
+    ) -> tuple[float, float]:
+        pct = self.price_limit_pct(context=context)
+        return (reference_price * (1.0 - pct), reference_price * (1.0 + pct))
+
+    def classify_session(self, t: dt.time) -> str:
+        for s in self.sessions:
+            if s.start <= t < s.end:
+                return s.name
+        return "off_session"
+
+    def validate_order_price_qty(
+        self,
+        price: float,
+        qty: int,
+        reference_price: float,
+        *,
+        context: str = "normal",
+        instrument: str = "stock",
+        put_through: bool = False,
+        allow_odd_lot: bool = False,
+    ) -> bool:
+        if qty <= 0:
+            return False
+
+        board_lot = int(self.quantity_rules.get("board_lot", 100))
+        odd_lot_max = int(self.quantity_rules.get("odd_lot_max", 99))
+        max_order = int(
+            self.quantity_rules.get("max_order", self.quantity_rules.get("max_order_qty", 500000))
+        )
+        if qty > max_order:
+            return False
+
+        if qty < board_lot:
+            if not (allow_odd_lot and qty <= odd_lot_max):
+                return False
+        elif qty % board_lot != 0:
+            return False
+
+        if not self.validate_tick(price, instrument=instrument, put_through=put_through):
+            return False
+        return self.validate_price_limit(price, reference_price=reference_price, context=context)
 
 
 def _parse_time(s: str) -> dt.time:
@@ -168,3 +222,16 @@ def _parse_time(s: str) -> dt.time:
 
 def load_market_rules(path: str | Path) -> MarketRules:
     return MarketRules.from_yaml(path)
+
+
+def round_price(
+    price: float,
+    *,
+    path: str | Path,
+    instrument: str = "stock",
+    put_through: bool = False,
+    direction: str = "nearest",
+) -> float:
+    return load_market_rules(path).round_price(
+        price, instrument=instrument, put_through=put_through, direction=direction
+    )

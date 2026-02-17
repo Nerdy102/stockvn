@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import streamlit as st
 
+from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
+
 st.set_page_config(page_title="VN Invest Toolkit", layout="wide")
 
 st.title("VN Invest Toolkit (Offline Demo)")
+render_global_disclaimer()
 st.caption("⚠️ Công cụ học tập/giáo dục. Không phải lời khuyên đầu tư. Demo data là synthetic.")
 
 st.markdown(

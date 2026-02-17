@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import datetime as dt
 import os
-from typing import Optional
 
 import pandas as pd
 
@@ -28,11 +27,23 @@ class VietstockDataFeedProvider(BaseMarketDataProvider):
         self._ensure()
         raise NotImplementedError
 
-    def get_ohlcv(self, symbol: str, timeframe: str, start: Optional[dt.date] = None, end: Optional[dt.date] = None) -> pd.DataFrame:
+    def get_ohlcv(
+        self,
+        symbol: str,
+        timeframe: str,
+        start: dt.date | None = None,
+        end: dt.date | None = None,
+    ) -> pd.DataFrame:
         self._ensure()
         raise NotImplementedError
 
-    def get_intraday(self, symbol: str, timeframe: str, start: Optional[dt.date] = None, end: Optional[dt.date] = None) -> pd.DataFrame:
+    def get_intraday(
+        self,
+        symbol: str,
+        timeframe: str,
+        start: dt.date | None = None,
+        end: dt.date | None = None,
+    ) -> pd.DataFrame:
         self._ensure()
         raise NotImplementedError
 
