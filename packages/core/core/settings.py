@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     MARKET_RULES_PATH: str = Field(default="configs/market_rules_vn.yaml")
     FEES_TAXES_PATH: str = Field(default="configs/fees_taxes.yaml")
+    EXECUTION_MODEL_PATH: str = Field(default="configs/execution_model.yaml")
     BROKER_NAME: str = Field(default="demo_broker")
 
     API_BASE_URL: str = Field(default="http://localhost:8000")

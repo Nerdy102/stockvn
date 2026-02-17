@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 
 from core.db.models import Fundamental, PriceOHLCV, Ticker
 from core.factors import compute_factors
+from core.regime import REGIME_RISK_OFF, classify_market_regime, regime_exposure_multiplier
 from core.technical import detect_breakout, detect_pullback, detect_trend, detect_volume_spike
 
 
@@ -64,16 +65,19 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
     tickers_df = _apply_universe(tickers_df, screen.universe)
 
     # Liquidity proxy: avg value 20D
-    liq = (
-        px_df.groupby("symbol")["value_vnd"]
-        .rolling(20)
-        .mean()
-        .groupby(level=0)
-        .last()
-    )
+    liq = px_df.groupby("symbol")["value_vnd"].rolling(20).mean().groupby(level=0).last()
 
     # catalyst tags
     tags_map = {row["symbol"]: (row.get("tags") or {}) for _, row in tickers_df.iterrows()}
+
+    # regime state from VNINDEX
+    regime_series = classify_market_regime(
+        px_df[px_df["symbol"] == "VNINDEX"].set_index("date")["close"] if "VNINDEX" in set(px_df["symbol"]) else pd.Series(dtype=float)
+    )
+    regime_now = str(regime_series.iloc[-1]) if not regime_series.empty else "sideway"
+    regime_mult = regime_exposure_multiplier(regime_now)
+
+    neutral_cfg = (screen.filters or {}).get("neutralization", {}) or {}
 
     # compute factors
     out = compute_factors(
@@ -81,6 +85,8 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
         fundamentals=fund_df.copy(),
         prices=px_df[["date", "symbol", "close", "volume", "value_vnd"]].copy(),
         benchmark_symbol="VNINDEX",
+        sector_neutral=bool(neutral_cfg.get("sector_neutral", False)),
+        size_neutral=bool(neutral_cfg.get("size_neutral", False)),
     )
 
     scores = out.scores.copy()
@@ -122,11 +128,9 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
         full = full[full["ROE"] >= float(f["min_roe"])]
 
     if "max_net_debt_to_ebitda" in f:
-        # apply only non-bank (banks do not use net debt/EBITDA)
         is_bank = tickers_df.set_index("symbol")["is_bank"].astype(bool)
         cap = float(f["max_net_debt_to_ebitda"])
         mask = (~is_bank.reindex(full.index).fillna(False)) & (full["NET_DEBT_TO_EBITDA"] <= cap)
-        # keep banks regardless of this filter (MVP)
         full = full[mask | is_bank.reindex(full.index).fillna(False)]
 
     # Catalyst tags (ANY)
@@ -149,6 +153,7 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
 
     # Technical setups
     results: List[Dict[str, Any]] = []
+    min_signal = float(f.get("min_signal_strength", 0.1))
     for sym in full.index:
         g = px_df[px_df["symbol"] == sym].copy()
         g = g.sort_values("timestamp").tail(260)
@@ -156,12 +161,7 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
         if g.empty:
             continue
 
-        setups: Dict[str, bool] = {
-            "breakout": False,
-            "trend": False,
-            "pullback": False,
-            "volume_spike": False,
-        }
+        setups: Dict[str, bool] = {"breakout": False, "trend": False, "pullback": False, "volume_spike": False}
 
         ts = screen.technical_setups or {}
         if "breakout" in ts:
@@ -174,11 +174,17 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
         setups["volume_spike"] = detect_volume_spike(g)
 
         total = float(full.loc[sym, "total_factor"])
-        # small bonus for setups (MVP)
         total += 0.2 if setups["breakout"] else 0.0
         total += 0.1 if setups["trend"] else 0.0
         total += 0.05 if setups["pullback"] else 0.0
         total += 0.05 if setups["volume_spike"] else 0.0
+
+        # Risk-off haircut to momentum-chasing setups
+        if regime_now == REGIME_RISK_OFF:
+            total -= 0.15 if setups["breakout"] else 0.0
+            total -= 0.1 if setups["trend"] else 0.0
+
+        total *= regime_mult
 
         breakdown = {k: float(full.loc[sym, k]) for k in weights.keys() if k in full.columns}
         explain = {
@@ -192,7 +198,13 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
             },
             "setups": setups,
             "tags": tags_map.get(sym, {}),
+            "regime": {"state": regime_now, "exposure_multiplier": regime_mult},
+            "signal_strength": total,
+            "edge_gate_pass": bool(total >= min_signal),
         }
+
+        if total < min_signal:
+            continue
 
         results.append(
             {

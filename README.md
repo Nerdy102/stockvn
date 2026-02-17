@@ -72,6 +72,14 @@ Bao gồm:
 - Price limit ±7% (normal), ±20% (first day / resumed>=25 trading days)
 - **Special cases structure** để mở rộng (vd ex-rights từ `CorporateAction`) — thiết kế sẵn trong YAML
 
+## Research correctness & guardrails
+
+- Factor engine xử lý mẫu số âm/0 rõ ràng (vd PE với NI<=0, PB với Equity<=0 -> NaN, không ép dữ liệu sai).
+- Chuẩn hóa factor theo **winsorize + z-score** để giảm nhiễu outlier.
+- Hỗ trợ tùy chọn neutralization: **sector-neutral** và **size-neutral** (MVP toggle).
+- Hệ thống có cấu trúc để làm point-in-time (`as_of_date`) và cần mở rộng `public_date` cho production để giảm look-ahead bias.
+- Kết quả backtest/đánh giá phải xem là mô phỏng: quá khứ không đảm bảo tương lai; nhạy với phí/thuế/slippage/fill assumptions.
+
 ## Thuế/phí (VN, MVP)
 
 - Config: `configs/fees_taxes.yaml`
@@ -120,7 +128,8 @@ Screen definition bằng YAML: `configs/screens/*.yaml`
 - Exposure: sector weights, concentration, cash
 - Risk: max drawdown, volatility, beta vs VNINDEX, correlation matrix
 - Attribution (MVP): Brinson theo sector (allocation/selection/interaction) + mapping market/selection/timing_proxy
-- Rebalance suggestion (MVP): rules max sector weight / max single name / target cash
+- Rebalance suggestion (MVP): rules max sector weight / max single name / target cash + board lot/liquidity constraints
+- Assumptions panel: hiển thị fee/tax/slippage/fill/regime để explainability rõ ràng
 
 ## CI (GitHub Actions)
 
@@ -131,3 +140,11 @@ Screen definition bằng YAML: `configs/screens/*.yaml`
 
 ---
 # stockvn
+
+
+## Execution realism (MVP)
+
+- Config: `configs/execution_model.yaml`
+- Slippage model: `slippage_bps = base + k1*(order_notional/ADTV) + k2*(ATR%)`
+- Fill model hook cho phiên chạm trần/sàn: giảm xác suất khớp theo config
+- Regime filter từ VNINDEX (`trend_up`, `sideway`, `risk_off`) để điều chỉnh exposure và xếp hạng tín hiệu
