@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import logging
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from core.db.models import Ticker
 from core.db.session import create_db_and_tables, get_engine
-from core.logging import setup_logging
+from core.logging import get_logger, setup_logging
 from core.settings import get_settings
 from data.providers.factory import get_provider
 from sqlmodel import Session, select
@@ -24,7 +23,7 @@ from worker_scheduler.jobs import (
 
 settings = get_settings()
 setup_logging(settings.LOG_LEVEL)
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def main() -> None:
@@ -44,10 +43,13 @@ def main() -> None:
             ensure_seeded(session, provider, settings)
 
     def job_ingest() -> None:
+        job_log = get_logger(__name__, job_id="ingest_prices")
         with Session(engine) as session:
             ingest_prices_job(session, provider)
+        job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
     def job_compute() -> None:
+        job_log = get_logger(__name__, job_id="compute_all")
         with Session(engine) as session:
             compute_indicators(session)
             compute_factor_scores(session)
@@ -55,6 +57,7 @@ def main() -> None:
             generate_alerts(session)
             compute_data_quality_metrics_job(session)
             compute_drift_metrics_job(session)
+        job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
     if args.once:
         job_ingest()
@@ -77,7 +80,7 @@ def main() -> None:
         replace_existing=True,
     )
 
-    log.info("Worker started. ingest>=60m, compute=%sm", args.interval_minutes)
+    log.info("worker_started", extra={"event": "worker_startup"})
     scheduler.start()
 
 

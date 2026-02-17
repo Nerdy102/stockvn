@@ -173,7 +173,7 @@ def compute_factors(
             lowvol_score = neutralize_by_group(lowvol_score, size_bucket)
             dividend_score = neutralize_by_group(dividend_score, size_bucket)
         except Exception:
-            pass
+            size_bucket = None
 
     scores = pd.DataFrame(
         {

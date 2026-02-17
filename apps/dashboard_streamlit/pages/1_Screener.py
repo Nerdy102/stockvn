@@ -34,5 +34,5 @@ st.markdown("#### Tickers (quick view)")
 try:
     tickers = get("/tickers")
     st.dataframe(pd.DataFrame(tickers), use_container_width=True)
-except Exception:
-    pass
+except Exception as exc:
+    st.warning(f"Không tải được danh sách tickers: {exc}")

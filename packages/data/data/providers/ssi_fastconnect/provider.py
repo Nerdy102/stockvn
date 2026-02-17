@@ -71,4 +71,4 @@ class SsiFastConnectProvider(BaseMarketDataProvider):
                 with open(self.token_cache_file, "w", encoding="utf-8") as f:
                     f.write(token)
             except OSError:
-                pass
+                return

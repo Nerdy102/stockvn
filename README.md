@@ -39,6 +39,26 @@ make lint
 make test
 ```
 
+## Quality Gate
+
+Chạy full quality gate trước khi merge:
+
+```bash
+make quality-gate
+```
+
+`make quality-gate` chạy tuần tự:
+- `ruff check .`
+- `black --check .`
+- `mypy .`
+- `pytest -q`
+- `python scripts/quality_gate.py`
+
+Chính sách **no placeholder** cho production path (`packages/`, `services/`, `apps/`):
+- Không được để lại `TO-DO`, `FIX-ME`, `HA-CK`, `pass-comment`, `return-none placeholder-comment`.
+- Không dùng docstring chứa từ `placeholder` cho function/class.
+- Ngoại lệ duy nhất: `tests/fixtures/**` và `data_demo/**`.
+
 ## Kiến trúc
 
 ```mermaid

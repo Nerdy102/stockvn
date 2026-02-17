@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import logging
 import math
 from pathlib import Path
 from typing import Any
@@ -25,6 +24,7 @@ from core.db.models import (
 )
 from core.factors import compute_factors
 from core.indicators import RSIState, add_indicators, ema_incremental, rsi_incremental
+from core.logging import get_logger
 from core.monitoring.data_quality import compute_data_quality_metrics
 from core.monitoring.drift import compute_weekly_drift_metrics
 from core.settings import Settings
@@ -35,7 +35,7 @@ from data.etl.pipeline import ingest_from_fixtures
 from data.providers.base import BaseMarketDataProvider
 from sqlmodel import Session, select
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _safe_float(x: Any, default: float = 0.0) -> float:
@@ -61,7 +61,7 @@ def _json_sanitize(obj: Any) -> Any:
         if isinstance(obj, np.generic):
             obj = obj.item()
     except Exception:
-        pass
+        obj = obj
 
     if obj is None:
         return None
@@ -78,7 +78,7 @@ def _json_sanitize(obj: Any) -> Any:
         if isinstance(miss, bool) and miss:
             return None
     except Exception:
-        pass
+        miss = False
 
     # datetime/date -> iso string (safe for JSON)
     if isinstance(obj, (dt.datetime, dt.date)):

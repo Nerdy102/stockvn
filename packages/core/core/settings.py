@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import logging
+
 from pydantic import Field
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+log = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -17,6 +22,10 @@ class Settings(BaseSettings):
     DEMO_DATA_DIR: str = Field(default="data_demo")
 
     DATABASE_URL: str = Field(default="sqlite:///./vn_invest.db")
+    REDIS_URL: str = Field(default="redis://localhost:6379/0")
+
+    SSI_FCDATA_BASE_URL: str = Field(default="https://fc-data.ssi.com.vn/api/v2")
+    SSI_STREAM_URL: str = Field(default="wss://iboard-stream.ssi.com.vn")
 
     MARKET_RULES_PATH: str = Field(default="configs/market_rules_vn.yaml")
     FEES_TAXES_PATH: str = Field(default="configs/fees_taxes.yaml")
@@ -36,6 +45,45 @@ class Settings(BaseSettings):
     API_DEFAULT_LIMIT: int = Field(default=200)
     API_MAX_LIMIT: int = Field(default=2000)
     API_DEFAULT_DAYS: int = Field(default=365)
+
+    @model_validator(mode="after")
+    def validate_runtime_requirements(self) -> Settings:
+        required_urls = {
+            "DATABASE_URL": self.DATABASE_URL,
+            "REDIS_URL": self.REDIS_URL,
+            "SSI_FCDATA_BASE_URL": self.SSI_FCDATA_BASE_URL,
+            "SSI_STREAM_URL": self.SSI_STREAM_URL,
+        }
+        missing_urls = [name for name, value in required_urls.items() if not str(value).strip()]
+        if missing_urls:
+            missing_msg = ", ".join(missing_urls)
+            raise RuntimeError(f"Missing required environment variables: {missing_msg}")
+
+        missing_ssi_credentials = [
+            key
+            for key, value in {
+                "SSI_CONSUMER_ID": self.SSI_CONSUMER_ID,
+                "SSI_CONSUMER_SECRET": self.SSI_CONSUMER_SECRET,
+                "SSI_PRIVATE_KEY_PATH": self.SSI_PRIVATE_KEY_PATH,
+            }.items()
+            if not str(value).strip()
+        ]
+
+        if missing_ssi_credentials and not self.DEV_MODE:
+            missing_msg = ", ".join(missing_ssi_credentials)
+            raise RuntimeError(
+                "SSI credentials are required when DEV_MODE=false. "
+                f"Missing: {missing_msg}"
+            )
+
+        if missing_ssi_credentials and self.DEV_MODE:
+            log.warning(
+                "DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. "
+                "Missing: %s",
+                ", ".join(missing_ssi_credentials),
+            )
+
+        return self
 
 
 def get_settings() -> Settings:

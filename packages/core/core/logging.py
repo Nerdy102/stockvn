@@ -23,6 +23,7 @@ class JsonFormatter(logging.Formatter):
             "provider",
             "latency_ms",
             "job_id",
+            "request_id",
             "correlation_id",
         ]:
             if hasattr(record, key):
@@ -40,3 +41,7 @@ def setup_logging(level: str = "INFO") -> None:
     root.setLevel(lvl)
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         logging.getLogger(name).setLevel(lvl)
+
+
+def get_logger(name: str, **context: Any) -> logging.LoggerAdapter[logging.Logger]:
+    return logging.LoggerAdapter(logging.getLogger(name), context)
