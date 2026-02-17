@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from core.db.models import Ticker
 from core.db.session import create_db_and_tables, get_engine
-from core.logging import setup_logging
+from core.logging import get_logger, setup_logging
 from core.settings import get_settings
 from data.providers.factory import get_provider
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from worker_scheduler.jobs import ensure_seeded
@@ -17,9 +17,9 @@ from api_fastapi.routers import (
     alerts,
     fundamentals,
     health,
+    ml,
     portfolio,
     prices,
-    ml,
     screeners,
     signals,
     tickers,
@@ -27,7 +27,7 @@ from api_fastapi.routers import (
 
 settings = get_settings()
 setup_logging(settings.LOG_LEVEL)
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -49,6 +49,14 @@ def create_app() -> FastAPI:
         lifespan=_lifespan,
     )
 
+    @app.middleware("http")
+    async def add_request_id(request: Request, call_next):
+        request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["x-request-id"] = request_id
+        return response
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -67,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(alerts.router)
     app.include_router(ml.router)
 
+    log.info("api_initialized", extra={"event": "api_startup"})
     return app
 
 

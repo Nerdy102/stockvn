@@ -1,4 +1,4 @@
-.PHONY: setup run-api run-worker run-ui test lint format docker-up docker-down
+.PHONY: setup run-api run-worker run-ui test lint format docker-up docker-down quality-gate
 
 PYTHONPATH := packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps
 VENV := .venv
@@ -38,3 +38,10 @@ docker-up:
 
 docker-down:
 	docker compose -f infra/docker-compose.yml down -v
+
+quality-gate:
+	$(PY) -m ruff check .
+	$(PY) -m black --check .
+	PYTHONPATH=$(PYTHONPATH) $(PY) -m mypy .
+	PYTHONPATH=$(PYTHONPATH) $(PY) -m pytest -q
+	$(PY) scripts/quality_gate.py

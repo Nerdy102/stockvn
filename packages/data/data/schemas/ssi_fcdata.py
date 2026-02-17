@@ -69,7 +69,7 @@ def _parse_date(v: Any) -> dt.date | None:
         try:
             return dt.datetime.strptime(s, fmt).date()
         except ValueError:
-            pass
+            continue
     return None
 
 
@@ -84,14 +84,14 @@ def _parse_dt(v: Any, trading_date: dt.date | None = None) -> dt.datetime | None
             parsed = dt.datetime.strptime(s, fmt)
             return parsed.replace(tzinfo=VN_TZ)
         except ValueError:
-            pass
+            continue
     if trading_date:
         for fmt in ("%H:%M:%S", "%H:%M"):
             try:
                 t = dt.datetime.strptime(s, fmt).time()
                 return dt.datetime.combine(trading_date, t, tzinfo=VN_TZ)
             except ValueError:
-                pass
+                continue
     return None
 
 

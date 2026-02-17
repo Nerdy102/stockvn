@@ -376,7 +376,7 @@ def suggest_rebalance(
       - beta_cap (default 1.1)
       - participation_limit (default 0.05)
       - days_to_exit (default 3)
-      - min_signal_strength (default 0.0 placeholder)
+      - min_signal_strength (default 0.0)
     """
     rules = rules or {}
     target_cash = float(rules.get("target_cash_weight", 0.10))
