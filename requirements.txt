@@ -1,0 +1,14 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+sqlmodel>=0.0.18
+sqlalchemy>=2.0
+pandas>=2.1
+numpy>=1.26
+pyyaml>=6.0
+pydantic-settings>=2.2
+python-dotenv>=1.0
+apscheduler>=3.10
+plotly>=5.18
+streamlit>=1.30
+httpx>=0.26
+psycopg2-binary>=2.9

@@ -1,0 +1,9 @@
+rules:
+  - name: demo_breakout_ma20
+    timeframe: "1D"
+    expression: "CROSSOVER(close, SMA(20)) AND volume > 1.5*AVG(volume, 20)"
+    symbols: ["FVNA", "FVNB", "FVNC", "FVND", "FVNE"]
+  - name: demo_rsi_oversold
+    timeframe: "1D"
+    expression: "RSI(14) < 30"
+    symbols: ["FVNA", "FVNB", "FVNC", "FVND", "FVNE", "FVNF"]

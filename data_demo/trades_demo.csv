@@ -1,0 +1,8 @@
+trade_date,symbol,side,quantity,price,strategy_tag,notes
+2025-03-10,FVNA,BUY,10000,38500,core,Demo buy
+2025-03-17,FVNB,BUY,12000,22500,swing,Demo buy
+2025-04-07,FVNC,BUY,15000,17800,core,Demo buy
+2025-06-09,FVNB,SELL,4000,24000,swing,Partial take profit
+2025-08-18,FVNA,BUY,6000,40000,core,Add
+2025-10-13,FVNC,SELL,5000,18900,core,Trim
+2025-12-08,FVND,BUY,8000,29600,breakout,New position

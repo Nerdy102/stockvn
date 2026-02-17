@@ -1,0 +1,22 @@
+name: demo_quality_value
+description: "Demo screen: ưu tiên Quality + Value; lọc thanh khoản & market cap; có catalyst tags."
+universe:
+  exchange: ["HOSE"]
+filters:
+  sector_in: ["Banks", "Securities", "Real Estate", "Consumer", "Industrials", "Technology", "Utilities", "Materials", "Healthcare", "Energy"]
+  min_avg_value_20d: 2000000000   # 2 tỷ VND
+  market_cap_min: 5000000000000   # 5,000 tỷ VND
+  max_pe: 25
+  max_pb: 4
+  min_roe: 0.10
+  max_net_debt_to_ebitda: 4.0     # for non-fin
+  catalyst_tags_any: ["KQKD", "policy", "cycle"]
+factor_weights:
+  quality: 0.45
+  value: 0.35
+  momentum: 0.15
+  low_vol: 0.05
+technical_setups:
+  breakout:
+    lookback: 20
+    volume_multiple: 1.5

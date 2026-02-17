@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vninv
+      POSTGRES_PASSWORD: vninv
+      POSTGRES_DB: vninv
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps python -m uvicorn api_fastapi.main:app --host 0.0.0.0 --port 8000"]
+    environment:
+      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps"
+      DATABASE_URL: postgresql+psycopg2://vninv:vninv@postgres:5432/vninv
+      DATA_PROVIDER: csv
+      DEMO_DATA_DIR: /app/data_demo
+      MARKET_RULES_PATH: /app/configs/market_rules_vn.yaml
+      FEES_TAXES_PATH: /app/configs/fees_taxes.yaml
+      BROKER_NAME: demo_broker
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps python -m worker_scheduler.main --interval-minutes 15"]
+    environment:
+      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps"
+      DATABASE_URL: postgresql+psycopg2://vninv:vninv@postgres:5432/vninv
+      DATA_PROVIDER: csv
+      DEMO_DATA_DIR: /app/data_demo
+      MARKET_RULES_PATH: /app/configs/market_rules_vn.yaml
+      FEES_TAXES_PATH: /app/configs/fees_taxes.yaml
+      BROKER_NAME: demo_broker
+    depends_on:
+      - postgres
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps python -m streamlit run apps/dashboard_streamlit/app.py --server.port 8501 --server.address 0.0.0.0"]
+    environment:
+      PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps"
+      API_BASE_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

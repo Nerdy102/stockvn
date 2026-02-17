@@ -1,0 +1,76 @@
+market: HOSE
+timezone: Asia/Ho_Chi_Minh
+
+trading_hours:
+  - name: opening_call_auction
+    start: "09:00"
+    end: "09:15"
+    matching: call_auction
+    order_types: ["ATO", "LO"]
+  - name: continuous_matching_1
+    start: "09:15"
+    end: "11:30"
+    matching: continuous
+    order_types: ["LO", "MTL"]
+  - name: lunch_break
+    start: "11:30"
+    end: "13:00"
+    matching: break
+    order_types: []
+    notes: "Lunch break: hạn chế sửa/huỷ theo mô tả."
+  - name: continuous_matching_2
+    start: "13:00"
+    end: "14:30"
+    matching: continuous
+    order_types: ["LO", "MTL"]
+  - name: closing_call_auction
+    start: "14:30"
+    end: "14:45"
+    matching: call_auction
+    order_types: ["ATC", "LO"]
+
+put_through:
+  sessions:
+    - start: "09:00"
+      end: "11:30"
+    - start: "13:00"
+      end: "15:00"
+
+quantity_rules:
+  board_lot: 100
+  odd_lot_min: 1
+  odd_lot_max: 99
+  max_order: 500000
+  block_min: 20000
+
+tick_size:
+  stocks_funds:
+    - lt: 10000
+      tick: 10
+    - gte: 10000
+      lt: 50000
+      tick: 50
+      note: "Vùng 10,000–49,950 có tick 50đ; các giá hợp lệ là bội số của 50 (tối đa thực tế 49,950)."
+    - gte: 50000
+      tick: 100
+  etf_cw:
+    tick: 10
+  put_through:
+    tick: 1
+
+price_limits:
+  normal: 0.07
+  first_trading_day: 0.20
+  resumed_after_suspension_25d: 0.20
+  special_cases:
+    ex_rights:
+      enabled: true
+      note: "Thiết kế mở rộng: ex-rights có thể có cơ chế giá tham chiếu/biên độ riêng; dùng CorporateAction để xác định context."
+    corporate_action_override:
+      enabled: true
+      fields: ["action_type", "meta"]
+      note: "Cho phép override limit theo corporate action meta (chưa implement full)."
+
+reference_close:
+  reference_price: previous_close
+  close_price_rule: "last executed price of board-lot matching session; if none => close=reference"

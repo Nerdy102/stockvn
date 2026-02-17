@@ -1,0 +1,12 @@
+symbol,name,exchange,sector,industry,shares_outstanding,market_cap,is_bank,is_broker,tags
+FVNA,FVN Alpha Bank,HOSE,Banks,Commercial Bank,2400000000,92400000000000,1,0,KQKD;policy
+FVNB,FVN Beta Securities,HOSE,Securities,Brokerage,1200000000,27000000000000,0,1,liquidity;cycle
+FVNC,FVN Gamma Real Estate,HOSE,Real Estate,Property Developer,1800000000,32040000000000,0,0,cycle;policy
+FVND,FVN Delta Industrials,HOSE,Industrials,Manufacturing,900000000,26640000000000,0,0,capex;cycle
+FVNE,FVN Epsilon Consumer,HOSE,Consumer,Retail,650000000,35230000000000,0,0,KQKD;seasonal
+FVNF,FVN Zeta Technology,HOSE,Technology,Software,420000000,28056000000000,0,0,product;policy
+FVNG,FVN Eta Utilities,HOSE,Utilities,Power,1050000000,13020000000000,0,0,regulation;dividend
+FVNH,FVN Theta Materials,HOSE,Materials,Steel,1550000000,38285000000000,0,0,cycle;commodity
+FVNI,FVN Iota Healthcare,HOSE,Healthcare,Pharma,520000000,21476000000000,0,0,policy;defensive
+FVNJ,FVN Kappa Energy,HOSE,Energy,Oil & Gas Services,760000000,15124000000000,0,0,commodity;cycle
+VNINDEX,VN-Index (Synthetic),HOSE,Index,Benchmark,0,0,0,0,

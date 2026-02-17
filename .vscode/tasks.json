@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "make: setup", "type": "shell", "command": "make setup", "problemMatcher": [] },
+    { "label": "make: run-api", "type": "shell", "command": "make run-api", "problemMatcher": [] },
+    { "label": "make: run-worker", "type": "shell", "command": "make run-worker", "problemMatcher": [] },
+    { "label": "make: run-ui", "type": "shell", "command": "make run-ui", "problemMatcher": [] },
+    { "label": "make: test", "type": "shell", "command": "make test", "problemMatcher": [] },
+    { "label": "make: lint", "type": "shell", "command": "make lint", "problemMatcher": [] }
+  ]
+}

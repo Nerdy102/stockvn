@@ -1,0 +1,12 @@
+taxes:
+  capital_gains_sell_tax_rate: 0.001   # 0.1% on gross sell value
+  dividend_tax_rate: 0.05              # 5% withholding
+
+fees:
+  default_commission_rate: 0.0015      # 0.15%
+  brokers:
+    demo_broker:
+      commission_rate: 0.0015
+
+settlement:
+  t_plus: 2
