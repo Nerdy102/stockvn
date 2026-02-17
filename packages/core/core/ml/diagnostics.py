@@ -57,8 +57,11 @@ def turnover_cost_attribution(df: pd.DataFrame) -> dict[str, float]:
 
 
 def capacity(df: pd.DataFrame) -> dict[str, float]:
-    ratio = (df.get("order_notional", 0.0) / df.get("adv20_value", 1.0)).replace([np.inf, -np.inf], np.nan)
-    binds = df.get("liq_bound", False).astype(float)
+    order = df["order_notional"] if "order_notional" in df else pd.Series(0.0, index=df.index)
+    adtv = df["adv20_value"] if "adv20_value" in df else pd.Series(1.0, index=df.index)
+    ratio = (order / adtv).replace([np.inf, -np.inf], np.nan)
+    binds_col = df["liq_bound"] if "liq_bound" in df else pd.Series(False, index=df.index)
+    binds = binds_col.astype(float)
     return {
         "capacity_avg_order_notional_over_adtv": float(np.nanmean(ratio)) if len(df) else 0.0,
         "capacity_liq_bind_pct": float(np.nanmean(binds)) if len(df) else 0.0,
@@ -67,8 +70,10 @@ def capacity(df: pd.DataFrame) -> dict[str, float]:
 
 def regime_breakdown(df: pd.DataFrame) -> dict[str, float]:
     out: dict[str, float] = {}
+    regime_col = df["regime"] if "regime" in df else pd.Series("sideways", index=df.index)
     for r in ["trend_up", "sideways", "risk_off"]:
-        v = df[df.get("regime", "sideways") == r]["net_ret"]
+        mask = regime_col == r
+        v = df.loc[mask, "net_ret"] if "net_ret" in df else pd.Series(dtype=float)
         out[f"regime_{r}_mean_net_ret"] = float(v.mean()) if len(v) else 0.0
     return out
 

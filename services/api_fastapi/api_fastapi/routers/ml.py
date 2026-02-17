@@ -93,6 +93,19 @@ def _v2_features(db: Session) -> pd.DataFrame:
     return build_features_v2(base, regime, foreign, quotes, intraday)
 
 
+def _top30_universe_symbols(db: Session, universe: str) -> set[str]:
+    if universe == "VNINDEX":
+        return {"VNINDEX"}
+    tickers = list(db.exec(select(Ticker)).all())
+    if not tickers:
+        return set()
+    if universe == "VN30":
+        eligible = [t for t in tickers if t.exchange in {"HOSE", "HNX", "UPCOM"} and t.symbol != "VNINDEX"]
+        eligible = sorted(eligible, key=lambda t: float(getattr(t, "market_cap", 0.0) or 0.0), reverse=True)
+        return {t.symbol for t in eligible[:30]}
+    return {t.symbol for t in tickers}
+
+
 @router.get("/models")
 def get_models() -> list[str]:
     """Return all supported v1 and v2 model IDs."""
@@ -172,12 +185,8 @@ def predict(
 
     rows = list(db.exec(q.offset(offset).limit(limit)).all())
     if universe != "ALL":
-        if universe == "VNINDEX":
-            rows = [r for r in rows if r.symbol == "VNINDEX"]
-        elif universe == "VN30":
-            # Offline fallback: approximate VN30 by top 30 non-index symbols by available predictions
-            symbols = sorted({r.symbol for r in rows if r.symbol != "VNINDEX"})[:30]
-            rows = [r for r in rows if r.symbol in set(symbols)]
+        symbols = _top30_universe_symbols(db, universe)
+        rows = [r for r in rows if r.symbol in symbols]
 
     return [
         {
@@ -256,6 +265,12 @@ def backtest(payload: dict | None = None, db: Session = Depends(get_db), setting
             latest["uncert"] = latest["uncert"].fillna(0.1)
 
         latest = latest[latest["symbol"] != "VNINDEX"]
+        ticker_df = pd.DataFrame([t.model_dump() for t in db.exec(select(Ticker)).all()])
+        if not ticker_df.empty:
+            latest = latest.merge(ticker_df[["symbol", "exchange", "sector"]], on="symbol", how="left", suffixes=("", "_tk"))
+            latest["exchange"] = latest.get("exchange").fillna(latest.get("exchange_tk"))
+            latest["sector"] = latest.get("sector").fillna(latest.get("sector_tk"))
+            latest = latest[latest["exchange"].isin(["HOSE", "HNX", "UPCOM"])]
         latest = latest[latest["adv20_value"] >= 1e9]
         latest = latest.sort_values("score_final", ascending=False).head(30)
 

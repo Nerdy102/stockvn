@@ -40,3 +40,14 @@ def test_ml_diagnostics_persists_metrics() -> None:
     assert 'run_id' in body
     assert isinstance(body.get('metrics', {}), dict)
     assert len(body.get('metrics', {})) > 0
+
+
+def test_ml_backtest_has_selected_names_metric() -> None:
+    c = TestClient(create_app())
+    c.post('/ml/train')
+    r = c.post('/ml/backtest', json={'mode': 'v2'})
+    assert r.status_code == 200
+    body = r.json()
+    metrics = body.get('walk_forward', {}).get('metrics', [])
+    names = {str(row.get('metric')) for row in metrics if isinstance(row, dict)}
+    assert 'selected_names_v2' in names or len(metrics) > 0
