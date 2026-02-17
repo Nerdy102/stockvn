@@ -29,6 +29,13 @@ def _to_int(v: Any) -> int | None:
     return int(fv) if fv is not None else None
 
 
+def _require_float(d: dict[str, Any], *keys: str, context: str) -> float:
+    val = _to_float(_pick(d, *keys))
+    if val is None:
+        raise ValueError(f"Missing required numeric field {keys} in {context}")
+    return float(val)
+
+
 def parse_vn_ts_utc(raw_date: Any, raw_time: Any) -> dt.datetime:
     if raw_date in (None, ""):
         raise ValueError("Missing TradingDate/Tradingdate in SSI REST payload")
@@ -95,11 +102,11 @@ def map_ohlcv_rows(payload: list[dict[str, Any]], *, timeframe: str, source: str
                     symbol=symbol,
                     timeframe=timeframe,
                     ts_utc=ts_utc,
-                    open=float(_to_float(_pick(row, "Open", "Openprice")) or 0.0),
-                    high=float(_to_float(_pick(row, "High", "Highestprice")) or 0.0),
-                    low=float(_to_float(_pick(row, "Low", "Lowestprice")) or 0.0),
-                    close=float(_to_float(_pick(row, "Close", "Closeprice")) or 0.0),
-                    volume=float(_to_float(_pick(row, "Volume", "Totalmatchvol")) or 0.0),
+                    open=_require_float(row, "Open", "Openprice", context=f"OHLCV/{symbol}"),
+                    high=_require_float(row, "High", "Highestprice", context=f"OHLCV/{symbol}"),
+                    low=_require_float(row, "Low", "Lowestprice", context=f"OHLCV/{symbol}"),
+                    close=_require_float(row, "Close", "Closeprice", context=f"OHLCV/{symbol}"),
+                    volume=_require_float(row, "Volume", "Totalmatchvol", context=f"OHLCV/{symbol}"),
                     value=_to_float(_pick(row, "Value", "Totalmatchval", "TotalTrade")),
                     data_source=source,
                 )
@@ -119,7 +126,7 @@ def map_daily_index(payload: list[dict[str, Any]], source: str) -> list[dict[str
             {
                 "index_id": index_id,
                 "timeframe": "1D",
-                "timestamp": parse_vn_ts_utc(_pick(row, "TradingDate"), row.get("Time")),
+                "timestamp": parse_vn_ts_utc(_pick(row, "TradingDate", "Tradingdate"), row.get("Time")),
                 "open": _to_float(row.get("Open")),
                 "high": _to_float(row.get("High")),
                 "low": _to_float(row.get("Low")),
