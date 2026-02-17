@@ -6,6 +6,7 @@ import math
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import yaml
 from core.db.models import (
@@ -835,6 +836,17 @@ def run_diagnostics_v2(session: Session) -> int:
     p["score_final"] = p["meta"].apply(lambda m: float((m or {}).get("score_final", 0.0)) if isinstance(m, dict) else 0.0)
     d = f.merge(p[["symbol", "as_of_date", "score_final"]], on=["symbol", "as_of_date"], how="inner")
     d["net_ret"] = d["y_excess"].fillna(0.0)
+    d["order_notional"] = 10_000_000.0
+    d["turnover"] = 0.0
+    d["commission"] = 0.0
+    d["sell_tax"] = 0.0
+    d["slippage_cost"] = 0.0
+    d["liq_bound"] = False
+    d["regime"] = np.where(
+        d.get("regime_risk_off", 0.0) > 0.5,
+        "risk_off",
+        np.where(d.get("regime_trend_up", 0.0) > 0.5, "trend_up", "sideways"),
+    )
     metrics = run_diagnostics(d)
     run_id = f"diag-{dt.datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     session.add(DiagnosticsRun(run_id=run_id, model_id="ensemble_v2", config_hash="worker"))
