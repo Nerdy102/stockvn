@@ -5,9 +5,8 @@ import json
 import logging
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-
 from core.metrics import METRICS
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 log = logging.getLogger(__name__)
 
@@ -19,12 +18,28 @@ class SSIBaseModel(BaseModel):
 
     def unknown_fields(self) -> list[str]:
         known = set(type(self).model_fields.keys())
-        return sorted([k for k in self.model_extra.keys() if k not in known]) if self.model_extra else []
+        return (
+            sorted([k for k in self.model_extra.keys() if k not in known])
+            if self.model_extra
+            else []
+        )
 
     def record_schema_drift_metrics(self, model_name: str | None = None) -> None:
         for field_name in self.unknown_fields():
-            METRICS.inc("schema_unknown_fields_total", model=model_name or type(self).__name__, field_name=field_name)
-            log.warning("schema_unknown_field", extra={"event": "schema_drift", "app_module": "ssi_schema", "field_name": field_name, "model": model_name or type(self).__name__})
+            METRICS.inc(
+                "schema_unknown_fields_total",
+                model=model_name or type(self).__name__,
+                field_name=field_name,
+            )
+            log.warning(
+                "schema_unknown_field",
+                extra={
+                    "event": "schema_drift",
+                    "app_module": "ssi_schema",
+                    "field_name": field_name,
+                    "model": model_name or type(self).__name__,
+                },
+            )
 
 
 # ---------- Coercion helpers ----------
@@ -208,7 +223,14 @@ class DailyIndexRecord(SSIBaseModel):
         td = _parse_date(data.get("TradingDate"))
         data["TradingDate"] = td
         data["Time"] = _parse_dt(data.get("Time"), td)
-        for fld in ["IndexValue", "Change", "RatioChange", "TotalTrade", "Totalmatchvol", "Totalmatchval"]:
+        for fld in [
+            "IndexValue",
+            "Change",
+            "RatioChange",
+            "TotalTrade",
+            "Totalmatchvol",
+            "Totalmatchval",
+        ]:
             data[fld] = _to_float(data.get(fld))
         return data
 

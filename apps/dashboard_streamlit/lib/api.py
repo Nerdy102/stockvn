@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
@@ -10,7 +10,7 @@ def _base() -> str:
     return os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 
 
-def get(path: str, params: Optional[Dict[str, Any]] = None, timeout: float = 30.0) -> Any:
+def get(path: str, params: dict[str, Any] | None = None, timeout: float = 30.0) -> Any:
     url = _base() + path
     with httpx.Client(timeout=timeout) as client:
         r = client.get(url, params=params)
@@ -18,7 +18,7 @@ def get(path: str, params: Optional[Dict[str, Any]] = None, timeout: float = 30.
         return r.json()
 
 
-def post(path: str, json: Optional[Dict[str, Any]] = None, timeout: float = 60.0) -> Any:
+def post(path: str, json: dict[str, Any] | None = None, timeout: float = 60.0) -> Any:
     url = _base() + path
     with httpx.Client(timeout=timeout) as client:
         r = client.post(url, json=json)

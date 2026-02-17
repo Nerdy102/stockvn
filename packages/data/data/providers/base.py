@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import abc
 import datetime as dt
-from typing import Optional
 
 import pandas as pd
 
@@ -19,8 +18,8 @@ class BaseMarketDataProvider(abc.ABC):
         self,
         symbol: str,
         timeframe: str,
-        start: Optional[dt.date] = None,
-        end: Optional[dt.date] = None,
+        start: dt.date | None = None,
+        end: dt.date | None = None,
     ) -> pd.DataFrame:
         raise NotImplementedError
 
@@ -29,8 +28,8 @@ class BaseMarketDataProvider(abc.ABC):
         self,
         symbol: str,
         timeframe: str,
-        start: Optional[dt.date] = None,
-        end: Optional[dt.date] = None,
+        start: dt.date | None = None,
+        end: dt.date | None = None,
     ) -> pd.DataFrame:
         raise NotImplementedError
 

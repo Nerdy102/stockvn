@@ -7,11 +7,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from sqlmodel import Session, select
-
 from core.db.models import BronzeRaw, IngestState, PriceOHLCV
 from core.metrics import METRICS
 from core.settings import get_settings
+from sqlmodel import Session, select
+
 from data.adapters.ssi_mapper import SSIMapper
 from data.schemas.ssi_fcdata import DailyOhlcRecord
 
@@ -19,7 +19,9 @@ log = logging.getLogger(__name__)
 
 
 def payload_hash(payload: dict[str, Any]) -> str:
-    body = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+    body = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
+    )
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
@@ -34,7 +36,10 @@ def append_bronze(
 ) -> bool:
     p_hash = payload_hash(payload)
     exists = session.exec(
-        select(BronzeRaw).where(BronzeRaw.provider_name == provider_name).where(BronzeRaw.endpoint_or_channel == endpoint_or_channel).where(BronzeRaw.payload_hash == p_hash)
+        select(BronzeRaw)
+        .where(BronzeRaw.provider_name == provider_name)
+        .where(BronzeRaw.endpoint_or_channel == endpoint_or_channel)
+        .where(BronzeRaw.payload_hash == p_hash)
     ).first()
     if exists:
         return False
@@ -52,7 +57,9 @@ def append_bronze(
     return True
 
 
-def upsert_silver_price(session: Session, payload: dict[str, Any], source: str = "ssi_fcdata") -> PriceOHLCV:
+def upsert_silver_price(
+    session: Session, payload: dict[str, Any], source: str = "ssi_fcdata"
+) -> PriceOHLCV:
     bar = SSIMapper.map_daily_ohlc(payload)
     row = PriceOHLCV(
         symbol=bar.symbol,
@@ -80,11 +87,20 @@ def update_ingest_state(
     last_ts: dt.datetime | None,
     last_cursor: str | None = None,
 ) -> None:
-    state = IngestState(provider=provider, channel=channel, symbol=symbol, last_ts=last_ts, last_cursor=last_cursor, updated_at=dt.datetime.utcnow())
+    state = IngestState(
+        provider=provider,
+        channel=channel,
+        symbol=symbol,
+        last_ts=last_ts,
+        last_cursor=last_cursor,
+        updated_at=dt.datetime.utcnow(),
+    )
     session.merge(state)
 
 
-def ingest_from_fixtures(session: Session, fixture_dir: str = "tests/fixtures/ssi_fcdata") -> dict[str, int]:
+def ingest_from_fixtures(
+    session: Session, fixture_dir: str = "tests/fixtures/ssi_fcdata"
+) -> dict[str, int]:
     if should_pause_ingest():
         return {"bronze_added": 0, "silver_processed": 0}
 
@@ -109,9 +125,10 @@ def ingest_from_fixtures(session: Session, fixture_dir: str = "tests/fixtures/ss
         update_ingest_state(session, "ssi_fcdata", "DailyOhlc", parsed.Symbol, parsed.Time)
 
     session.commit()
-    log.info("ingest_from_fixtures_completed", extra={"event": "ingest_done", "provider": "ssi_fcdata"})
+    log.info(
+        "ingest_from_fixtures_completed", extra={"event": "ingest_done", "provider": "ssi_fcdata"}
+    )
     return {"bronze_added": bronze_added, "silver_processed": silver_rows}
-
 
 
 def should_pause_ingest() -> bool:
@@ -119,4 +136,7 @@ def should_pause_ingest() -> bool:
     snap = METRICS.snapshot()
     err = sum(v for k, v in snap.items() if k.startswith("ingest_errors_total"))
     drift = sum(v for k, v in snap.items() if k.startswith("schema_unknown_fields_total"))
-    return err >= settings.INGEST_ERROR_KILL_SWITCH_THRESHOLD or drift >= settings.INGEST_SCHEMA_DRIFT_KILL_SWITCH_THRESHOLD
+    return (
+        err >= settings.INGEST_ERROR_KILL_SWITCH_THRESHOLD
+        or drift >= settings.INGEST_SCHEMA_DRIFT_KILL_SWITCH_THRESHOLD
+    )

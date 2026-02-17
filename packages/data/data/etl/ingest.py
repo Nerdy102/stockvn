@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 import pandas as pd
-from sqlmodel import Session
-
 from core.db.models import Fundamental, PriceOHLCV, Ticker
+from sqlmodel import Session
 
 
 def ingest_tickers(session: Session, tickers_df: pd.DataFrame) -> int:
     n = 0
     for _, r in tickers_df.iterrows():
         tags_raw = str(r.get("tags", "") or "").strip()
-        tags: Dict[str, Any] = {}
+        tags: dict[str, Any] = {}
         if tags_raw:
             tags["catalysts"] = [t.strip() for t in tags_raw.split(";") if t.strip()]
 
@@ -38,10 +37,23 @@ def ingest_fundamentals(session: Session, fundamentals_df: pd.DataFrame) -> int:
     n = 0
     df = fundamentals_df.copy()
     df["as_of_date"] = pd.to_datetime(df["as_of_date"]).dt.date
+    if "period_end" in df.columns:
+        df["period_end"] = pd.to_datetime(df["period_end"], errors="coerce").dt.date
     for _, r in df.iterrows():
+        period_end = r.get("period_end") if "period_end" in r else None
+        public_date = r.get("public_date")
+        assumed = bool(r.get("public_date_is_assumed", False))
+        if public_date is None and period_end is not None:
+            public_date, assumed = _assume_public_date(
+                period_end, str(r.get("statement_type", "quarterly"))
+            )
+
         f = Fundamental(
             symbol=str(r["symbol"]),
             as_of_date=r["as_of_date"],
+            period_end=period_end,
+            public_date=public_date,
+            public_date_is_assumed=assumed,
             sector=str(r["sector"]),
             is_bank=bool(r.get("is_bank", False)),
             is_broker=bool(r.get("is_broker", False)),
@@ -108,3 +120,10 @@ def _to_float_or_none(x):
         return float(s)
     except Exception:
         return None
+
+
+def _assume_public_date(period_end, statement_type: str) -> tuple[object, bool]:
+    if period_end is None:
+        return (None, False)
+    lag = 90 if str(statement_type).lower() in {"yearly", "annual"} else 45
+    return period_end + pd.Timedelta(days=lag), True

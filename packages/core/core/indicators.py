@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Tuple
 
 import numpy as np
 import pandas as pd
@@ -68,7 +67,9 @@ def rsi_incremental(price: float, state: RSIState, window: int = 14) -> tuple[fl
     return 100.0 - (100.0 / (1.0 + rs)), state
 
 
-def macd(close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[pd.Series, pd.Series, pd.Series]:
+def macd(
+    close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9
+) -> tuple[pd.Series, pd.Series, pd.Series]:
     fast_ema = ema(close, fast)
     slow_ema = ema(close, slow)
     line = fast_ema - slow_ema
@@ -97,15 +98,17 @@ def vwap(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series) -
 @dataclass
 class RollingMeanState:
     window: int
-    buf: Deque[float]
+    buf: deque[float]
     total: float
 
     @classmethod
-    def new(cls, window: int) -> "RollingMeanState":
+    def new(cls, window: int) -> RollingMeanState:
         return cls(window=window, buf=deque(), total=0.0)
 
 
-def rolling_mean_incremental(x: float, state: RollingMeanState) -> tuple[float | None, RollingMeanState]:
+def rolling_mean_incremental(
+    x: float, state: RollingMeanState
+) -> tuple[float | None, RollingMeanState]:
     state.buf.append(float(x))
     state.total += float(x)
     if len(state.buf) > state.window:

@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from sqlmodel import Session, SQLModel, create_engine, select
-
 from core.db.models import PriceOHLCV
 from data.adapters.ssi_mapper import SSIMapper
 from data.schemas.ssi_fcdata import (
@@ -21,6 +19,7 @@ from data.schemas.ssi_fcdata import (
     StreamingXSnapshot,
     StreamingXTrade,
 )
+from sqlmodel import Session, SQLModel, create_engine, select
 
 FIX = Path("tests/fixtures/ssi_fcdata")
 

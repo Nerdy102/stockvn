@@ -1,1 +1,1 @@
-from data.adapters.ssi_mapper import SSIMapper, CanonicalPriceBar
+from data.adapters.ssi_mapper import CanonicalPriceBar, SSIMapper

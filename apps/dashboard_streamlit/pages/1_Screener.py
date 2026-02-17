@@ -4,8 +4,10 @@ import pandas as pd
 import streamlit as st
 
 from apps.dashboard_streamlit.lib.api import get, post
+from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
 
 st.header("Screener & Discovery")
+render_global_disclaimer()
 
 col1, col2 = st.columns([2, 1])
 with col1:

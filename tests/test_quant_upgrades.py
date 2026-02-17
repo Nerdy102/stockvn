@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pandas as pd
-
 from core.execution_model import ExecutionAssumptions, slippage_bps
 from core.factors import compute_factors
 from core.regime import REGIME_RISK_OFF, REGIME_TREND_UP, classify_market_regime
@@ -29,19 +28,45 @@ def test_slippage_bounds_monotonic() -> None:
 def test_factor_negative_denominator_handling() -> None:
     tickers = pd.DataFrame(
         [
-            {"symbol": "AAA", "sector": "Tech", "is_bank": 0, "is_broker": 0, "shares_outstanding": 1_000_000},
-            {"symbol": "BBB", "sector": "Tech", "is_bank": 0, "is_broker": 0, "shares_outstanding": 1_000_000},
+            {
+                "symbol": "AAA",
+                "sector": "Tech",
+                "is_bank": 0,
+                "is_broker": 0,
+                "shares_outstanding": 1_000_000,
+            },
+            {
+                "symbol": "BBB",
+                "sector": "Tech",
+                "is_bank": 0,
+                "is_broker": 0,
+                "shares_outstanding": 1_000_000,
+            },
         ]
     )
     fundamentals = pd.DataFrame(
         [
             {
-                "symbol": "AAA", "sector": "Tech", "net_income_ttm_vnd": -10, "equity_vnd": 100, "total_assets_vnd": 200,
-                "cfo_ttm_vnd": 10, "net_debt_vnd": 10, "ebitda_ttm_vnd": 10, "dividends_ttm_vnd": 1,
+                "symbol": "AAA",
+                "sector": "Tech",
+                "net_income_ttm_vnd": -10,
+                "equity_vnd": 100,
+                "total_assets_vnd": 200,
+                "cfo_ttm_vnd": 10,
+                "net_debt_vnd": 10,
+                "ebitda_ttm_vnd": 10,
+                "dividends_ttm_vnd": 1,
             },
             {
-                "symbol": "BBB", "sector": "Tech", "net_income_ttm_vnd": 10, "equity_vnd": -100, "total_assets_vnd": 200,
-                "cfo_ttm_vnd": 10, "net_debt_vnd": 10, "ebitda_ttm_vnd": 10, "dividends_ttm_vnd": 1,
+                "symbol": "BBB",
+                "sector": "Tech",
+                "net_income_ttm_vnd": 10,
+                "equity_vnd": -100,
+                "total_assets_vnd": 200,
+                "cfo_ttm_vnd": 10,
+                "net_debt_vnd": 10,
+                "ebitda_ttm_vnd": 10,
+                "dividends_ttm_vnd": 1,
             },
         ]
     )

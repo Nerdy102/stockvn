@@ -16,7 +16,9 @@ class FactorOutput:
     raw_metrics: pd.DataFrame
 
 
-def _safe_ratio(numer: pd.Series, denom: pd.Series, allow_negative_denom: bool = False) -> pd.Series:
+def _safe_ratio(
+    numer: pd.Series, denom: pd.Series, allow_negative_denom: bool = False
+) -> pd.Series:
     n = pd.to_numeric(numer, errors="coerce")
     d = pd.to_numeric(denom, errors="coerce")
     d = d.where(d != 0)
@@ -68,7 +70,9 @@ def compute_factors(
     ).set_index("symbol")
 
     uni["last_close"] = last_close.reindex(uni.index)
-    uni["market_cap"] = uni["last_close"] * pd.to_numeric(uni["shares_outstanding"], errors="coerce").fillna(0.0)
+    uni["market_cap"] = uni["last_close"] * pd.to_numeric(
+        uni["shares_outstanding"], errors="coerce"
+    ).fillna(0.0)
 
     mc = uni["market_cap"].replace(0, np.nan)
     ni = pd.to_numeric(uni.get("net_income_ttm_vnd"), errors="coerce")
@@ -83,11 +87,14 @@ def compute_factors(
     # Quality (common)
     uni["ROE"] = _safe_ratio(ni, eq)
     uni["ROA"] = _safe_ratio(ni, assets)
-    uni["CFO_TO_NI"] = _safe_ratio(pd.to_numeric(uni.get("cfo_ttm_vnd"), errors="coerce"), ni, allow_negative_denom=True)
+    uni["CFO_TO_NI"] = _safe_ratio(
+        pd.to_numeric(uni.get("cfo_ttm_vnd"), errors="coerce"), ni, allow_negative_denom=True
+    )
 
     # Non-fin leverage
     uni["NET_DEBT_TO_EBITDA"] = _safe_ratio(
-        pd.to_numeric(uni.get("net_debt_vnd"), errors="coerce"), pd.to_numeric(uni.get("ebitda_ttm_vnd"), errors="coerce")
+        pd.to_numeric(uni.get("net_debt_vnd"), errors="coerce"),
+        pd.to_numeric(uni.get("ebitda_ttm_vnd"), errors="coerce"),
     )
 
     # Bank metrics
@@ -117,18 +124,19 @@ def compute_factors(
     uni["MOM_12M"] = pd.Series({sym: _mom(sym, 252) for sym in symbols})
 
     # Low vol
-    uni["VOL_60D"] = rets.rolling(60).std(ddof=0).iloc[-1].reindex(uni.index) if not rets.empty else np.nan
-    uni["VOL_120D"] = rets.rolling(120).std(ddof=0).iloc[-1].reindex(uni.index) if not rets.empty else np.nan
+    uni["VOL_60D"] = (
+        rets.rolling(60).std(ddof=0).iloc[-1].reindex(uni.index) if not rets.empty else np.nan
+    )
+    uni["VOL_120D"] = (
+        rets.rolling(120).std(ddof=0).iloc[-1].reindex(uni.index) if not rets.empty else np.nan
+    )
 
     # Scores (higher better)
     rz = lambda x: robust_zscore(x, lower_q=winsor_lower_q, upper_q=winsor_upper_q)
     value_score = rz(-uni["PE"]) + rz(-uni["PB"]) + rz(uni["EARNINGS_YIELD"])
 
     quality_non_fin = (
-        rz(uni["ROE"])
-        + rz(uni["ROA"])
-        + rz(uni["CFO_TO_NI"])
-        + rz(-uni["NET_DEBT_TO_EBITDA"])
+        rz(uni["ROE"]) + rz(uni["ROA"]) + rz(uni["CFO_TO_NI"]) + rz(-uni["NET_DEBT_TO_EBITDA"])
     )
 
     quality_bank = (
@@ -156,7 +164,9 @@ def compute_factors(
 
     if size_neutral:
         try:
-            size_bucket = pd.qcut(np.log(uni["market_cap"].replace(0, np.nan)), q=5, duplicates="drop").astype(str)
+            size_bucket = pd.qcut(
+                np.log(uni["market_cap"].replace(0, np.nan)), q=5, duplicates="drop"
+            ).astype(str)
             value_score = neutralize_by_group(value_score, size_bucket)
             quality_score = neutralize_by_group(quality_score, size_bucket)
             momentum_score = neutralize_by_group(momentum_score, size_bucket)

@@ -3,12 +3,14 @@ from __future__ import annotations
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-
-from apps.dashboard_streamlit.lib.api import get
 from core.indicators import add_indicators
 from core.technical import auto_trendline, detect_supply_demand_zones
 
+from apps.dashboard_streamlit.lib.api import get
+from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
+
 st.header("Charting & Signals")
+render_global_disclaimer()
 
 tickers = []
 try:
@@ -42,9 +44,11 @@ if st.button("Load chart"):
     ohlcv = ohlcv.set_index("timestamp")
 
     if timeframe == "1W":
-        w = ohlcv.resample("W-FRI").agg(
-            {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
-        ).dropna()
+        w = (
+            ohlcv.resample("W-FRI")
+            .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
+            .dropna()
+        )
         ohlcv = w
 
     ind = add_indicators(ohlcv)
@@ -74,7 +78,12 @@ if st.button("Load chart"):
     if show_zones:
         zones = detect_supply_demand_zones(ohlcv)
         if zones:
-            zdf = pd.DataFrame([{"kind": z.kind, "start": z.start, "end": z.end, "low": z.low, "high": z.high} for z in zones])
+            zdf = pd.DataFrame(
+                [
+                    {"kind": z.kind, "start": z.start, "end": z.end, "low": z.low, "high": z.high}
+                    for z in zones
+                ]
+            )
             st.markdown("#### Zones (edit để chỉnh tay, MVP)")
             zedit = st.data_editor(zdf, use_container_width=True, num_rows="dynamic")
             for _, z in zedit.iterrows():

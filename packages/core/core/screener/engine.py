@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -18,13 +18,13 @@ from core.technical import detect_breakout, detect_pullback, detect_trend, detec
 class ScreenDefinition:
     name: str
     description: str
-    universe: Dict[str, Any]
-    filters: Dict[str, Any]
-    factor_weights: Dict[str, float]
-    technical_setups: Dict[str, Any]
+    universe: dict[str, Any]
+    filters: dict[str, Any]
+    factor_weights: dict[str, float]
+    technical_setups: dict[str, Any]
 
     @staticmethod
-    def from_yaml(path: str | Path) -> "ScreenDefinition":
+    def from_yaml(path: str | Path) -> ScreenDefinition:
         data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
         return ScreenDefinition(
             name=str(data.get("name", "screen")),
@@ -36,7 +36,7 @@ class ScreenDefinition:
         )
 
 
-def _apply_universe(tickers_df: pd.DataFrame, universe: Dict[str, Any]) -> pd.DataFrame:
+def _apply_universe(tickers_df: pd.DataFrame, universe: dict[str, Any]) -> pd.DataFrame:
     df = tickers_df.copy()
     ex = universe.get("exchange")
     if ex:
@@ -44,7 +44,7 @@ def _apply_universe(tickers_df: pd.DataFrame, universe: Dict[str, Any]) -> pd.Da
     return df
 
 
-def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any]]:
+def run_screen(session: Session, screen: ScreenDefinition) -> list[dict[str, Any]]:
     """Run a screen on DB snapshot (MVP, explainable)."""
     tickers = session.exec(select(Ticker)).all()
     fundamentals = session.exec(select(Fundamental)).all()
@@ -72,7 +72,9 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
 
     # regime state from VNINDEX
     regime_series = classify_market_regime(
-        px_df[px_df["symbol"] == "VNINDEX"].set_index("date")["close"] if "VNINDEX" in set(px_df["symbol"]) else pd.Series(dtype=float)
+        px_df[px_df["symbol"] == "VNINDEX"].set_index("date")["close"]
+        if "VNINDEX" in set(px_df["symbol"])
+        else pd.Series(dtype=float)
     )
     regime_now = str(regime_series.iloc[-1]) if not regime_series.empty else "sideway"
     regime_mult = regime_exposure_multiplier(regime_now)
@@ -81,7 +83,9 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
 
     # compute factors
     out = compute_factors(
-        tickers=tickers_df[["symbol", "sector", "is_bank", "is_broker", "shares_outstanding"]].copy(),
+        tickers=tickers_df[
+            ["symbol", "sector", "is_bank", "is_broker", "shares_outstanding"]
+        ].copy(),
         fundamentals=fund_df.copy(),
         prices=px_df[["date", "symbol", "close", "volume", "value_vnd"]].copy(),
         benchmark_symbol="VNINDEX",
@@ -152,7 +156,7 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
             full["total_factor"] += float(w) * full[k].fillna(0.0)
 
     # Technical setups
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     min_signal = float(f.get("min_signal_strength", 0.1))
     for sym in full.index:
         g = px_df[px_df["symbol"] == sym].copy()
@@ -161,7 +165,12 @@ def run_screen(session: Session, screen: ScreenDefinition) -> List[Dict[str, Any
         if g.empty:
             continue
 
-        setups: Dict[str, bool] = {"breakout": False, "trend": False, "pullback": False, "volume_spike": False}
+        setups: dict[str, bool] = {
+            "breakout": False,
+            "trend": False,
+            "pullback": False,
+            "volume_spike": False,
+        }
 
         ts = screen.technical_setups or {}
         if "breakout" in ts:

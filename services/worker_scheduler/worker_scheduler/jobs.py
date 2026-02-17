@@ -4,31 +4,35 @@ import datetime as dt
 import logging
 import math
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 import yaml
-from sqlmodel import Session, select
-
 from core.db.models import (
     AlertEvent,
     AlertRule,
+    DataQualityMetric,
+    DriftMetric,
     FactorScore,
     Fundamental,
     IndicatorState,
     IndicatorValue,
+    JobRun,
     PriceOHLCV,
     Signal,
     Ticker,
 )
 from core.factors import compute_factors
 from core.indicators import RSIState, add_indicators, ema_incremental, rsi_incremental
-from core.signals.dsl import evaluate
+from core.monitoring.data_quality import compute_data_quality_metrics
+from core.monitoring.drift import compute_weekly_drift_metrics
 from core.settings import Settings
+from core.signals.dsl import evaluate
 from core.technical import detect_breakout, detect_pullback, detect_trend, detect_volume_spike
 from data.etl.ingest import ingest_fundamentals, ingest_prices, ingest_tickers
 from data.etl.pipeline import ingest_from_fixtures
 from data.providers.base import BaseMarketDataProvider
+from sqlmodel import Session, select
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +92,7 @@ def _json_sanitize(obj: Any) -> Any:
     return obj
 
 
-def _provider_last_date(provider: BaseMarketDataProvider, symbols: List[str]) -> Optional[dt.date]:
+def _provider_last_date(provider: BaseMarketDataProvider, symbols: list[str]) -> dt.date | None:
     """Find last available 1D date from demo/provider (prefer VNINDEX)."""
     prefer = ["VNINDEX"] + [s for s in symbols if s != "VNINDEX"]
     for sym in prefer:
@@ -227,7 +231,9 @@ def compute_factor_scores(session: Session) -> None:
 
     as_of = pdf["date"].max()
     for sym, row in out.scores.iterrows():
-        raw: Dict[str, Any] = out.raw_metrics.loc[sym].to_dict() if sym in out.raw_metrics.index else {}
+        raw: dict[str, Any] = (
+            out.raw_metrics.loc[sym].to_dict() if sym in out.raw_metrics.index else {}
+        )
         raw = _json_sanitize(raw) or {}
 
         for factor in ["value", "quality", "momentum", "low_vol", "dividend"]:
@@ -277,13 +283,49 @@ def compute_technical_setups(session: Session) -> None:
             continue
         ts = g.index[-1].to_pydatetime()
         if detect_breakout(g):
-            session.merge(Signal(symbol=sym, timeframe="1D", timestamp=ts, signal_type="breakout", strength=1.0, meta={}))
+            session.merge(
+                Signal(
+                    symbol=sym,
+                    timeframe="1D",
+                    timestamp=ts,
+                    signal_type="breakout",
+                    strength=1.0,
+                    meta={},
+                )
+            )
         if detect_trend(g):
-            session.merge(Signal(symbol=sym, timeframe="1D", timestamp=ts, signal_type="trend", strength=1.0, meta={}))
+            session.merge(
+                Signal(
+                    symbol=sym,
+                    timeframe="1D",
+                    timestamp=ts,
+                    signal_type="trend",
+                    strength=1.0,
+                    meta={},
+                )
+            )
         if detect_pullback(g):
-            session.merge(Signal(symbol=sym, timeframe="1D", timestamp=ts, signal_type="pullback", strength=1.0, meta={}))
+            session.merge(
+                Signal(
+                    symbol=sym,
+                    timeframe="1D",
+                    timestamp=ts,
+                    signal_type="pullback",
+                    strength=1.0,
+                    meta={},
+                )
+            )
         if detect_volume_spike(g):
-            session.merge(Signal(symbol=sym, timeframe="1D", timestamp=ts, signal_type="volume_spike", strength=1.0, meta={}))
+            session.merge(
+                Signal(
+                    symbol=sym,
+                    timeframe="1D",
+                    timestamp=ts,
+                    signal_type="volume_spike",
+                    strength=1.0,
+                    meta={},
+                )
+            )
     session.commit()
     log.info("Technical setups computed (MVP).")
 
@@ -323,7 +365,7 @@ def generate_alerts(session: Session) -> None:
     df = df.sort_values(["symbol", "timestamp"])
 
     for rule in rules:
-        symbols: List[str]
+        symbols: list[str]
         if rule.symbols_csv.strip():
             symbols = [s.strip() for s in rule.symbols_csv.split(",") if s.strip()]
         else:
@@ -332,7 +374,11 @@ def generate_alerts(session: Session) -> None:
         for sym in symbols:
             if sym == "VNINDEX":
                 continue
-            g = df[df["symbol"] == sym].set_index("timestamp")[["open", "high", "low", "close", "volume"]].tail(300)
+            g = (
+                df[df["symbol"] == sym]
+                .set_index("timestamp")[["open", "high", "low", "close", "volume"]]
+                .tail(300)
+            )
             if g.empty:
                 continue
             try:
@@ -358,7 +404,6 @@ def generate_alerts(session: Session) -> None:
     log.info("Alerts generated (MVP).")
 
 
-
 def ingest_ssi_fixtures_job(session: Session) -> dict[str, int]:
     """Offline ingest for SSI fixtures with bronze/silver/checkpoint."""
     return ingest_from_fixtures(session)
@@ -366,7 +411,11 @@ def ingest_ssi_fixtures_job(session: Session) -> dict[str, int]:
 
 def compute_indicators_incremental(session: Session, timeframe: str = "1D") -> int:
     """Incremental EMA20 + RSI14 updates; only processes rows newer than saved state."""
-    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == timeframe).order_by(PriceOHLCV.symbol, PriceOHLCV.timestamp)).all()
+    prices = session.exec(
+        select(PriceOHLCV)
+        .where(PriceOHLCV.timeframe == timeframe)
+        .order_by(PriceOHLCV.symbol, PriceOHLCV.timestamp)
+    ).all()
     if not prices:
         return 0
     df = pd.DataFrame([p.model_dump() for p in prices])
@@ -377,8 +426,16 @@ def compute_indicators_incremental(session: Session, timeframe: str = "1D") -> i
         ema_state_row = session.get(IndicatorState, (sym, timeframe, "EMA20"))
         rsi_state_row = session.get(IndicatorState, (sym, timeframe, "RSI14"))
 
-        ema_prev = float(ema_state_row.state_json.get("ema")) if ema_state_row and "ema" in ema_state_row.state_json else None
-        ema_last_ts = pd.to_datetime(ema_state_row.state_json.get("last_ts")) if ema_state_row and ema_state_row.state_json.get("last_ts") else None
+        ema_prev = (
+            float(ema_state_row.state_json.get("ema"))
+            if ema_state_row and "ema" in ema_state_row.state_json
+            else None
+        )
+        ema_last_ts = (
+            pd.to_datetime(ema_state_row.state_json.get("last_ts"))
+            if ema_state_row and ema_state_row.state_json.get("last_ts")
+            else None
+        )
 
         rsi_state = RSIState()
         rsi_last_ts = None
@@ -387,28 +444,166 @@ def compute_indicators_incremental(session: Session, timeframe: str = "1D") -> i
             rsi_state = RSIState(
                 avg_gain=float(payload.get("avg_gain", 0.0)),
                 avg_loss=float(payload.get("avg_loss", 0.0)),
-                prev_close=float(payload.get("prev_close")) if payload.get("prev_close") is not None else None,
+                prev_close=(
+                    float(payload.get("prev_close"))
+                    if payload.get("prev_close") is not None
+                    else None
+                ),
                 warmup_count=int(payload.get("warmup_count", 0)),
             )
             rsi_last_ts = pd.to_datetime(payload.get("last_ts")) if payload.get("last_ts") else None
 
         for _, row in g.sort_values("timestamp").iterrows():
             ts = pd.to_datetime(row["timestamp"])
-            if ema_last_ts is not None and ts <= ema_last_ts and rsi_last_ts is not None and ts <= rsi_last_ts:
+            if (
+                ema_last_ts is not None
+                and ts <= ema_last_ts
+                and rsi_last_ts is not None
+                and ts <= rsi_last_ts
+            ):
                 continue
 
             ema_prev = ema_incremental(float(row["close"]), ema_prev, span=20)
             rsi_val, rsi_state = rsi_incremental(float(row["close"]), rsi_state, window=14)
 
-            session.merge(IndicatorValue(symbol=sym, timeframe=timeframe, timestamp=ts.to_pydatetime(), name="EMA20_INC", value=float(ema_prev)))
-            session.merge(IndicatorValue(symbol=sym, timeframe=timeframe, timestamp=ts.to_pydatetime(), name="RSI14_INC", value=float(rsi_val)))
+            session.merge(
+                IndicatorValue(
+                    symbol=sym,
+                    timeframe=timeframe,
+                    timestamp=ts.to_pydatetime(),
+                    name="EMA20_INC",
+                    value=float(ema_prev),
+                )
+            )
+            session.merge(
+                IndicatorValue(
+                    symbol=sym,
+                    timeframe=timeframe,
+                    timestamp=ts.to_pydatetime(),
+                    name="RSI14_INC",
+                    value=float(rsi_val),
+                )
+            )
             updates += 1
 
             ema_last_ts = ts
             rsi_last_ts = ts
 
-        session.merge(IndicatorState(symbol=sym, timeframe=timeframe, indicator_name="EMA20", state_json={"ema": ema_prev, "last_ts": ema_last_ts.isoformat() if ema_last_ts is not None else None}))
-        session.merge(IndicatorState(symbol=sym, timeframe=timeframe, indicator_name="RSI14", state_json={"avg_gain": rsi_state.avg_gain, "avg_loss": rsi_state.avg_loss, "prev_close": rsi_state.prev_close, "warmup_count": rsi_state.warmup_count, "last_ts": rsi_last_ts.isoformat() if rsi_last_ts is not None else None}))
+        session.merge(
+            IndicatorState(
+                symbol=sym,
+                timeframe=timeframe,
+                indicator_name="EMA20",
+                state_json={
+                    "ema": ema_prev,
+                    "last_ts": ema_last_ts.isoformat() if ema_last_ts is not None else None,
+                },
+            )
+        )
+        session.merge(
+            IndicatorState(
+                symbol=sym,
+                timeframe=timeframe,
+                indicator_name="RSI14",
+                state_json={
+                    "avg_gain": rsi_state.avg_gain,
+                    "avg_loss": rsi_state.avg_loss,
+                    "prev_close": rsi_state.prev_close,
+                    "warmup_count": rsi_state.warmup_count,
+                    "last_ts": rsi_last_ts.isoformat() if rsi_last_ts is not None else None,
+                },
+            )
+        )
 
     session.commit()
     return updates
+
+
+def compute_data_quality_metrics_job(session: Session) -> list[dict[str, Any]]:
+    run = JobRun(job_name="compute_data_quality_metrics")
+    session.add(run)
+    session.commit()
+
+    prices = session.exec(select(PriceOHLCV)).all()
+    if not prices:
+        run.status = "completed"
+        run.end_ts = dt.datetime.utcnow()
+        session.add(run)
+        session.commit()
+        return []
+
+    df = pd.DataFrame([p.model_dump() for p in prices])
+    metrics = compute_data_quality_metrics(df, provider="db", timeframe="mixed")
+    today = dt.date.today()
+    for m in metrics:
+        session.add(
+            DataQualityMetric(
+                metric_date=today,
+                provider=str(m.get("provider", "db")),
+                symbol=m.get("symbol"),
+                timeframe=m.get("timeframe"),
+                metric_name=str(m.get("metric_name")),
+                metric_value=float(m.get("metric_value", 0.0)),
+            )
+        )
+    run.status = "completed"
+    run.end_ts = dt.datetime.utcnow()
+    run.rows_in = len(df)
+    run.rows_out = len(metrics)
+    session.add(run)
+    session.commit()
+    return metrics
+
+
+def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
+    run = JobRun(job_name="compute_drift_metrics")
+    session.add(run)
+    session.commit()
+
+    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
+    if not prices:
+        run.status = "completed"
+        run.end_ts = dt.datetime.utcnow()
+        session.add(run)
+        session.commit()
+        return []
+
+    df = pd.DataFrame([p.model_dump() for p in prices]).sort_values(["symbol", "timestamp"])
+    if df.empty:
+        run.status = "completed"
+        run.end_ts = dt.datetime.utcnow()
+        session.add(run)
+        session.commit()
+        return []
+
+    mkt = df[df["symbol"] == "VNINDEX"].copy()
+    if mkt.empty:
+        run.status = "completed"
+        run.end_ts = dt.datetime.utcnow()
+        session.add(run)
+        session.commit()
+        return []
+
+    ret = mkt["close"].pct_change().dropna()
+    vol = mkt["volume"].astype(float).iloc[1:]
+    spread_proxy = (1.0 / mkt["close"].astype(float).replace(0, pd.NA)).fillna(0.0).iloc[1:]
+    metrics = compute_weekly_drift_metrics(ret, vol, spread_proxy)
+
+    today = dt.date.today()
+    for m in metrics:
+        session.add(
+            DriftMetric(
+                metric_date=today,
+                metric_name=str(m.get("metric_name")),
+                metric_value=float(m.get("metric_value", 0.0)),
+                alert=bool(m.get("alert", False)),
+            )
+        )
+
+    run.status = "completed"
+    run.end_ts = dt.datetime.utcnow()
+    run.rows_in = len(df)
+    run.rows_out = len(metrics)
+    session.add(run)
+    session.commit()
+    return metrics

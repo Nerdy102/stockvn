@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 
 @dataclass(frozen=True)
@@ -17,7 +17,9 @@ class ExecutionAssumptions:
     participation_limit: float = 0.05
 
 
-def slippage_bps(order_notional: float, adtv: float, atr_pct: float, assumptions: ExecutionAssumptions) -> float:
+def slippage_bps(
+    order_notional: float, adtv: float, atr_pct: float, assumptions: ExecutionAssumptions
+) -> float:
     a = assumptions
     part = (order_notional / adtv) if adtv > 0 else 1.0
     atrp = max(0.0, atr_pct)
@@ -32,14 +34,15 @@ def apply_slippage(price: float, side: str, slippage_bps_value: float) -> float:
     return float(price * (1.0 - adj))
 
 
-def execution_fill_ratio(side: str, at_upper_limit: bool, at_lower_limit: bool, assumptions: ExecutionAssumptions) -> float:
+def execution_fill_ratio(
+    side: str, at_upper_limit: bool, at_lower_limit: bool, assumptions: ExecutionAssumptions
+) -> float:
     s = str(side).upper()
     if s == "BUY" and at_upper_limit:
         return float(assumptions.limit_up_buy_fill_ratio)
     if s == "SELL" and at_lower_limit:
         return float(assumptions.limit_down_sell_fill_ratio)
     return float(assumptions.default_fill_ratio)
-
 
 
 def load_execution_assumptions(path: str | Path) -> ExecutionAssumptions:

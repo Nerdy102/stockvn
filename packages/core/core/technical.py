@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -57,14 +56,16 @@ def detect_volume_spike(df: pd.DataFrame, lookback: int = 20, k: float = 2.0) ->
     return bool(d["volume"].iloc[-1] > k * avg_vol)
 
 
-def detect_supply_demand_zones(df: pd.DataFrame, pivot_window: int = 5, zone_atr_mult: float = 0.6) -> List[Zone]:
+def detect_supply_demand_zones(
+    df: pd.DataFrame, pivot_window: int = 5, zone_atr_mult: float = 0.6
+) -> list[Zone]:
     """Heuristic supply/demand zones using pivot highs/lows."""
     d = df.sort_index().copy()
     if d.shape[0] < pivot_window * 2 + 20:
         return []
     d["ATR14"] = atr(d["high"], d["low"], d["close"], 14)
 
-    zones: List[Zone] = []
+    zones: list[Zone] = []
     highs = d["high"].values
     lows = d["low"].values
     idx = d.index
@@ -100,7 +101,7 @@ def detect_supply_demand_zones(df: pd.DataFrame, pivot_window: int = 5, zone_atr
     return zones
 
 
-def auto_trendline(df: pd.DataFrame, kind: str = "support", lookback: int = 60) -> Dict[str, float]:
+def auto_trendline(df: pd.DataFrame, kind: str = "support", lookback: int = 60) -> dict[str, float]:
     """Auto trendline MVP via linear regression on lows/highs."""
     d = df.sort_index().tail(lookback)
     if d.shape[0] < 10:

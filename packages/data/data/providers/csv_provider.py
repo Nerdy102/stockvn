@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -33,8 +32,8 @@ class CsvProvider(BaseMarketDataProvider):
         self,
         symbol: str,
         timeframe: str,
-        start: Optional[dt.date] = None,
-        end: Optional[dt.date] = None,
+        start: dt.date | None = None,
+        end: dt.date | None = None,
     ) -> pd.DataFrame:
         if timeframe in {"15m", "60m"}:
             return self.get_intraday(symbol, timeframe, start, end)
@@ -53,8 +52,8 @@ class CsvProvider(BaseMarketDataProvider):
         self,
         symbol: str,
         timeframe: str,
-        start: Optional[dt.date] = None,
-        end: Optional[dt.date] = None,
+        start: dt.date | None = None,
+        end: dt.date | None = None,
     ) -> pd.DataFrame:
         """Generate synthetic intraday bars from daily bars (MVP).
 
@@ -70,7 +69,7 @@ class CsvProvider(BaseMarketDataProvider):
         rows = []
         for _, r in daily.iterrows():
             day: dt.date = r["date"]
-            o, h, l, c = float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"])
+            o, h, low_px, c = float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"])
             v = float(r.get("volume", 0.0))
 
             # Continuous sessions only (simplified)
@@ -93,8 +92,8 @@ class CsvProvider(BaseMarketDataProvider):
                 continue
 
             path = np.linspace(o, c, n)
-            noise_scale = max(0.1, (h - l) * 0.02)
-            close_path = np.clip(path + rr.normal(0, noise_scale, n), l, h)
+            noise_scale = max(0.1, (h - low_px) * 0.02)
+            close_path = np.clip(path + rr.normal(0, noise_scale, n), low_px, h)
 
             vol_path = rr.uniform(0.03, 0.10, n)
             vol_path = vol_path / vol_path.sum() * max(0.0, v)

@@ -4,8 +4,10 @@ import pandas as pd
 import streamlit as st
 
 from apps.dashboard_streamlit.lib.api import get, post
+from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
 
 st.header("Portfolio Tracker")
+render_global_disclaimer()
 
 portfolios = get("/portfolio")
 if not portfolios:
@@ -17,7 +19,9 @@ if not portfolios:
     st.warning("Chưa có portfolio.")
     st.stop()
 
-pid = st.selectbox("Portfolio", options=[p["id"] for p in portfolios], format_func=lambda x: f"#{x}")
+pid = st.selectbox(
+    "Portfolio", options=[p["id"] for p in portfolios], format_func=lambda x: f"#{x}"
+)
 
 st.subheader("Import trades CSV")
 st.caption("CSV columns: trade_date,symbol,side,quantity,price,strategy_tag,notes")
@@ -51,15 +55,17 @@ strategy_tag = st.text_input("strategy_tag", value="manual")
 notes = st.text_input("notes", value="")
 
 if st.button("Submit manual trade"):
-    trades = [{
-        "trade_date": trade_date,
-        "symbol": symbol,
-        "side": side,
-        "quantity": quantity,
-        "price": price,
-        "strategy_tag": strategy_tag,
-        "notes": notes,
-    }]
+    trades = [
+        {
+            "trade_date": trade_date,
+            "symbol": symbol,
+            "side": side,
+            "quantity": quantity,
+            "price": price,
+            "strategy_tag": strategy_tag,
+            "notes": notes,
+        }
+    ]
     res = post(f"/portfolio/{pid}/trades/import", json=trades)
     st.success(res)
 
@@ -97,7 +103,6 @@ if st.button("Refresh summary"):
     st.subheader("Risk & Return (MVP)")
     st.json({"risk": s.get("risk"), "twr": s.get("twr")})
 
-
     st.subheader("Assumptions")
     st.json(s.get("assumptions", {}))
 
@@ -114,4 +119,6 @@ if st.button("Refresh summary"):
     st.subheader("Rebalance suggestion (MVP)")
     st.json(s.get("rebalance_mvp", {}))
 
-st.caption("Cost basis: Average Cost. Fees/taxes theo configs. Demo cash được suy luận để không âm (MVP).")
+st.caption(
+    "Cost basis: Average Cost. Fees/taxes theo configs. Demo cash được suy luận để không âm (MVP)."
+)

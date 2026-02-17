@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Dict, Optional
+from typing import Any
 
-from sqlalchemy import BigInteger, Column, Index, JSON, String
+from sqlalchemy import JSON, BigInteger, Column, Index, String
 from sqlmodel import Field, SQLModel
 
 
@@ -11,7 +11,7 @@ def utcnow() -> dt.datetime:
     return dt.datetime.utcnow()
 
 
-JsonDict = Dict[str, Any]
+JsonDict = dict[str, Any]
 
 
 class Ticker(SQLModel, table=True):
@@ -54,16 +54,22 @@ class BronzeRaw(SQLModel, table=True):
     __table_args__ = (
         Index("ix_bronze_received_at", "received_at"),
         Index("ix_bronze_symbol", "symbol"),
-        Index("ix_bronze_provider_endpoint_hash", "provider_name", "endpoint_or_channel", "payload_hash", unique=True),
+        Index(
+            "ix_bronze_provider_endpoint_hash",
+            "provider_name",
+            "endpoint_or_channel",
+            "payload_hash",
+            unique=True,
+        ),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     provider_name: str = Field(index=True)
     endpoint_or_channel: str = Field(index=True)
     received_at: dt.datetime = Field(default_factory=utcnow)
-    trading_date: Optional[dt.date] = None
-    symbol: Optional[str] = Field(default=None, index=True)
-    index_id: Optional[str] = Field(default=None, index=True)
+    trading_date: dt.date | None = None
+    symbol: str | None = Field(default=None, index=True)
+    index_id: str | None = Field(default=None, index=True)
     payload_hash: str = Field(index=True)
     raw_payload: str = Field(sa_column=Column(String))
     schema_version: str = Field(default="v1")
@@ -73,15 +79,15 @@ class IngestState(SQLModel, table=True):
     provider: str = Field(primary_key=True)
     channel: str = Field(primary_key=True)
     symbol: str = Field(primary_key=True)
-    last_ts: Optional[dt.datetime] = None
-    last_cursor: Optional[str] = None
+    last_ts: dt.datetime | None = None
+    last_cursor: str | None = None
     updated_at: dt.datetime = Field(default_factory=utcnow)
 
 
 class QuoteL2(SQLModel, table=True):
     __table_args__ = (Index("ix_quotes_symbol_ts", "symbol", "timestamp"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     symbol: str = Field(index=True)
     timestamp: dt.datetime = Field(index=True)
     bids: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
@@ -92,43 +98,57 @@ class QuoteL2(SQLModel, table=True):
 class TradeTape(SQLModel, table=True):
     __table_args__ = (Index("ix_trades_symbol_ts", "symbol", "timestamp"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     symbol: str = Field(index=True)
     timestamp: dt.datetime = Field(index=True)
     last_price: float
     last_vol: float
-    side: Optional[str] = None
+    side: str | None = None
     source: str = Field(default="ssi_fcdata")
 
 
 class ForeignRoom(SQLModel, table=True):
     __table_args__ = (Index("ix_foreign_symbol_ts", "symbol", "timestamp"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     symbol: str = Field(index=True)
     timestamp: dt.datetime = Field(index=True)
-    total_room: Optional[float] = None
-    current_room: Optional[float] = None
-    fbuy_vol: Optional[float] = None
-    fsell_vol: Optional[float] = None
-    fbuy_val: Optional[float] = None
-    fsell_val: Optional[float] = None
+    total_room: float | None = None
+    current_room: float | None = None
+    fbuy_vol: float | None = None
+    fsell_vol: float | None = None
+    fbuy_val: float | None = None
+    fsell_val: float | None = None
     source: str = Field(default="ssi_fcdata")
 
 
 class IndexOHLCV(SQLModel, table=True):
-    __table_args__ = (Index("ix_index_ohlcv_id_tf_ts", "index_id", "timeframe", "timestamp", unique=True),)
+    __table_args__ = (
+        Index("ix_index_ohlcv_id_tf_ts", "index_id", "timeframe", "timestamp", unique=True),
+    )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     index_id: str = Field(index=True)
     timeframe: str = Field(default="1D", index=True)
     timestamp: dt.datetime = Field(index=True)
-    open: Optional[float] = None
-    high: Optional[float] = None
-    low: Optional[float] = None
-    close: Optional[float] = None
-    value: Optional[float] = None
-    volume: Optional[float] = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    value: float | None = None
+    volume: float | None = None
+    source: str = Field(default="ssi_fcdata")
+
+
+class MarketDailyMeta(SQLModel, table=True):
+    __table_args__ = (Index("ix_market_daily_meta_symbol_ts", "symbol", "timestamp", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    timestamp: dt.datetime = Field(index=True)
+    ref_price: float | None = None
+    ceiling_price: float | None = None
+    floor_price: float | None = None
     source: str = Field(default="ssi_fcdata")
 
 
@@ -143,7 +163,9 @@ class IndicatorState(SQLModel, table=True):
 class Fundamental(SQLModel, table=True):
     symbol: str = Field(primary_key=True)
     as_of_date: dt.date = Field(primary_key=True)
-    public_date: Optional[dt.date] = None
+    period_end: dt.date | None = None
+    public_date: dt.date | None = None
+    public_date_is_assumed: bool = False
     sector: str
     is_bank: bool = False
     is_broker: bool = False
@@ -160,32 +182,32 @@ class Fundamental(SQLModel, table=True):
     equity_vnd: float = 0.0
     net_debt_vnd: float = 0.0
 
-    nim: Optional[float] = None
-    casa: Optional[float] = None
-    cir: Optional[float] = None
-    npl_ratio: Optional[float] = None
-    llr_coverage: Optional[float] = None
-    credit_growth: Optional[float] = None
-    car: Optional[float] = None
-    margin_lending_vnd: Optional[float] = None
-    adtv_sensitivity: Optional[float] = None
-    proprietary_gains_ratio: Optional[float] = None
+    nim: float | None = None
+    casa: float | None = None
+    cir: float | None = None
+    npl_ratio: float | None = None
+    llr_coverage: float | None = None
+    credit_growth: float | None = None
+    car: float | None = None
+    margin_lending_vnd: float | None = None
+    adtv_sensitivity: float | None = None
+    proprietary_gains_ratio: float | None = None
 
 
 class CorporateAction(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     symbol: str
     action_type: str
-    ex_date: Optional[dt.date] = None
-    record_date: Optional[dt.date] = None
-    pay_date: Optional[dt.date] = None
-    amount: Optional[float] = None
+    ex_date: dt.date | None = None
+    record_date: dt.date | None = None
+    pay_date: dt.date | None = None
+    amount: float | None = None
     adjust_method: str = "none"
     meta: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class ScreenResult(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     screen_name: str
     run_at: dt.datetime = Field(default_factory=utcnow)
     params: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
@@ -223,7 +245,7 @@ class Signal(SQLModel, table=True):
 
 
 class AlertRule(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str
     timeframe: str = "1D"
     expression: str
@@ -241,13 +263,13 @@ class AlertEvent(SQLModel, table=True):
 
 
 class Portfolio(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str
     created_at: dt.datetime = Field(default_factory=utcnow)
 
 
 class Trade(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     portfolio_id: int
     trade_date: dt.date
     symbol: str
@@ -259,3 +281,38 @@ class Trade(SQLModel, table=True):
     commission: float = 0.0
     taxes: float = 0.0
     external_id: str = Field(index=True)
+
+
+class JobRun(SQLModel, table=True):
+    __table_args__ = (Index("ix_job_run_job_start", "job_name", "start_ts"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    job_name: str = Field(index=True)
+    start_ts: dt.datetime = Field(default_factory=utcnow, index=True)
+    end_ts: dt.datetime | None = None
+    status: str = Field(default="started", index=True)
+    params_hash: str = Field(default="")
+    rows_in: int = 0
+    rows_out: int = 0
+
+
+class DataQualityMetric(SQLModel, table=True):
+    __table_args__ = (Index("ix_dq_date_provider", "metric_date", "provider"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    metric_date: dt.date = Field(index=True)
+    provider: str = Field(index=True)
+    symbol: str | None = Field(default=None, index=True)
+    timeframe: str | None = Field(default=None, index=True)
+    metric_name: str = Field(index=True)
+    metric_value: float
+
+
+class DriftMetric(SQLModel, table=True):
+    __table_args__ = (Index("ix_drift_date_metric", "metric_date", "metric_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    metric_date: dt.date = Field(index=True)
+    metric_name: str = Field(index=True)
+    metric_value: float
+    alert: bool = False

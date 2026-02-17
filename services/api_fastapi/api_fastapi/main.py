@@ -2,17 +2,26 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session, select
-
-from api_fastapi.routers import alerts, fundamentals, health, portfolio, prices, screeners, signals, tickers
 from core.db.models import Ticker
 from core.db.session import create_db_and_tables, get_engine
 from core.logging import setup_logging
 from core.settings import get_settings
 from data.providers.factory import get_provider
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import Session, select
 from worker_scheduler.jobs import ensure_seeded
+
+from api_fastapi.routers import (
+    alerts,
+    fundamentals,
+    health,
+    portfolio,
+    prices,
+    screeners,
+    signals,
+    tickers,
+)
 
 settings = get_settings()
 setup_logging(settings.LOG_LEVEL)

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from sqlmodel import Session, SQLModel, create_engine, select
-
 from core.db.models import BronzeRaw, IngestState, PriceOHLCV
 from data.etl.pipeline import ingest_from_fixtures
+from sqlmodel import Session, SQLModel, create_engine, select
 
 
 def test_ingest_from_fixtures_idempotent() -> None:

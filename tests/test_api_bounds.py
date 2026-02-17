@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import datetime as dt
 
-from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel
-
 from api_fastapi.main import create_app
 from core.db.models import PriceOHLCV, Ticker
 from core.db.session import get_engine
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel
 
 
 def test_prices_endpoint_bounded_default_range() -> None:
@@ -17,7 +16,9 @@ def test_prices_endpoint_bounded_default_range() -> None:
     engine = get_engine("sqlite:///./vn_invest.db")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as s:
-        s.merge(Ticker(symbol="AAA", name="AAA", exchange="HOSE", sector="Tech", industry="Software"))
+        s.merge(
+            Ticker(symbol="AAA", name="AAA", exchange="HOSE", sector="Tech", industry="Software")
+        )
         for i in range(500):
             ts = dt.datetime.utcnow() - dt.timedelta(days=500 - i)
             s.merge(
