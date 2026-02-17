@@ -29,3 +29,14 @@ def test_ml_predict_fields_v2() -> None:
     if rows:
         for k in ['symbol', 'date', 'score_final', 'mu', 'uncert', 'score_rank_z']:
             assert k in rows[0]
+
+
+def test_ml_diagnostics_persists_metrics() -> None:
+    c = TestClient(create_app())
+    c.post('/ml/train')
+    r = c.post('/ml/diagnostics', json={})
+    assert r.status_code == 200
+    body = r.json()
+    assert 'run_id' in body
+    assert isinstance(body.get('metrics', {}), dict)
+    assert len(body.get('metrics', {})) > 0

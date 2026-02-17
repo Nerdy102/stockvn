@@ -95,6 +95,7 @@ def _v2_features(db: Session) -> pd.DataFrame:
 
 @router.get("/models")
 def get_models() -> list[str]:
+    """Return all supported v1 and v2 model IDs."""
     return MODEL_IDS
 
 
@@ -193,6 +194,7 @@ def predict(
 
 @router.post("/diagnostics")
 def diagnostics(payload: dict | None = None, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> dict:
+    """Run and persist ALPHA v2 diagnostics in offline-safe mode."""
     if not settings.DEV_MODE:
         raise HTTPException(status_code=403, detail="DEV_MODE required")
     feat = _v2_features(db).dropna(subset=["y_excess"])
@@ -234,7 +236,7 @@ def backtest(payload: dict | None = None, db: Session = Depends(get_db), setting
 
     feat = _v2_features(db).dropna(subset=["y_excess", "y_rank_z"])
     if feat.empty:
-        out = {"walk_forward": {"metrics": build_metrics_table({})}, "sensitivity": run_sensitivity({}), "stress": run_stress({}), "disclaimer": disclaimer()}
+        out = {"walk_forward": {"metrics": build_metrics_table({"selected_names_v2": 0.0})}, "sensitivity": run_sensitivity({}), "stress": run_stress({}), "disclaimer": disclaimer()}
     else:
         cols = feature_columns(feat)
         curve, metrics = run_walk_forward(feat, cols)

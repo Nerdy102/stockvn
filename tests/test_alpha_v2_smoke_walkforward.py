@@ -18,4 +18,7 @@ def test_alpha_v2_smoke_walkforward() -> None:
         assert metrics[key] == metrics[key]
     bt = c.post('/ml/backtest', json={'mode': 'v2'})
     assert bt.status_code == 200
-    assert 'walk_forward' in bt.json()
+    b = bt.json()
+    assert 'walk_forward' in b
+    m_rows = b['walk_forward'].get('metrics', [])
+    assert isinstance(m_rows, list) and len(m_rows) > 0
