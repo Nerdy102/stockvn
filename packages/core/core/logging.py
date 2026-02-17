@@ -3,7 +3,21 @@ from __future__ import annotations
 import json
 import logging
 import time
+from contextvars import ContextVar
+from contextlib import contextmanager
 from typing import Any
+
+
+_request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
+
+
+@contextmanager
+def request_id_context(request_id: str):
+    token = _request_id_ctx.set(request_id)
+    try:
+        yield
+    finally:
+        _request_id_ctx.reset(token)
 
 
 class JsonFormatter(logging.Formatter):
@@ -28,6 +42,9 @@ class JsonFormatter(logging.Formatter):
         ]:
             if hasattr(record, key):
                 payload[key] = getattr(record, key)
+        request_id = _request_id_ctx.get()
+        if request_id and "request_id" not in payload:
+            payload["request_id"] = request_id
         return json.dumps(payload, ensure_ascii=False)
 
 
