@@ -51,3 +51,13 @@ def test_ml_backtest_has_selected_names_metric() -> None:
     metrics = body.get('walk_forward', {}).get('metrics', [])
     names = {str(row.get('metric')) for row in metrics if isinstance(row, dict)}
     assert 'selected_names_v2' in names or len(metrics) > 0
+
+
+def test_ml_train_writes_v2_component_models() -> None:
+    c = TestClient(create_app())
+    r = c.post('/ml/train')
+    assert r.status_code == 200
+    body = r.json()
+    models = set(body.get('models', []))
+    for m in ['ridge_rank_v2', 'hgbr_rank_v2', 'hgbr_q10_v2', 'hgbr_q50_v2', 'hgbr_q90_v2', 'ensemble_v2']:
+        assert m in models

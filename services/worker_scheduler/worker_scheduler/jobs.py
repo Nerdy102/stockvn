@@ -778,18 +778,34 @@ def train_models_v2(session: Session) -> int:
             .where(MlPrediction.symbol == str(r["symbol"]))
             .where(MlPrediction.as_of_date == r["as_of_date"])
         ).first()
+        per_model = {
+            "ridge_rank_v2": float(comp["ridge_rank_v2"][i]),
+            "hgbr_rank_v2": float(comp["hgbr_rank_v2"][i]),
+            "hgbr_q10_v2": float(comp["hgbr_q10_v2"][i]),
+            "hgbr_q50_v2": float(comp["hgbr_q50_v2"][i]),
+            "hgbr_q90_v2": float(comp["hgbr_q90_v2"][i]),
+            "ensemble_v2": float(comp["score_final"][i]),
+        }
         meta = {
             "score_final": float(comp["score_final"][i]),
             "mu": float(comp["mu"][i]),
             "uncert": float(comp["uncert"][i]),
             "score_rank_z": float(comp["score_rank_z"][i]),
         }
-        if old:
-            old.y_hat = float(comp["score_final"][i])
-            old.meta = meta
-            session.add(old)
-        else:
-            session.add(MlPrediction(model_id="ensemble_v2", symbol=str(r["symbol"]), as_of_date=r["as_of_date"], y_hat=float(comp["score_final"][i]), meta=meta))
+        for model_id, yhat in per_model.items():
+            old = session.exec(
+                select(MlPrediction)
+                .where(MlPrediction.model_id == model_id)
+                .where(MlPrediction.symbol == str(r["symbol"]))
+                .where(MlPrediction.as_of_date == r["as_of_date"])
+            ).first()
+            m = meta if model_id == "ensemble_v2" else {"feature_version": "v2"}
+            if old:
+                old.y_hat = yhat
+                old.meta = m
+                session.add(old)
+            else:
+                session.add(MlPrediction(model_id=model_id, symbol=str(r["symbol"]), as_of_date=r["as_of_date"], y_hat=yhat, meta=m))
         up += 1
     session.commit()
     return up

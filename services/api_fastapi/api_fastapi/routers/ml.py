@@ -141,19 +141,29 @@ def train_models(db: Session = Depends(get_db), settings: Settings = Depends(get
         else:
             db.add(MlPrediction(model_id="ensemble_v1", symbol=sym, as_of_date=as_of, y_hat=float(p1[i]), meta={"feature_version": "v1"}))
 
+        per_model = {
+            "ridge_rank_v2": float(comp["ridge_rank_v2"][i]),
+            "hgbr_rank_v2": float(comp["hgbr_rank_v2"][i]),
+            "hgbr_q10_v2": float(comp["hgbr_q10_v2"][i]),
+            "hgbr_q50_v2": float(comp["hgbr_q50_v2"][i]),
+            "hgbr_q90_v2": float(comp["hgbr_q90_v2"][i]),
+            "ensemble_v2": float(comp["score_final"][i]),
+        }
         meta_v2 = {
             "score_final": float(comp["score_final"][i]),
             "mu": float(comp["mu"][i]),
             "uncert": float(comp["uncert"][i]),
             "score_rank_z": float(comp["score_rank_z"][i]),
         }
-        old2 = db.exec(select(MlPrediction).where(MlPrediction.model_id == "ensemble_v2").where(MlPrediction.symbol == sym).where(MlPrediction.as_of_date == as_of)).first()
-        if old2:
-            old2.y_hat = float(comp["score_final"][i])
-            old2.meta = meta_v2
-            db.add(old2)
-        else:
-            db.add(MlPrediction(model_id="ensemble_v2", symbol=sym, as_of_date=as_of, y_hat=float(comp["score_final"][i]), meta=meta_v2))
+        for model_id, yhat in per_model.items():
+            oldm = db.exec(select(MlPrediction).where(MlPrediction.model_id == model_id).where(MlPrediction.symbol == sym).where(MlPrediction.as_of_date == as_of)).first()
+            meta = meta_v2 if model_id == "ensemble_v2" else {"feature_version": "v2"}
+            if oldm:
+                oldm.y_hat = yhat
+                oldm.meta = meta
+                db.add(oldm)
+            else:
+                db.add(MlPrediction(model_id=model_id, symbol=sym, as_of_date=as_of, y_hat=yhat, meta=meta))
         up += 1
 
     db.commit()
