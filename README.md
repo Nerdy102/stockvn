@@ -148,3 +148,11 @@ Screen definition bằng YAML: `configs/screens/*.yaml`
 - Slippage model: `slippage_bps = base + k1*(order_notional/ADTV) + k2*(ATR%)`
 - Fill model hook cho phiên chạm trần/sàn: giảm xác suất khớp theo config
 - Regime filter từ VNINDEX (`trend_up`, `sideway`, `risk_off`) để điều chỉnh exposure và xếp hạng tín hiệu
+
+
+## SSI pipeline hardening
+
+- Contract schemas and adapter: `packages/data/data/schemas/ssi_fcdata.py`, `packages/data/data/adapters/ssi_mapper.py`.
+- Bronze/Silver idempotent ingest + checkpoint: `packages/data/data/etl/pipeline.py`.
+- Incremental indicator state engine: `worker_scheduler.jobs.compute_indicators_incremental`.
+- Architecture doc: `docs/ssi_pipeline_architecture.md`.
