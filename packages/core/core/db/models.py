@@ -149,6 +149,11 @@ class MarketDailyMeta(SQLModel, table=True):
     ref_price: float | None = None
     ceiling_price: float | None = None
     floor_price: float | None = None
+    foreign_buy_volume: float | None = None
+    foreign_sell_volume: float | None = None
+    foreign_buy_value: float | None = None
+    foreign_sell_value: float | None = None
+    net_foreign_volume: float | None = None
     source: str = Field(default="ssi_fcdata")
 
 

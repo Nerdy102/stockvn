@@ -69,6 +69,11 @@ class SsiRestIngestRepository:
                 "ref_price": item.get("ref_price"),
                 "ceiling_price": item.get("ceiling_price"),
                 "floor_price": item.get("floor_price"),
+                "foreign_buy_volume": item.get("foreign_buy_volume"),
+                "foreign_sell_volume": item.get("foreign_sell_volume"),
+                "foreign_buy_value": item.get("foreign_buy_value"),
+                "foreign_sell_value": item.get("foreign_sell_value"),
+                "net_foreign_volume": item.get("net_foreign_volume"),
                 "source": item.get("source", "ssi_fastconnect_rest"),
             }
             if existing:
