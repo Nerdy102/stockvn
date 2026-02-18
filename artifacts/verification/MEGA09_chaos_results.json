@@ -1,0 +1,12 @@
+{
+  "scenario": "chaos",
+  "fault_injections": [
+    "duplicate_event"
+  ],
+  "seed": 42,
+  "event_count": 31,
+  "duplicate_count": 1,
+  "negative_qty_count": 0,
+  "replay_hash": "07c182ba40c4974b4be207104fe5ff4079707721b3fbc962f09dff44aa46c5f4",
+  "ok": false
+}

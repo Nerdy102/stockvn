@@ -1,0 +1,36 @@
+{
+  "status": "pass",
+  "generated_at": "2026-02-18T12:52:08.643038Z",
+  "checks": [
+    {
+      "name": "T0_quality_gate",
+      "cmd": "make quality-gate",
+      "returncode": 0
+    },
+    {
+      "name": "T1_ui_guardrail",
+      "cmd": "python scripts/ui_guardrail_check.py",
+      "returncode": 0
+    },
+    {
+      "name": "T2_contract_and_bootstrap_tests",
+      "cmd": "PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps pytest -q tests/test_contract_hash_stability.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py",
+      "returncode": 0
+    },
+    {
+      "name": "T3_replay_fixture",
+      "cmd": "PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m scripts.replay_events --fixture tests/fixtures/replay/event_log_fixture.jsonl --speed max --dry-run",
+      "returncode": 0
+    },
+    {
+      "name": "T4_rt_load",
+      "cmd": "PYTHONPATH=packages/core:packages/data:packages python -m tools.realtime_harness.run_load --symbols 50 --days 1 --seed 42 --out artifacts/verification/MEGA09_load_results.json",
+      "returncode": 0
+    },
+    {
+      "name": "T5_rt_chaos",
+      "cmd": "PYTHONPATH=packages/core:packages/data:packages python -m tools.realtime_harness.run_chaos --seed 42 --out artifacts/verification/MEGA09_chaos_results.json",
+      "returncode": 0
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import os
 import time
 from collections.abc import Iterable
 from collections import defaultdict
+from pathlib import Path
 
 from sqlmodel import Session, select
 
@@ -42,7 +43,12 @@ def _stream_key(event: EventLog) -> str:
     return f"ssi:{event.event_type}"
 
 
-def replay_into_redis(events: Iterable[EventLog], redis_client: object, speed: str = "1x") -> int:
+def replay_into_redis(
+    events: Iterable[EventLog],
+    redis_client: object | None,
+    speed: str = "1x",
+    dry_run: bool = False,
+) -> int:
     speed_factor = {"1x": 1.0, "10x": 10.0, "max": None}[speed]
 
     count = 0
@@ -60,16 +66,19 @@ def replay_into_redis(events: Iterable[EventLog], redis_client: object, speed: s
         if symbol:
             last_ts_by_symbol[str(symbol)] = current_ts
 
-        redis_client.xadd(
-            key,
-            {
-                "event_id": str(event.id or ""),
-                "ts_utc": event.ts_utc.isoformat(),
-                "symbol": str(symbol),
-                "event_type": event.event_type,
-                "payload": json.dumps(payload, ensure_ascii=False, default=str),
-            },
-        )
+        if not dry_run:
+            if redis_client is None:
+                raise RuntimeError("redis client is required when dry_run=false")
+            redis_client.xadd(
+                key,
+                {
+                    "event_id": str(event.id or ""),
+                    "ts_utc": event.ts_utc.isoformat(),
+                    "symbol": str(symbol),
+                    "event_type": event.event_type,
+                    "payload": json.dumps(payload, ensure_ascii=False, default=str),
+                },
+            )
         count += 1
 
         if speed_factor is None:
@@ -82,25 +91,52 @@ def replay_into_redis(events: Iterable[EventLog], redis_client: object, speed: s
     return count
 
 
+def _load_fixture_events(path: Path) -> list[EventLog]:
+    rows: list[EventLog] = []
+    for idx, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        obj = json.loads(line)
+        rows.append(
+            EventLog(
+                id=idx,
+                ts_utc=_parse_ts(str(obj["ts_utc"])),
+                source=str(obj.get("source", "fixture")),
+                event_type=str(obj["event_type"]),
+                symbol=str(obj.get("symbol", "")),
+                payload_json=obj.get("payload_json", {}),
+                payload_hash=str(obj.get("payload_hash", "")),
+            )
+        )
+    return rows
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Replay canonical event_log into Redis streams")
-    p.add_argument("--start-ts", required=True)
-    p.add_argument("--end-ts", required=True)
+    p.add_argument("--start-ts")
+    p.add_argument("--end-ts")
+    p.add_argument("--fixture")
     p.add_argument("--speed", choices=["1x", "10x", "max"], default="1x")
     p.add_argument("--database-url", default=os.getenv("DATABASE_URL", "sqlite:///./vn_invest.db"))
     p.add_argument("--redis-url", default=os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+    p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
-    if redis is None:
+    if redis is None and not args.dry_run:
         raise RuntimeError("redis package is required for replay")
 
-    create_db_and_tables(args.database_url)
-    engine = get_engine(args.database_url)
-    with Session(engine) as session:
-        events = load_events(session, _parse_ts(args.start_ts), _parse_ts(args.end_ts))
+    if args.fixture:
+        events = _load_fixture_events(Path(args.fixture))
+    else:
+        if not args.start_ts or not args.end_ts:
+            raise ValueError("--start-ts and --end-ts are required when --fixture is not provided")
+        create_db_and_tables(args.database_url)
+        engine = get_engine(args.database_url)
+        with Session(engine) as session:
+            events = load_events(session, _parse_ts(args.start_ts), _parse_ts(args.end_ts))
 
-    redis_client = redis.from_url(args.redis_url, decode_responses=True)
-    replayed = replay_into_redis(events, redis_client, speed=args.speed)
+    redis_client = None if args.dry_run else redis.from_url(args.redis_url, decode_responses=True)
+    replayed = replay_into_redis(events, redis_client, speed=args.speed, dry_run=args.dry_run)
     print(json.dumps({"replayed": replayed}))
 
 

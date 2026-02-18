@@ -195,3 +195,45 @@ Screen definition bằng YAML: `configs/screens/*.yaml`
 - Uncertainty-aware score: `score_final = mu - 0.35 * uncert` using quantile HGBR outputs.
 - Cost-aware portfolio rules: IVP + uncertainty penalty + ordered constraints + no-trade band.
 - Reports/backtests are NET of fees/taxes/slippage/fill penalties and include risk disclaimers.
+
+## Engineering discipline & release gates
+
+To keep correctness, determinism, and operator safety stable across PRs, this repository enforces:
+
+- ADR-governed architecture decisions under `adr/`.
+- Contract-first canonical schemas under `packages/data/contracts/` requiring `schema_version`, canonical JSON and SHA-256 hash stability.
+- Structured logging standard for services with `{service, trace_id, symbol?, tf?, run_id?}`.
+- Bounded verification pipeline via `make verify-program` generating reproducible artifacts in `artifacts/verification/`.
+- CI release gates: lint, format, typecheck, migrations, tests, UI forbidden-string guardrail, verification artifact upload.
+
+Primary developer commands:
+
+```bash
+make quality-gate
+make run-api
+make run-worker
+make run-ui
+make run-realtime
+make replay-demo
+make verify-program
+```
+
+## Realtime verification & rollback readiness
+
+Verification artifacts are produced under `artifacts/verification/` via:
+
+```bash
+make rt-load-test
+make rt-chaos-test
+make verify-program
+```
+
+Replayable evidence pack is stored in `tests/fixtures/replay/`:
+- `event_log_fixture.jsonl`
+- `expected_bars_fixture.json`
+- `expected_signals_fixture.json`
+- `expected_parity_reconciliation_fixture.json`
+
+Rollback plan:
+- Disable realtime profile/feature flags and keep API + batch analytics online.
+- Continue offline replay/analysis workflows until incidents are resolved.

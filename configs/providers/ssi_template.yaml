@@ -1,0 +1,10 @@
+provider: ssi
+schema_version: v1
+channels:
+  - trade
+  - quote
+mapping:
+  symbol: symbol
+  ts: timestamp
+  price: price
+  qty: volume

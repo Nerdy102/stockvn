@@ -1,0 +1,26 @@
+[MEGA01 bootstrap evidence]
+
+Command: make quality-gate
+Result: PASS
+
+Command: PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps pytest -q tests/test_contract_hash_stability.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py
+Result: PASS
+Output: 8 passed
+
+Command: PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m scripts.replay_events --fixture tests/fixtures/replay/event_log_fixture.jsonl --speed max --dry-run
+Result: PASS
+Output: {"replayed": 4}
+
+Command: make rt-load-test
+Result: PASS
+Artifact: artifacts/verification/MEGA09_load_results.json
+
+Command: make rt-chaos-test
+Result: PASS
+Artifact: artifacts/verification/MEGA09_chaos_results.json
+
+Command: make verify-program
+Result: PASS
+Artifacts:
+- artifacts/verification/PROGRAM_VERIFICATION_REPORT.md
+- artifacts/verification/PROGRAM_VERIFICATION_REPORT.json
