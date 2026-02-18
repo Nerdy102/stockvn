@@ -25,7 +25,7 @@ def _seed_training_and_prediction_data(session: Session, n: int = 420) -> dt.dat
             "ema50_slope": float(rng.normal()),
         }
         y = 0.25 * feats["ret_1d"] - 0.2 * feats["ret_5d"]
-        session.add(MlFeature(symbol=symbol, as_of_date=day, feature_version="v3", features_json=feats))
+        session.add(MlFeature(symbol=symbol, as_of_date=day, feature_version="v3", **feats))
         session.add(MlLabel(symbol=symbol, date=day, y_excess=y, y_rank_z=y, label_version="v3"))
     session.commit()
     return latest
@@ -76,11 +76,8 @@ def test_predictions_upsert_idempotent_handles_feature_drift(tmp_path) -> None:
                 symbol="DRIFT",
                 as_of_date=pred_date,
                 feature_version="v3",
-                features_json={
-                    "ret_1d": 0.1,
-                    "ret_5d": -0.2,
-                    "new_unseen_feature": 999.0,
-                },
+                ret_1d=0.1,
+                ret_5d=-0.2,
             )
         )
         session.commit()

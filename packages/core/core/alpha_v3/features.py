@@ -27,6 +27,7 @@ BASE_FEATURES_V3 = [
     "imb_1_day", "imb_3_day", "spread_day",
     "rv_day", "vol_first_hour_ratio",
     "fundamental_public_date_is_assumed",
+    "fundamental_public_date_limitation_flag",
 ]
 
 
@@ -82,15 +83,24 @@ def _prepare_fundamentals_pti(fundamentals: pd.DataFrame | None) -> pd.DataFrame
         assumed = pd.Series([assumed] * len(f), index=f.index)
     f["public_date_is_assumed"] = assumed.fillna(False).astype(bool)
 
+    statement_type = f.get("statement_type", "quarterly")
+    if isinstance(statement_type, str):
+        statement_type = pd.Series([statement_type] * len(f), index=f.index)
+    statement_norm = statement_type.fillna("quarterly").astype(str).str.lower()
+    lag_days = np.where(statement_norm.str.contains("annual"), 120, 45)
+    f["fundamental_public_date_limitation_flag"] = 0.0
+
     missing_public = f["public_date"].isna() & f["period_end"].notna()
-    f.loc[missing_public, "public_date"] = f.loc[missing_public, "period_end"] + pd.to_timedelta(45, unit="D")
+    f.loc[missing_public, "public_date"] = f.loc[missing_public, "period_end"] + pd.to_timedelta(lag_days[missing_public], unit="D")
     f.loc[missing_public, "public_date_is_assumed"] = True
+    f.loc[missing_public, "fundamental_public_date_limitation_flag"] = 1.0
     f["effective_public_date"] = f["public_date"]
 
     cols = [
         "symbol",
         "effective_public_date",
         "public_date_is_assumed",
+        "fundamental_public_date_limitation_flag",
         "revenue_ttm_vnd",
         "net_income_ttm_vnd",
         "gross_profit_ttm_vnd",
@@ -111,6 +121,7 @@ def _asof_merge_pti(base: pd.DataFrame, pit: pd.DataFrame) -> pd.DataFrame:
     if pit.empty:
         out = base.copy()
         out["fundamental_public_date_is_assumed"] = False
+        out["fundamental_public_date_limitation_flag"] = 0.0
         out["fundamental_effective_public_date"] = pd.NaT
         return out
     merged = pd.merge_asof(
@@ -123,6 +134,9 @@ def _asof_merge_pti(base: pd.DataFrame, pit: pd.DataFrame) -> pd.DataFrame:
         allow_exact_matches=True,
     )
     merged["fundamental_public_date_is_assumed"] = merged["public_date_is_assumed"].astype("boolean").fillna(False).astype(float)
+    merged["fundamental_public_date_limitation_flag"] = pd.to_numeric(
+        merged.get("fundamental_public_date_limitation_flag", 0.0), errors="coerce"
+    ).fillna(0.0)
     merged["fundamental_effective_public_date"] = pd.to_datetime(merged["effective_public_date"], errors="coerce").dt.date
     return merged.drop(columns=["_date_ts", "_pub_ts"], errors="ignore")
 
@@ -211,7 +225,16 @@ def build_ml_features_v3(
     df["ema20"] = g["close"].transform(lambda s: _ema(s, 20))
     df["ema50"] = g["close"].transform(lambda s: _ema(s, 50))
     df["ema200"] = g["close"].transform(lambda s: _ema(s, 200))
-    atr14 = g[["high", "low", "close"]].apply(_atr).reset_index(level=0, drop=True)
+    prev_close = g["close"].shift(1)
+    tr = pd.concat(
+        [
+            (df["high"] - df["low"]).abs(),
+            (df["high"] - prev_close).abs(),
+            (df["low"] - prev_close).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
+    atr14 = tr.groupby(df["symbol"]).transform(lambda s: s.ewm(alpha=1 / 14, adjust=False).mean())
     df["atr14_pct"] = atr14 / df["close"].replace(0, np.nan)
 
     df["adv20_value"] = g["value_vnd"].rolling(20).mean().reset_index(level=0, drop=True)
@@ -277,12 +300,6 @@ def build_ml_features_v3(
     top15 = df["sector"].value_counts().head(15).index
     df["sector_norm"] = np.where(df["sector"].isin(top15), df["sector"], "OTHER")
     df = pd.get_dummies(df, columns=["sector_norm", "exchange"], prefix=["sector", "exchange"])
-
-    num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-    for c in num_cols:
-        med = df.groupby("date")[c].transform("median")
-        df[c] = df[c].fillna(med)
-        df[c] = df[c].fillna(0.0)
 
     assert_feature_timestamps_not_future(df, date_col="date")
 

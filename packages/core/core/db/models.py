@@ -581,8 +581,114 @@ class MlFeature(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     symbol: str = Field(index=True)
     as_of_date: dt.date = Field(index=True)
-    feature_version: str = Field(default="v1", index=True)
-    features_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    feature_version: str = Field(default="v3", index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow)
+    data_coverage_score: float = Field(default=0.0)
+
+    ret_1d: float | None = None
+    ret_5d: float | None = None
+    ret_21d: float | None = None
+    ret_63d: float | None = None
+    ret_126d: float | None = None
+    ret_252d: float | None = None
+    rev_5d: float | None = None
+    vol_20d: float | None = None
+    vol_60d: float | None = None
+    vol_120d: float | None = None
+    atr14_pct: float | None = None
+    adv20_value: float | None = None
+    adv20_vol: float | None = None
+    spread_proxy: float | None = None
+    limit_hit_20d: float | None = None
+    rsi14: float | None = None
+    macd_hist: float | None = None
+    ema20_gt_ema50: float | None = None
+    close_gt_ema50: float | None = None
+    ema50_slope: float | None = None
+    value_score_z: float | None = None
+    quality_score_z: float | None = None
+    momentum_score_z: float | None = None
+    lowvol_score_z: float | None = None
+    dividend_score_z: float | None = None
+    regime_trend_up: float | None = None
+    regime_sideways: float | None = None
+    regime_risk_off: float | None = None
+    net_foreign_val_5d: float | None = None
+    net_foreign_val_20d: float | None = None
+    foreign_flow_intensity: float | None = None
+    foreign_room_util: float | None = None
+    imb_1_day: float | None = None
+    imb_3_day: float | None = None
+    spread_day: float | None = None
+    rv_day: float | None = None
+    vol_first_hour_ratio: float | None = None
+    fundamental_public_date_is_assumed: float | None = None
+    fundamental_public_date_limitation_flag: float | None = None
+    y_excess: float | None = None
+    y_rank_z: float | None = None
+
+
+class FeatureCoverage(SQLModel, table=True):
+    __tablename__ = "feature_coverage"
+    __table_args__ = (Index("ux_feature_coverage", "date", "feature_version", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    date: dt.date = Field(index=True)
+    feature_version: str = Field(default="v3", index=True)
+    metrics_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class ConformalState(SQLModel, table=True):
+    __tablename__ = "conformal_state"
+    __table_args__ = (Index("ux_conformal_state", "model_id", "bucket_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    bucket_id: int = Field(index=True)
+    alpha_b: float = 0.20
+    miss_ema: float = 0.20
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class ConformalResidual(SQLModel, table=True):
+    __tablename__ = "conformal_residuals"
+    __table_args__ = (Index("ux_conformal_residual", "model_id", "date", "symbol", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    symbol: str = Field(index=True)
+    bucket_id: int = Field(index=True)
+    abs_residual: float
+    miss: float
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class ConformalBucketSpec(SQLModel, table=True):
+    __tablename__ = "conformal_bucket_spec"
+    __table_args__ = (Index("ux_conformal_bucket_spec", "model_id", "month_start", "bucket_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    month_start: dt.date = Field(index=True)
+    bucket_id: int = Field(index=True)
+    low: float | None = None
+    high: float | None = None
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class ConformalCoverageDaily(SQLModel, table=True):
+    __tablename__ = "conformal_coverage_daily"
+    __table_args__ = (Index("ux_conformal_coverage_daily", "model_id", "date", "bucket_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    bucket_id: int = Field(index=True)
+    coverage: float
+    interval_half_width: float
+    count: int
+    created_at: dt.datetime = Field(default_factory=utcnow)
 
 
 
