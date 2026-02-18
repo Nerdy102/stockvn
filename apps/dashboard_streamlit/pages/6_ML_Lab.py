@@ -34,6 +34,17 @@ with t2:
         st.table(pd.DataFrame(wf.get("metrics", [])))
         st.subheader("Regime breakdown")
         st.table(pd.DataFrame([{"trend_up": 0.4, "sideways": 0.4, "risk_off": 0.2}]))
+        ofc = res.get("overfit_controls", {})
+        if ofc:
+            gate = ofc.get("gate", {})
+            status = gate.get("status", "N/A")
+            st.subheader(f"Research Gate: {status}")
+            st.write({"DSR": ofc.get("dsr"), "PBO": ofc.get("pbo"), "CI": ofc.get("bootstrap_ci")})
+            reasons = gate.get("reasons", [])
+            if reasons:
+                st.warning("; ".join(reasons))
+            else:
+                st.success("All research gates passed.")
 
 with t3:
     if st.button("Run sensitivity grid"):

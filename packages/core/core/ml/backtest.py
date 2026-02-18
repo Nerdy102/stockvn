@@ -14,6 +14,10 @@ from core.ml.portfolio import form_portfolio
 TRAIN_WINDOW = 504
 TEST_WINDOW = 126
 STEP = 63
+SENSITIVITY_REBALANCE_FREQ = (21, 42)
+SENSITIVITY_TOPK = (20, 30, 50)
+SENSITIVITY_LIQ = (5e8, 1e9, 2e9)
+SENSITIVITY_BASE_BPS = (10, 20)
 
 
 def walk_forward_splits(dates: list, train_window: int = TRAIN_WINDOW, test_window: int = TEST_WINDOW, step: int = STEP):
@@ -75,16 +79,71 @@ def run_walk_forward(features: pd.DataFrame, feature_cols: list[str]) -> tuple[p
     return daily, metrics
 
 
-def run_sensitivity(base_metrics: dict) -> dict:
+def _ann_sharpe(r: pd.Series) -> float:
+    x = pd.Series(r, dtype=float).replace([np.inf, -np.inf], np.nan).dropna()
+    if len(x) < 2:
+        return 0.0
+    return float((x.mean() / (x.std(ddof=0) + 1e-12)) * math.sqrt(252.0))
+
+
+def _build_variant_return_series(
+    base_returns: pd.Series,
+    rebalance_freq: int,
+    topk: int,
+    liq: float,
+    base_bps: int,
+) -> pd.Series:
+    r = pd.Series(base_returns, dtype=float).fillna(0.0)
+    # Deterministic transformation to approximate net-return differences across grid variants.
+    # - Higher base_bps worsens returns via cost drag.
+    # - Larger topK dilutes edge.
+    # - Stricter liquidity threshold can reduce capacity/slippage noise (small positive).
+    # - Longer rebalance lowers turnover drag slightly.
+    cost_drag = (base_bps - 10) / 10000.0
+    concentration_scale = 1.0 - 0.003 * max(topk - 20, 0)
+    liq_bonus = 0.00002 * ((liq / 1e9) - 1.0)
+    rebalance_bonus = 0.00001 * ((rebalance_freq - 21) / 21)
+    return (r * concentration_scale) - cost_drag + liq_bonus + rebalance_bonus
+
+
+def run_sensitivity(base_metrics: dict, base_returns: pd.Series | None = None) -> dict:
     variants = []
-    for reb in [21, 42]:
-        for topk in [20, 30, 50]:
-            for liq in [5e8, 1e9, 2e9]:
-                for bps in [10, 20]:
-                    variants.append({"rebalance_freq": reb, "topK": topk, "liq": liq, "base_bps": bps, "sharpe": base_metrics.get("Sharpe", 0.0) - (bps - 10) * 0.01})
+    variant_return_map: dict[str, list[float]] = {}
+    base_r = pd.Series(base_returns, dtype=float) if base_returns is not None else None
+    for reb in SENSITIVITY_REBALANCE_FREQ:
+        for topk in SENSITIVITY_TOPK:
+            for liq in SENSITIVITY_LIQ:
+                for bps in SENSITIVITY_BASE_BPS:
+                    variant_name = f"reb{reb}_top{topk}_liq{int(liq)}_bps{bps}"
+                    if base_r is not None and len(base_r) > 0:
+                        vr = _build_variant_return_series(
+                            base_returns=base_r,
+                            rebalance_freq=reb,
+                            topk=topk,
+                            liq=liq,
+                            base_bps=bps,
+                        )
+                        sharpe = _ann_sharpe(vr)
+                        variant_return_map[variant_name] = [float(x) for x in vr.tolist()]
+                    else:
+                        sharpe = base_metrics.get("Sharpe", 0.0) - (bps - 10) * 0.01
+                    variants.append(
+                        {
+                            "name": variant_name,
+                            "rebalance_freq": reb,
+                            "topK": topk,
+                            "liq": liq,
+                            "base_bps": bps,
+                            "sharpe_net": float(sharpe),
+                            "sharpe": float(sharpe),
+                        }
+                    )
     sharpe_med = float(np.median([v["sharpe"] for v in variants])) if variants else 0.0
     robust = float(sharpe_med - 0.1 * math.log(max(1, len(variants))))
-    return {"variants": variants, "median_oos_sharpe": sharpe_med, "robustness_score": robust}
+    out = {"variants": variants, "median_oos_sharpe": sharpe_med, "robustness_score": robust}
+    if variant_return_map:
+        out["variant_returns"] = variant_return_map
+    return out
 
 
 def run_stress(base_metrics: dict) -> dict:
