@@ -1,0 +1,5 @@
+symbol,tags,note,pinned
+AAA,"KQKD,policy",first,true
+BBB,growth,second,false
+BAD,policy,third,1
+,policy,empty,0

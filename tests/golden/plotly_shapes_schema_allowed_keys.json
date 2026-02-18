@@ -1,0 +1,5 @@
+{
+  "shape_allowed_keys": ["type", "x0", "x1", "y0", "y1", "line", "fillcolor", "opacity"],
+  "line_allowed_keys": ["color", "width", "dash"],
+  "shape_types": ["line", "rect"]
+}
