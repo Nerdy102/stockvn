@@ -7,6 +7,7 @@ import uuid
 
 import numpy as np
 import pandas as pd
+from core.alpha_v3.features import enforce_no_leakage_guard
 from core.db.models import (
     BacktestRun,
     DiagnosticsMetric,
@@ -135,6 +136,10 @@ def train_models(db: Session = Depends(get_db), settings: Settings = Depends(get
     feat = _v2_features(db).dropna(subset=["y_excess", "y_rank_z"])
     if feat.empty:
         return {"status": "insufficient_data"}
+
+    leakage_check = feat[["as_of_date"]].drop_duplicates().rename(columns={"as_of_date": "date"})
+    leakage_check["label_date"] = pd.to_datetime(leakage_check["date"]) + pd.to_timedelta(21, unit="D")
+    enforce_no_leakage_guard(leakage_check, horizon=21)
 
     cols = feature_columns(feat)
     m1 = MlModelBundle().fit(feat[cols], feat["y_excess"])

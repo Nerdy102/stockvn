@@ -475,6 +475,23 @@ class MlFeature(SQLModel, table=True):
     features_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
+
+
+class MlLabel(SQLModel, table=True):
+    __tablename__ = "ml_labels"
+    __table_args__ = (
+        Index("ix_ml_labels_symbol_date", "symbol", "date"),
+        Index("ux_ml_labels", "symbol", "date", "label_version", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    y_excess: float
+    y_rank_z: float
+    label_version: str = Field(default="v3", index=True)
+
+
 class MlPrediction(SQLModel, table=True):
     __tablename__ = "ml_predictions"
     __table_args__ = (Index("ux_ml_predictions", "model_id", "symbol", "as_of_date", unique=True),)

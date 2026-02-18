@@ -17,6 +17,8 @@ from worker_scheduler.jobs import (
     compute_daily_flow_features,
     compute_daily_orderbook_features,
     compute_drift_metrics_job,
+    job_build_labels_v3,
+    job_build_ml_features_v3,
     compute_factor_scores,
     compute_indicators,
     compute_daily_intraday_features,
@@ -67,6 +69,8 @@ def main() -> None:
             compute_daily_orderbook_features(session)
             compute_daily_intraday_features(session)
             compute_drift_metrics_job(session)
+            job_build_labels_v3(session)
+            job_build_ml_features_v3(session)
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
     def job_consume_stream() -> None:
