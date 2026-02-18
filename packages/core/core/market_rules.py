@@ -182,6 +182,32 @@ class MarketRules:
                 return s.name
         return "off_session"
 
+    def get_reference_price(
+        self,
+        previous_close: float,
+        corporate_actions: list[dict[str, Any]] | None = None,
+    ) -> float:
+        """Return exchange reference price adjusted by same-day corporate actions.
+
+        Structure-first hook: supports split and rights adjustment; cash dividend keeps previous close.
+        """
+        ref = float(previous_close)
+        for ev in corporate_actions or []:
+            action = str(ev.get("action_type", "")).upper()
+            params = dict(ev.get("params_json") or ev.get("params") or {})
+            if action == "SPLIT":
+                factor = float(params.get("split_factor", 1.0))
+                if factor > 0:
+                    ref /= factor
+            elif action == "RIGHTS_ISSUE":
+                ratio = float(params.get("ratio", 0.0))
+                sub = float(params.get("subscription_price", 0.0))
+                ref = (ref + ratio * sub) / (1.0 + ratio)
+            elif action == "CASH_DIVIDEND":
+                cash_per_share = float(params.get("cash_per_share", 0.0))
+                ref = max(0.0, ref - cash_per_share)
+        return float(ref)
+
     def validate_order_price_qty(
         self,
         price: float,
@@ -292,6 +318,15 @@ def calc_price_limits(
     path: str | Path = "configs/market_rules_vn.yaml",
 ) -> tuple[float, float]:
     return load_market_rules(path).calc_price_limits(reference_price=ref_price, context=limit_type)
+
+
+def get_reference_price(
+    previous_close: float,
+    corporate_actions: list[dict[str, Any]] | None = None,
+    *,
+    path: str | Path = "configs/market_rules_vn.yaml",
+) -> float:
+    return load_market_rules(path).get_reference_price(previous_close, corporate_actions)
 
 
 def validate_order(

@@ -4,7 +4,8 @@ import hashlib
 from typing import Any
 
 import pandas as pd
-from core.db.models import Portfolio, PriceOHLCV, Ticker, Trade
+from core.corporate_actions import adjust_prices
+from core.db.models import CorporateAction, Portfolio, PriceOHLCV, Ticker, Trade
 from core.execution_model import load_execution_assumptions, slippage_bps
 from core.fees_taxes import FeesTaxes
 from core.portfolio.analytics import (
@@ -150,6 +151,24 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> dict[
     )
 
     bench = panel.get("VNINDEX", pd.Series(dtype=float)).dropna()
+    bench_tr = bench.copy()
+    if not bench.empty:
+        ca_rows = db.exec(
+            select(CorporateAction).where(CorporateAction.symbol == "VNINDEX")
+        ).all()
+        if ca_rows:
+            ca_df = pd.DataFrame([c.model_dump() for c in ca_rows])
+            bench_df = pd.DataFrame({"date": bench.index, "open": bench.values, "high": bench.values, "low": bench.values, "close": bench.values, "volume": 0.0})
+            bench_adj = adjust_prices(
+                "VNINDEX",
+                bench_df,
+                start=min(bench.index),
+                end=max(bench.index),
+                method="ca",
+                corporate_actions=ca_df,
+                total_return=True,
+            )
+            bench_tr = pd.Series(bench_adj["tr_index"].values, index=bench.index)
     port_panel = panel.drop(columns=["VNINDEX"], errors="ignore")
 
     cash_start = infer_start_cash(tdf, fees, broker_name=broker)
@@ -157,7 +176,7 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> dict[
         tdf, port_panel, cash_start, fees, broker_name=broker
     )
     twr = time_weighted_return(port_val)
-    risk = portfolio_risk_summary(port_val, bench)
+    risk = portfolio_risk_summary(port_val, bench_tr)
 
     # Exposure
     tickers = db.exec(select(Ticker)).all()
@@ -255,6 +274,7 @@ def portfolio_summary(portfolio_id: int, db: Session = Depends(get_db)) -> dict[
         "exposure_by_sector": exposure,
         "concentration": conc,
         "risk": risk,
+        "benchmark_tr": bench_tr.to_dict() if not bench_tr.empty else {},
         "twr": twr,
         "correlation_matrix": corr_payload,
         "attribution_mvp": {
