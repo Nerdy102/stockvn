@@ -33,6 +33,8 @@ def test_backtest_outputs_metrics_and_equity_curve() -> None:
     assert set(out["backtest_metrics"].columns) == {"run_hash", "metric_name", "metric_value"}
     assert np.isfinite(out["backtest_metrics"]["metric_value"].to_numpy(dtype=float)).all()
     assert not out["backtest_equity_curve"].empty
+    assert "execution_schedules" in out
+    assert "realized_fills" in out
 
     metrics = out["metrics"]
     vals = np.array(list(metrics.values()), dtype=float)

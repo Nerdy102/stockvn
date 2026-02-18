@@ -29,3 +29,4 @@ def test_cash_reconciliation_invariant() -> None:
     eq = out["equity_curve"]
     assert np.allclose(eq["cash"] + eq["market_value"], eq["equity"], atol=1e-6)
     assert (eq["position_qty"] >= 0).all()
+    assert (eq["cash_recon_gap"].abs() <= 1.0).all()
