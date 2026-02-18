@@ -25,4 +25,5 @@ def test_enforce_no_leakage_guard_raises_with_future_injection() -> None:
 
 
 def test_assert_no_leakage_allows_exact_horizon_boundary() -> None:
-    assert_no_leakage(dt.date(2024, 1, 1), dt.date(2024, 1, 22), horizon=21)
+    # 21 trading days from 2024-01-01 lands on 2024-01-31 with VN holiday/weekend skips.
+    assert_no_leakage(dt.date(2024, 1, 1), dt.date(2024, 1, 31), horizon=21)

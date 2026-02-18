@@ -5,6 +5,7 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 
+from core.calendar_vn import get_trading_calendar_vn
 from core.market_rules import load_market_rules
 
 FEATURE_VERSION = "v1"
@@ -99,15 +100,24 @@ def build_ml_features(prices: pd.DataFrame, factors: pd.DataFrame | None = None)
     df["sector_norm"] = np.where(df["sector"].isin(top15), df["sector"], "OTHER")
     df = pd.get_dummies(df, columns=["sector_norm", "exchange"], prefix=["sector", "exchange"]) 
 
+    cal = get_trading_calendar_vn()
     df["as_of_date"] = pd.to_datetime(df["timestamp"]).dt.date
-    fut = g["close"].shift(-HORIZON)
-    df["y"] = fut / df["close"] - 1.0
+    df["realized_date"] = df["as_of_date"].map(lambda d: cal.shift_trading_days(d, HORIZON))
 
-    vn = (
-        df.groupby("timestamp", as_index=False)["close"].mean().sort_values("timestamp")
+    future_close = df[["symbol", "as_of_date", "close"]].rename(
+        columns={"as_of_date": "realized_date", "close": "close_t_plus_h"}
     )
-    vn["vn_ret_h"] = vn["close"].shift(-HORIZON) / vn["close"] - 1.0
-    df = df.merge(vn[["timestamp", "vn_ret_h"]], on="timestamp", how="left")
+    df = df.merge(future_close, on=["symbol", "realized_date"], how="left")
+    df["y"] = df["close_t_plus_h"] / df["close"] - 1.0
+
+    vn = df.groupby("as_of_date", as_index=False)["close"].mean().sort_values("as_of_date")
+    vn["realized_date"] = vn["as_of_date"].map(lambda d: cal.shift_trading_days(d, HORIZON))
+    vn_future = vn[["as_of_date", "close"]].rename(
+        columns={"as_of_date": "realized_date", "close": "close_t_plus_h"}
+    )
+    vn = vn.merge(vn_future, on="realized_date", how="left")
+    vn["vn_ret_h"] = vn["close_t_plus_h"] / vn["close"] - 1.0
+    df = df.merge(vn[["as_of_date", "vn_ret_h"]], on="as_of_date", how="left")
     df["y_excess"] = df["y"] - df["vn_ret_h"]
 
     # Point-in-time cross-sectional median impute by date
@@ -121,7 +131,9 @@ def build_ml_features(prices: pd.DataFrame, factors: pd.DataFrame | None = None)
 
 
 def feature_columns(df: pd.DataFrame) -> list[str]:
-    exclude = {"symbol", "timestamp", "as_of_date", "y", "y_excess", "feature_version", "vn_ret_h"}
+    exclude = {
+        "symbol", "timestamp", "as_of_date", "realized_date", "close_t_plus_h", "y", "y_excess", "feature_version", "vn_ret_h"
+    }
     return [c for c in df.columns if c not in exclude and pd.api.types.is_numeric_dtype(df[c])]
 
 
