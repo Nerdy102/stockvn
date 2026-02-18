@@ -30,7 +30,47 @@ class Ticker(SQLModel, table=True):
     updated_at: dt.datetime = Field(default_factory=utcnow)
 
 
+class TickerLifecycle(SQLModel, table=True):
+    __tablename__ = "ticker_lifecycle"
+
+    symbol: str = Field(primary_key=True)
+    first_trading_date: dt.date = Field(index=True)
+    last_trading_date: dt.date | None = Field(default=None, index=True)
+    exchange: str = Field(index=True)
+    sectype: str = Field(index=True)
+    sector: str = Field(index=True)
+    source: str = Field(default="unknown", index=True)
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class IndexMembership(SQLModel, table=True):
+    __tablename__ = "index_membership"
+    __table_args__ = (
+        Index("ix_index_membership_index_date", "index_code", "start_date", "end_date"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    index_code: str = Field(index=True)
+    symbol: str = Field(index=True)
+    start_date: dt.date = Field(index=True)
+    end_date: dt.date | None = Field(default=None, index=True)
+    source: str = Field(default="unknown", index=True)
+
+
+class UniverseAudit(SQLModel, table=True):
+    __tablename__ = "universe_audit"
+    __table_args__ = (Index("ix_universe_audit_date_name", "date", "universe_name", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    date: dt.date = Field(index=True)
+    universe_name: str = Field(index=True)
+    included_count: int = 0
+    excluded_json_breakdown: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
 class PriceOHLCV(SQLModel, table=True):
+    __tablename__ = "prices_ohlcv"
     __table_args__ = (
         Index("ix_prices_timeframe_timestamp", "timeframe", "ts_utc"),
         Index("ix_prices_timestamp", "ts_utc"),
@@ -88,6 +128,7 @@ class IngestState(SQLModel, table=True):
 
 
 class QuoteL2(SQLModel, table=True):
+    __tablename__ = "quotes_l2"
     __table_args__ = (
         Index("ix_quotes_l2_symbol_ts_utc", "symbol", "ts_utc"),
         Index("ux_quotes_l2_symbol_ts_source", "symbol", "ts_utc", "source", unique=True),
@@ -104,6 +145,7 @@ class QuoteL2(SQLModel, table=True):
 
 
 class TradeTape(SQLModel, table=True):
+    __tablename__ = "trades_tape"
     __table_args__ = (
         Index("ix_trades_tape_symbol_ts_utc", "symbol", "ts_utc"),
         Index("ux_trades_tape_symbol_ts_source", "symbol", "ts_utc", "source", unique=True),

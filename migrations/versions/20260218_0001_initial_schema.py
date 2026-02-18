@@ -25,6 +25,9 @@ FUTURE_TABLES_EXCLUDED_FROM_INITIAL = {
     "daily_orderbook_features",
     "daily_intraday_features",
     "feature_last_processed",
+    "ticker_lifecycle",
+    "index_membership",
+    "universe_audit",
 }
 
 
