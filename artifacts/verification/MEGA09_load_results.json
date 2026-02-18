@@ -1,0 +1,12 @@
+{
+  "scenario": "load",
+  "seed": 42,
+  "symbols": 50,
+  "days": 1,
+  "event_count": 50,
+  "elapsed_s": 0.0012,
+  "duplicate_count": 0,
+  "negative_qty_count": 0,
+  "replay_hash": "4f025c215d1320d503dc15d8c42d99e4f13e57d53ea4d06568019d95a46f7ab0",
+  "ok": true
+}

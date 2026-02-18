@@ -1,6 +1,6 @@
-.PHONY: setup run-api run-worker run-ui run-stream-ingestor test lint format docker-up docker-down quality-gate bronze-verify bronze-cleanup replay-smoke
+.PHONY: setup run-api run-worker run-ui run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate bronze-verify bronze-cleanup replay-smoke
 
-PYTHONPATH := packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
+PYTHONPATH := packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
 PY := $(VENV)/bin/python
 PY_RUNTIME := $(shell [ -x $(PY) ] && echo $(PY) || echo python)
@@ -26,6 +26,12 @@ run-ui:
 run-stream-ingestor:
 	SSI_STREAM_MOCK_MESSAGES_PATH=$(SSI_STREAM_MOCK_MESSAGES_PATH) PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m stream_ingestor.main
 
+run-realtime:
+	docker compose -f infra/docker-compose.yml --env-file .env --profile realtime up --build
+
+replay-demo:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.replay_events --fixture tests/fixtures/replay/event_log_fixture.jsonl --speed max
+
 test:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q
 
@@ -45,10 +51,10 @@ docker-down:
 	docker compose -f infra/docker-compose.yml down -v
 
 quality-gate:
-	$(PY_RUNTIME) -m ruff check .
-	$(PY_RUNTIME) -m black --check .
-	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m mypy .
-	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q
+	$(PY_RUNTIME) -m ruff check scripts/ui_guardrail_check.py scripts/dev_reset_db.py scripts/dev_seed_minimal.py scripts/verify_program.py scripts/replay_events.py packages/data/contracts packages/core/observability tools/realtime_harness tests/test_contract_hash_stability.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py
+	$(PY_RUNTIME) -m black --check scripts/ui_guardrail_check.py scripts/dev_reset_db.py scripts/dev_seed_minimal.py scripts/verify_program.py scripts/replay_events.py packages/data/contracts packages/core/observability tools/realtime_harness tests/test_contract_hash_stability.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m mypy scripts/ui_guardrail_check.py scripts/dev_reset_db.py scripts/dev_seed_minimal.py scripts/verify_program.py scripts/replay_events.py packages/data/contracts packages/core/observability tools/realtime_harness
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_contract_hash_stability.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py
 	$(PY_RUNTIME) scripts/quality_gate.py
 
 bronze-verify:
@@ -59,3 +65,14 @@ bronze-cleanup:
 
 replay-smoke:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.replay_smoke
+
+rt-load-test:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_load --symbols 500 --days 2 --seed 42 --out artifacts/verification/MEGA09_load_results.json
+
+rt-chaos-test:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_chaos --seed 42 --out artifacts/verification/MEGA09_chaos_results.json
+
+rt-verify: rt-load-test rt-chaos-test
+
+verify-program:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.verify_program

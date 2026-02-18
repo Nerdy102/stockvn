@@ -1,0 +1,7 @@
+{
+  "run_id": "fixture-run-1",
+  "replay_hash": "fixture-hash-v1",
+  "bars_duplicates": 0,
+  "signals_duplicates": 0,
+  "equity_parity_ok": true
+}
