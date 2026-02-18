@@ -30,6 +30,11 @@ def get_prices(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> list[PriceOHLCV]:
+    if limit > settings.API_MAX_LIMIT:
+        raise HTTPException(
+            status_code=400, detail=f"limit exceeds API_MAX_LIMIT={settings.API_MAX_LIMIT}"
+        )
+
     if not start and not end:
         end_dt = dt.datetime.utcnow()
         start_dt = end_dt - dt.timedelta(days=settings.API_DEFAULT_DAYS)
@@ -37,10 +42,12 @@ def get_prices(
         start_dt = _parse_dt(start) if start else None
         end_dt = _parse_dt(end) if end else None
 
-    if limit > settings.API_MAX_LIMIT:
-        raise HTTPException(
-            status_code=400, detail=f"limit exceeds API_MAX_LIMIT={settings.API_MAX_LIMIT}"
-        )
+    if start_dt and end_dt and end_dt < start_dt:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+
+    # Without pagination (offset=0), hard cap query window to 365 days.
+    if start_dt and end_dt and offset == 0 and (end_dt - start_dt).days > 365:
+        raise HTTPException(status_code=400, detail="max range 365 days without pagination")
 
     q = (
         select(PriceOHLCV)

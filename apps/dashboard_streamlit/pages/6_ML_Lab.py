@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import datetime as dt
+
 import pandas as pd
 import streamlit as st
 
-from apps.dashboard_streamlit.lib.api import post
+from apps.dashboard_streamlit.lib.api import get, post
 from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
 
 st.header("ML Lab")
@@ -15,6 +17,31 @@ st.caption("NET backtest includes fee + tax + slippage + fill penalty. past ≠ 
 def _run_backtest_cached(mode: str) -> dict:
     return post("/ml/backtest", json={"mode": mode})
 
+
+@st.cache_data(ttl=900)
+def _latest_alpha_predictions() -> tuple[str | None, pd.DataFrame]:
+    end = dt.date.today()
+    start = end - dt.timedelta(days=365)
+    rows = get(
+        "/ml/predict",
+        params={
+            "start": start.strftime("%d-%m-%Y"),
+            "end": end.strftime("%d-%m-%Y"),
+            "limit": 5000,
+            "offset": 0,
+        },
+    )
+    if not rows:
+        return None, pd.DataFrame()
+    df = pd.DataFrame(rows)
+    latest = str(df["date"].max())
+    return latest, df[df["date"] == latest].copy()
+
+
+latest_date, latest_preds = _latest_alpha_predictions()
+if latest_date and not latest_preds.empty:
+    st.caption(f"Cached latest alpha predictions date: {latest_date}")
+    st.dataframe(latest_preds.head(20), use_container_width=True)
 
 t1, t2, t3, t4 = st.tabs(["Train", "Walk-forward report", "Sensitivity report", "Stress report"])
 

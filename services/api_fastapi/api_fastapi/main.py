@@ -8,10 +8,12 @@ from core.db.session import create_db_and_tables, get_engine
 from core.logging import get_logger, request_id_context, setup_logging
 from core.settings import get_settings
 from data.providers.factory import get_provider
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlmodel import Session, select
 from worker_scheduler.jobs import ensure_seeded
+from core.monitoring.prometheus_metrics import metrics_payload
 
 from api_fastapi.routers import (
     alerts,
@@ -42,6 +44,10 @@ async def _lifespan(_: FastAPI):
 
 
 def create_app() -> FastAPI:
+    # Ensure local SQLite test/dev bootstraps always have schema, even when lifespan
+    # is not entered (e.g. some TestClient usage patterns).
+    create_db_and_tables(settings.DATABASE_URL)
+
     app = FastAPI(
         title="VN Invest Toolkit API",
         version="0.1.0",
@@ -65,6 +71,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(GZipMiddleware, minimum_size=500)
+
+    @app.get("/metrics", include_in_schema=False)
+    def get_metrics() -> Response:
+        payload, content_type = metrics_payload()
+        return Response(content=payload, media_type=content_type)
 
     app.include_router(health.router)
     app.include_router(tickers.router)

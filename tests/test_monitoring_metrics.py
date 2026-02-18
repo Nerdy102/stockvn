@@ -18,12 +18,13 @@ def test_data_quality_metrics_basic() -> None:
         }
     )
     out = compute_data_quality_metrics(df, "csv", "1D")
-    assert any(m["metric_name"] == "ohlc_sanity_ratio" for m in out)
+    assert any(m["metric_name"] == "ohlc_invariants_violation_rate" for m in out)
 
 
 def test_drift_metrics_shape() -> None:
     r = pd.Series([0.001] * 20 + [0.01] * 20)
     v = pd.Series([100] * 20 + [500] * 20)
     s = pd.Series([0.001] * 40)
-    out = compute_weekly_drift_metrics(r, v, s)
-    assert len(out) == 3
+    f = pd.Series([1.0] * 40)
+    out = compute_weekly_drift_metrics(r, v, s, f)
+    assert len(out) == 4

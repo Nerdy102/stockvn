@@ -317,6 +317,7 @@ class JobRun(SQLModel, table=True):
 
 
 class DataQualityMetric(SQLModel, table=True):
+    __tablename__ = "data_quality_metrics"
     __table_args__ = (Index("ix_dq_date_provider", "metric_date", "provider"),)
 
     id: int | None = Field(default=None, primary_key=True)
@@ -329,6 +330,7 @@ class DataQualityMetric(SQLModel, table=True):
 
 
 class DriftMetric(SQLModel, table=True):
+    __tablename__ = "drift_metrics"
     __table_args__ = (Index("ix_drift_date_metric", "metric_date", "metric_name"),)
 
     id: int | None = Field(default=None, primary_key=True)
@@ -336,6 +338,18 @@ class DriftMetric(SQLModel, table=True):
     metric_name: str = Field(index=True)
     metric_value: float
     alert: bool = False
+
+
+class DriftAlert(SQLModel, table=True):
+    __tablename__ = "drift_alerts"
+    __table_args__ = (Index("ix_drift_alert_date_metric", "metric_date", "metric_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    metric_date: dt.date = Field(index=True)
+    metric_name: str = Field(index=True)
+    psi_value: float
+    threshold: float = 0.25
+    message: str
 
 
 class BronzeFile(SQLModel, table=True):

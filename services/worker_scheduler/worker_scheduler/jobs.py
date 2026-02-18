@@ -16,6 +16,7 @@ from core.db.models import (
     AlertRule,
     BronzeFile,
     DataQualityMetric,
+    DriftAlert,
     DriftMetric,
     FactorScore,
     Fundamental,
@@ -51,6 +52,16 @@ from core.indicators import RSIState, add_indicators, ema_incremental, rsi_incre
 from core.logging import get_logger
 from core.monitoring.data_quality import compute_data_quality_metrics
 from core.monitoring.drift import compute_weekly_drift_metrics
+from core.monitoring.prometheus_metrics import (
+    INGEST_ERRORS_TOTAL,
+    INGEST_ROWS_TOTAL,
+    LAST_FEATURE_TS,
+    LAST_INGEST_TS,
+    LAST_TRAIN_TS,
+    REDIS_STREAM_LAG,
+    UPSERT_ROWS_TOTAL,
+    mark_now,
+)
 from core.settings import Settings
 from core.signals.dsl import evaluate
 from core.technical import detect_breakout, detect_pullback, detect_trend, detect_volume_spike
@@ -182,10 +193,20 @@ def ensure_seeded(session: Session, provider: BaseMarketDataProvider, settings: 
 def ingest_prices_job(session: Session, provider: BaseMarketDataProvider) -> None:
     """Job: ingest_prices (idempotent). For CSV it's stable."""
     tickers = provider.get_tickers()
+    total_rows = 0
     for sym in tickers["symbol"].tolist():
-        df = provider.get_ohlcv(sym, "1D")
-        if not df.empty:
-            ingest_prices(session, sym, "1D", df)
+        try:
+            df = provider.get_ohlcv(sym, "1D")
+            if not df.empty:
+                ingest_prices(session, sym, "1D", df)
+                rows = len(df)
+                total_rows += rows
+                INGEST_ROWS_TOTAL.labels(channel="prices_1d").inc(rows)
+                UPSERT_ROWS_TOTAL.labels(table="price_ohlcv").inc(rows)
+        except Exception:
+            INGEST_ERRORS_TOTAL.labels(type="prices_job").inc()
+            raise
+    mark_now(LAST_INGEST_TS)
     update_market_caps(session)
 
 
@@ -560,6 +581,15 @@ def consume_ssi_stream_to_bronze_silver(session: Session) -> dict[str, int]:
     for writer in bronze_writers.values():
         writer.flush()
 
+    INGEST_ROWS_TOTAL.labels(channel="ssi_stream").inc(processed)
+    UPSERT_ROWS_TOTAL.labels(table="stream_silver").inc(processed)
+    try:
+        REDIS_STREAM_LAG.set(float(sum(len(messages) for _, messages in rows) - acked))
+    except Exception:
+        pass
+    if processed > 0:
+        mark_now(LAST_INGEST_TS)
+
     return {"processed": processed, "skipped": skipped, "acked": acked}
 
 
@@ -706,6 +736,8 @@ def compute_data_quality_metrics_job(session: Session) -> list[dict[str, Any]]:
     run.rows_out = len(metrics)
     session.add(run)
     session.commit()
+    UPSERT_ROWS_TOTAL.labels(table="data_quality_metrics").inc(len(metrics))
+    mark_now(LAST_FEATURE_TS)
     return metrics
 
 
@@ -740,19 +772,33 @@ def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
 
     ret = mkt["close"].pct_change().dropna()
     vol = mkt["volume"].astype(float).iloc[1:]
-    spread_proxy = (1.0 / mkt["close"].astype(float).replace(0, pd.NA)).fillna(0.0).iloc[1:]
-    metrics = compute_weekly_drift_metrics(ret, vol, spread_proxy)
+    spread_proxy = ((mkt["high"] - mkt["low"]) / mkt["close"].replace(0, pd.NA)).fillna(0.0).iloc[1:]
+    flow_intensity = (mkt["value_vnd"].astype(float) / mkt["volume"].replace(0, pd.NA)).fillna(0.0).iloc[1:]
+    metrics = compute_weekly_drift_metrics(ret, vol, spread_proxy, flow_intensity)
 
     today = dt.date.today()
     for m in metrics:
+        metric_name = str(m.get("metric_name"))
+        metric_value = float(m.get("metric_value", 0.0))
+        should_alert = bool(m.get("alert", False))
         session.add(
             DriftMetric(
                 metric_date=today,
-                metric_name=str(m.get("metric_name")),
-                metric_value=float(m.get("metric_value", 0.0)),
-                alert=bool(m.get("alert", False)),
+                metric_name=metric_name,
+                metric_value=metric_value,
+                alert=should_alert,
             )
         )
+        if should_alert:
+            session.add(
+                DriftAlert(
+                    metric_date=today,
+                    metric_name=metric_name,
+                    psi_value=metric_value,
+                    threshold=0.25,
+                    message=f"PSI drift alert for {metric_name}: {metric_value:.4f}",
+                )
+            )
 
     run.status = "completed"
     run.end_ts = dt.datetime.utcnow()
@@ -760,6 +806,8 @@ def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
     run.rows_out = len(metrics)
     session.add(run)
     session.commit()
+    UPSERT_ROWS_TOTAL.labels(table="drift_metrics").inc(len(metrics))
+    mark_now(LAST_FEATURE_TS)
     return metrics
 
 
@@ -1258,6 +1306,7 @@ def job_train_alpha_v3(session: Session, as_of_date: dt.date | None = None) -> d
         return {"trained": 1, "predictions": 0}
 
     preds = predict_alpha_v3(session, as_of_date=pred_date, version=trained["version"])
+    mark_now(LAST_TRAIN_TS)
     return {"trained": 1, "predictions": preds}
 
 
