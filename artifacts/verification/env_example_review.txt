@@ -1,4 +1,4 @@
-Reviewed .env.example for placeholders and no concrete secrets.
+Reviewed .env.example for placeholder-only values
 # ======================
 # VN Invest Toolkit (.env)
 # ======================

@@ -1,2 +1,2 @@
-........................................................................ [ 27%]
-.................................................................s...
+Command: PYTHONPATH=.:packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps pytest -q
+Result: 256 passed, 4 skipped, 5 warnings in 236.76s (0:03:56)

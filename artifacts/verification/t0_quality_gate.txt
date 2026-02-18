@@ -48,9 +48,9 @@ I001 [*] Import block is un-sorted or un-formatted
  7 |
  8 | / from __future__ import annotations
  9 | |
-10 | | from alembic import op
-11 | | import sqlalchemy as sa
-   | |_______________________^
+10 | | import sqlalchemy as sa
+11 | | from alembic import op
+   | |______________________^
    |
 help: Organize imports
 
@@ -1001,14 +1001,14 @@ I001 [*] Import block is un-sorted or un-formatted
 help: Organize imports
 
 UP034 [*] Avoid extraneous parentheses
-   --> services/api_fastapi/api_fastapi/routers/ml.py:895:139
+   --> services/api_fastapi/api_fastapi/routers/ml.py:919:139
     |
-893 | …BO={m.get('PBO', 1.0):.4f}"},
-894 | …(m.get("SPA", 1.0)) < 0.10, "reason": f"RC={m.get('RC', 1.0):.4f}, SPA={m.get('SPA', 1.0):.4f}"},
-895 | …).get("delta_Sharpe", -1.0)) > -0.5, "reason": str((stress.get("cost_x2") or {}))},
+917 | …BO={m.get('PBO', 1.0):.4f}"},
+918 | …(m.get("SPA", 1.0)) < 0.10, "reason": f"RC={m.get('RC', 1.0):.4f}, SPA={m.get('SPA', 1.0):.4f}"},
+919 | …).get("delta_Sharpe", -1.0)) > -0.5, "reason": str((stress.get("cost_x2") or {}))},
     |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-896 | … > -1.0, "reason": f"robustness={float(sens.get('robustness_score', 0.0)):.4f}"},
-897 | …
+920 | … > -1.0, "reason": f"robustness={float(sens.get('robustness_score', 0.0)):.4f}"},
+921 | …
     |
 help: Remove extraneous parentheses
 
@@ -1397,6 +1397,18 @@ I001 [*] Import block is un-sorted or un-formatted
 help: Organize imports
 
 I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_alpha_v3_features_drop_null_pit_keys.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.alpha_v3.features import _prepare_fundamentals_pti
+  | |____________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
  --> tests/test_alpha_v3_score_composition.py:1:1
   |
 1 | / from __future__ import annotations
@@ -1694,6 +1706,18 @@ B905 `zip()` without an explicit `strict=` parameter
 help: Add explicit value for parameter `strict=`
 
 I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_factors_dedup_symbol_date.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.factors import compute_factors
+  | |________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
  --> tests/test_feature_coverage_score.py:1:1
   |
 1 | / from __future__ import annotations
@@ -1981,6 +2005,18 @@ I001 [*] Import block is un-sorted or un-formatted
 8 | |
 9 | | from core.alpha_v3.features import build_ml_features_v3
   | |_______________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_ml_ic_decay_no_duplicate_y_column.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.ml.diagnostics import ic_decay
+  | |________________________________________^
   |
 help: Organize imports
 
@@ -2581,6 +2617,6 @@ I001 [*] Import block is un-sorted or un-formatted
   |
 help: Organize imports
 
-Found 157 errors.
-[*] 131 fixable with the `--fix` option (16 hidden fixes can be enabled with the `--unsafe-fixes` option).
+Found 160 errors.
+[*] 134 fixable with the `--fix` option (16 hidden fixes can be enabled with the `--unsafe-fixes` option).
 make: *** [Makefile:48: quality-gate] Error 1

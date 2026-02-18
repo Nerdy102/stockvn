@@ -1,1 +1,9 @@
-{}
+{
+  "run_id": "diag-20260218115634",
+  "outdir": "artifacts/verification/report_pack",
+  "files": {
+    "report_v3.html": 2345,
+    "report_v3.pdf": 1827,
+    "manifest_v3.json": 923
+  }
+}

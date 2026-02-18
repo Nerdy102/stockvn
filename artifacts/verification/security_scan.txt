@@ -1,7 +1,24 @@
-## secret pattern scan
+Command: rg -n "(SECRET|PASSWORD|API_KEY|TOKEN|smtp://|postgres://[^$])" .env.example configs services packages apps scripts
+scripts/ssi_rest_smoke.py:17:    required = ["SSI_FCDATA_BASE_URL", "SSI_CONSUMER_ID", "SSI_CONSUMER_SECRET", "SSI_PRIVATE_KEY"]
+apps/dashboard_streamlit/ui/tokens.py:40:TOKENS = DesignTokens()
+apps/dashboard_streamlit/ui/tokens.py:45:    if TOKENS.typography.sizes != (12, 14, 16, 20, 24):
+apps/dashboard_streamlit/ui/tokens.py:47:    if TOKENS.typography.weights != (400, 600):
+apps/dashboard_streamlit/ui/tokens.py:49:    if TOKENS.spacing.scale != (4, 8, 12, 16, 24, 32):
+apps/dashboard_streamlit/ui/tokens.py:51:    if TOKENS.radius.scale != (6, 10):
+apps/dashboard_streamlit/ui/tokens.py:61:        val = getattr(TOKENS.colors, field_name)
+packages/data/data/providers/ssi_fastconnect/token.py:35:        self.consumer_secret = consumer_secret or os.getenv("SSI_CONSUMER_SECRET", "")
+packages/data/data/providers/ssi_fastconnect/token.py:66:                "SSI_CONSUMER_SECRET": self.consumer_secret,
+packages/data/data/providers/ssi_fastconnect/provider.py:17:        self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+packages/data/data/providers/ssi_fastconnect/provider.py:19:        self.access_token = os.getenv("SSI_ACCESS_TOKEN", "")
+packages/data/data/providers/ssi_fastconnect/provider.py:20:        self.token_cache_file = os.getenv("SSI_TOKEN_CACHE_FILE", "")
+packages/data/data/providers/ssi_fastconnect/provider.py:25:                "Missing SSI credentials in env (.env): SSI_CONSUMER_ID/SECRET/PRIVATE_KEY_PATH"
+packages/data/data/providers/vietstock_datafeed.py:20:        self.api_key = os.getenv("VIETSTOCK_API_KEY", "")
+packages/data/data/providers/vietstock_datafeed.py:24:            raise RuntimeError("Missing VIETSTOCK_API_KEY in env (.env).")
 .env.example:29:SSI_PASSWORD=
-## hardcoded url scan
-apps/dashboard_streamlit/lib/api.py:10:    return os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
-packages/core/core/settings.py:27:    SSI_FCDATA_BASE_URL: str = Field(default="https://fc-data.ssi.com.vn/api/v2")
-packages/core/core/settings.py:35:    API_BASE_URL: str = Field(default="http://localhost:8000")
-packages/data/data/providers/ssi_fastconnect/provider.py:15:        self.base_url = os.getenv("SSI_FCDATA_BASE_URL", "https://fc-data.ssi.com.vn/api/v2")
+.env.example:30:SSI_API_KEY=
+.env.example:32:VIETSTOCK_API_KEY=
+.env.example:37:SSI_CONSUMER_SECRET=
+packages/core/core/settings.py:41:    SSI_CONSUMER_SECRET: str = Field(default="")
+packages/core/core/settings.py:73:                "SSI_CONSUMER_SECRET": self.SSI_CONSUMER_SECRET,
+packages/core/core/signals/dsl.py:13:_TOKEN_RE = re.compile(
+packages/core/core/signals/dsl.py:28:        m = _TOKEN_RE.match(expr, pos)
