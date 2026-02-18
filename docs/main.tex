@@ -1,0 +1,197 @@
+%==================================================
+% main.tex - Master Thesis (Full Draft)
+%==================================================
+
+\documentclass[12pt, a4paper, twoside, openright]{book}
+
+%---------------- Mathematics ----------------%
+\usepackage{amssymb, amsmath, latexsym}
+
+%---------------- Hyperlinks & Graphics ----------------%
+\usepackage[setpagesize=false]{hyperref}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{subcaption}
+
+%---------------- Colors ----------------%
+\usepackage[usenames]{color}
+
+%---------------- Lists, comments, refs ----------------%
+\usepackage[shortlabels]{enumitem}
+\usepackage{comment}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{acro}
+\usepackage{master}
+
+%---------------- Tables and emphasis ----------------%
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{longtable}
+\usepackage[normalem]{ulem}
+\usepackage{bxascmac}
+
+%---------------- Option ----------------%
+\usepackage{siunitx}
+\usepackage{afterpage}
+\usepackage{listings}
+\usepackage{docmute}
+\usepackage{setspace} % needed for \singlespacing / \doublespacing
+
+%---------------- Extra packages from the conference papers ----------------%
+\usepackage{amsthm}
+\usepackage{stmaryrd}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{xspace}
+\usepackage[final]{microtype}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{paralist}
+\usepackage{stfloats}
+
+%---------------- Make auto blank pages truly blank ----------------%
+\usepackage{emptypage}
+
+%==================================================
+% FIX: Force EVERYTHING chapter-like to start on recto (odd page),
+% including front matter, even if master.sty tries to disable it.
+% Also restore a real \cleardoublepage (some templates replace it
+% with \clearpage to suppress blank pages).
+%==================================================
+\makeatletter
+
+% 1) Do not allow the template to switch off twoside/openright
+\@twosidetrue
+\let\@twosidefalse\@twosidetrue
+\@openrighttrue
+\let\@openrightfalse\@openrighttrue
+
+% 2) Restore a real cleardoublepage (insert an empty even page when needed)
+\def\cleardoublepage{%
+  \clearpage
+  \if@twoside
+    \ifodd\c@page\else
+      \hbox{}%
+      \thispagestyle{empty}%
+      \newpage
+      \if@twocolumn\hbox{}\newpage\fi
+    \fi
+  \fi
+}
+
+\makeatother
+%==================================================
+
+%---------------- Configuration for hyperlink ----------------%
+\hypersetup{%
+  breaklinks=true,%
+  colorlinks=false,%
+  urlcolor=blue,%
+  urlbordercolor={0 1 1}
+}
+
+%---------------- Define Commands ----------------%
+\newcommand{\bm}[1]{\mbox{\boldmath $#1$}}
+
+%---------------- Theorem and macros from the papers ----------------%
+\newtheorem{theorem}{Theorem}
+\theoremstyle{definition}
+
+\newcommand{\GP}{\mathbb{G}_{\text{P}}}
+\newcommand{\Fp}{\mathbb{F}_{\text{P}}}
+\providecommand{\Hash}{H}
+\providecommand{\Hkey}{H_{\text{key}}}
+\providecommand{\digest}[1]{\Hash\!\left(#1\right)}
+\providecommand{\Com}{\mathsf{Com}}
+\providecommand{\upd}[1]{\Delta W_{#1}^{(t)}}
+\providecommand{\updgate}{\Delta W_{j}^{(t)}}
+\providecommand{\AggSet}{\mathcal{A}_j^{(t)}}
+\DeclareMathOperator{\sortl}{sortl}
+\newcommand{\pp}{\mathsf{pp}}
+\newcommand{\vk}{\mathsf{vk}}
+\newcommand{\Acrypto}{{\sffamily a16z\kern0.2em crypto}\xspace}
+\newcommand{\cmark}{\textcolor{green!60!black}{\checkmark}}
+\newcommand{\xmark}{\textcolor{red}{\ensuremath{\times}}}
+\newcommand{\pmark}{\textcolor{orange}{\ensuremath{\triangle}}}
+
+%==================================================
+% Metadata
+%==================================================
+
+\title{Scalable Verifiable Federated Learning with Zero-Knowledge Proofs:\\
+From zkVM-based Local Training Integrity\\
+To Hierarchical Recursive Proof Aggregation}
+
+\author{Hoa V. Nguyen}
+
+\datestamp{March 2026}
+
+% Chief Referee
+\mainreferee{LE Doan Hoang}
+\mainrefereeposition{Associate Professor}
+
+% Co-Referee 1
+\secondreferee{PHAM Tuan Anh}
+\secondrefereeposition{Professor}
+
+% Co-Referee 2
+\thirdreferee{SAXENA Deepika}
+\thirdrefereeposition{Associate Professor}
+
+%==================================================
+% Abbreviations and symbols (defs + hard-coded lists)
+%==================================================
+\input{./Chapter/Acronym}
+
+%==================================================
+\begin{document}
+%==================================================
+
+% Front matter (title, approval, TOC, etc.)
+\makefrontmatter
+
+%--------------- Lists: figures & tables -----------%
+\listoffigures
+\listoftables
+
+%--------------- List of Abbreviations -------------%
+\PrintAcronymList
+
+%--------------- List of Symbols -------------------%
+\PrintSymbolList
+
+%--------------- Acknowledgment --------------------%
+\include{./Chapter/Acknowledgment}
+
+%--------------- Abstract --------------------------%
+\include{./Chapter/Abstract}
+
+%==================================================
+% Begin of Body
+%==================================================
+\configbody
+
+\singlespacing
+% \doublespacing
+
+\include{./Chapter/Introduction}
+\include{./Chapter/Body}
+\include{./Chapter/Conclusion}
+
+%==================================================
+% Bibliography
+%==================================================
+\singlespacing
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+% Appendices neu co
+% \appendix
+% \include{./Chapter/AppendixA}
+% \include{./Chapter/AppendixB}
+
+\end{document}

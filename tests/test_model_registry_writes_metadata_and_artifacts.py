@@ -25,7 +25,7 @@ def _seed_training_data(session: Session, n: int = 420) -> None:
             "ema50_slope": float(rng.normal()),
         }
         y = 0.3 * feats["ret_1d"] - 0.15 * feats["ret_5d"] + 0.05 * feats["ema50_slope"]
-        session.add(MlFeature(symbol=symbol, as_of_date=day, feature_version="v3", features_json=feats))
+        session.add(MlFeature(symbol=symbol, as_of_date=day, feature_version="v3", **feats))
         session.add(MlLabel(symbol=symbol, date=day, y_excess=y, y_rank_z=y, label_version="v3"))
     session.commit()
 

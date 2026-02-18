@@ -35,6 +35,8 @@ from core.db.models import (
     DailyIntradayFeature,
     DailyOrderbookFeature,
     CorporateAction,
+    FeatureCoverage,
+    FeatureLastProcessed,
 )
 from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
 from core.corporate_actions import adjust_prices
@@ -138,6 +140,43 @@ def _json_sanitize(obj: Any) -> Any:
         return [_json_sanitize(v) for v in obj]
 
     return obj
+
+
+def _chunked(items: list[Any], size: int) -> list[list[Any]]:
+    return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+def _ml_feature_payload_from_row(row: pd.Series, feature_cols: list[str]) -> dict[str, Any]:
+    allowed = set(MlFeature.model_fields.keys())
+    payload: dict[str, Any] = {}
+    for c in feature_cols:
+        if c in row.index and c in allowed:
+            payload[c] = _json_sanitize(row[c])
+    return payload
+
+
+def _coverage_metrics_for_date(df: pd.DataFrame, feature_cols: list[str]) -> tuple[float, dict[str, Any]]:
+    if df.empty:
+        metrics = {
+            "missing_rate_per_feature": {c: 1.0 for c in feature_cols},
+            "symbols_dropped_pct": 1.0,
+            "critical_features": ["ret_21d", "vol_20d", "adv20_value", "rsi14"],
+        }
+        return 0.0, metrics
+
+    miss = {c: float(df[c].isna().mean()) if c in df.columns else 1.0 for c in feature_cols}
+    critical = [c for c in ["ret_21d", "vol_20d", "adv20_value", "rsi14"] if c in feature_cols]
+    if critical:
+        dropped = float(df[critical].isna().any(axis=1).mean())
+    else:
+        dropped = 0.0
+    coverage = float(max(0.0, min(1.0, 1.0 - (sum(miss.values()) / max(1, len(miss))))))
+    metrics = {
+        "missing_rate_per_feature": miss,
+        "symbols_dropped_pct": dropped,
+        "critical_features": critical,
+    }
+    return coverage, metrics
 
 
 def _provider_last_date(provider: BaseMarketDataProvider, symbols: list[str]) -> dt.date | None:
@@ -885,7 +924,8 @@ def compute_ml_labels_rank_z(session: Session) -> int:
         ).first()
         payload = {"y_rank_z": float(r["y_rank_z"]), "y_excess": float(r.get("y_excess", 0.0))}
         if obj:
-            obj.features_json.update(payload)
+            obj.y_rank_z = payload["y_rank_z"]
+            obj.y_excess = payload["y_excess"]
             session.add(obj)
         else:
             session.add(
@@ -893,7 +933,8 @@ def compute_ml_labels_rank_z(session: Session) -> int:
                     symbol=str(r["symbol"]),
                     as_of_date=r["as_of_date"],
                     feature_version="v2",
-                    features_json=payload,
+                    y_rank_z=payload["y_rank_z"],
+                    y_excess=payload["y_excess"],
                 )
             )
         up += 1
@@ -941,8 +982,26 @@ def job_build_labels_v3(session: Session) -> int:
 def job_build_ml_features_v3(session: Session) -> int:
     from core.alpha_v3.features import build_ml_features_v3, feature_columns_v3
 
+    session.commit()
+    feature_version = "v3"
     prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
     if not prices:
+        return 0
+
+    price_df = pd.DataFrame([p.model_dump() for p in prices])
+    price_df["date"] = pd.to_datetime(price_df["timestamp"]).dt.date
+
+    state = session.exec(
+        select(FeatureLastProcessed)
+        .where(FeatureLastProcessed.feature_name == "ml_features_v3")
+        .where(FeatureLastProcessed.symbol == feature_version)
+    ).first()
+    last_processed_date = state.last_date if state else None
+    if last_processed_date is not None:
+        pending_dates = sorted(d for d in price_df["date"].dropna().unique().tolist() if d > last_processed_date)
+    else:
+        pending_dates = sorted(price_df["date"].dropna().unique().tolist())
+    if not pending_dates:
         return 0
 
     factors = pd.DataFrame([r.model_dump() for r in session.exec(select(FactorScore)).all()])
@@ -953,7 +1012,7 @@ def job_build_ml_features_v3(session: Session) -> int:
     intra = pd.DataFrame([r.model_dump() for r in session.exec(select(DailyIntradayFeature)).all()])
 
     feat = build_ml_features_v3(
-        prices=pd.DataFrame([p.model_dump() for p in prices]),
+        prices=price_df,
         factors=factors if not factors.empty else None,
         fundamentals=fundamentals if not fundamentals.empty else None,
         flow_features=flow if not flow.empty else None,
@@ -962,29 +1021,72 @@ def job_build_ml_features_v3(session: Session) -> int:
         tickers=tickers if not tickers.empty else None,
     )
 
+    feat = feat[feat["date"].isin(pending_dates)].copy()
+    if feat.empty:
+        return 0
+
     feat_cols = feature_columns_v3(feat)
+    all_symbols = sorted(feat["symbol"].dropna().astype(str).unique().tolist())
+    max_date = max(pending_dates)
+
     up = 0
-    for _, r in feat.iterrows():
-        payload = _json_sanitize({k: r[k] for k in feat_cols})
-        obj = session.exec(
-            select(MlFeature)
-            .where(MlFeature.symbol == str(r["symbol"]))
-            .where(MlFeature.as_of_date == r["date"])
-            .where(MlFeature.feature_version == "v3")
-        ).first()
-        if obj:
-            obj.features_json = payload
-            session.add(obj)
-        else:
-            session.add(
-                MlFeature(
-                    symbol=str(r["symbol"]),
-                    as_of_date=r["date"],
-                    feature_version="v3",
-                    features_json=payload,
-                )
-            )
-        up += 1
+    for symbol_batch in _chunked(all_symbols, 200):
+        batch_df = feat[feat["symbol"].astype(str).isin(symbol_batch)].copy()
+        for date_batch in _chunked(pending_dates, 30):
+            slice_df = batch_df[batch_df["date"].isin(date_batch)].copy()
+            if slice_df.empty:
+                continue
+
+            for day, day_df in slice_df.groupby("date", sort=True):
+                coverage_score, coverage_metrics = _coverage_metrics_for_date(day_df, feat_cols)
+                cov = session.exec(
+                    select(FeatureCoverage)
+                    .where(FeatureCoverage.date == day)
+                    .where(FeatureCoverage.feature_version == feature_version)
+                ).first()
+                if cov is None:
+                    cov = FeatureCoverage(date=day, feature_version=feature_version, metrics_json=coverage_metrics)
+                else:
+                    cov.metrics_json = coverage_metrics
+                session.add(cov)
+
+                for _, r in day_df.iterrows():
+                    payload = _ml_feature_payload_from_row(r, feat_cols)
+                    obj = session.exec(
+                        select(MlFeature)
+                        .where(MlFeature.symbol == str(r["symbol"]))
+                        .where(MlFeature.as_of_date == r["date"])
+                        .where(MlFeature.feature_version == feature_version)
+                    ).first()
+                    if obj:
+                        for k, v in payload.items():
+                            setattr(obj, k, v)
+                        obj.data_coverage_score = coverage_score
+                        session.add(obj)
+                    else:
+                        session.add(
+                            MlFeature(
+                                symbol=str(r["symbol"]),
+                                as_of_date=r["date"],
+                                feature_version=feature_version,
+                                data_coverage_score=coverage_score,
+                                **payload,
+                            )
+                        )
+                    up += 1
+            session.commit()
+
+    if state is None:
+        state = FeatureLastProcessed(
+            feature_name="ml_features_v3",
+            symbol=feature_version,
+            last_date=max_date,
+            updated_at=dt.datetime.utcnow(),
+        )
+    else:
+        state.last_date = max_date
+        state.updated_at = dt.datetime.utcnow()
+    session.add(state)
     session.commit()
     return up
 
@@ -1162,13 +1264,14 @@ def _alpha_v3_training_frame(session: Session) -> pd.DataFrame:
     feat_df = pd.DataFrame(
         [
             {
-                "symbol": r.symbol,
-                "as_of_date": r.as_of_date,
-                **(r.features_json or {}),
+                k: v
+                for k, v in r.model_dump().items()
+                if k not in {"id", "created_at"}
             }
             for r in feat_rows
         ]
     )
+    feat_df = feat_df.drop(columns=["y_rank_z", "y_excess"], errors="ignore")
     lbl_df = pd.DataFrame(
         [{"symbol": r.symbol, "date": r.date, "y_rank_z": r.y_rank_z} for r in label_rows]
     )
@@ -1288,7 +1391,14 @@ def predict_alpha_v3(session: Session, as_of_date: dt.date, version: str | None 
         return 0
 
     feat_df = pd.DataFrame(
-        [{"symbol": r.symbol, "as_of_date": r.as_of_date, **(r.features_json or {})} for r in feat_rows]
+        [
+            {
+                k: v
+                for k, v in r.model_dump().items()
+                if k not in {"id", "created_at"}
+            }
+            for r in feat_rows
+        ]
     )
     x_raw, inferred_cols = feature_matrix_from_records(feat_df)
     if isinstance(train_feature_cols, list) and train_feature_cols:
@@ -1347,6 +1457,182 @@ def job_train_alpha_v3(session: Session, as_of_date: dt.date | None = None) -> d
 
     preds = predict_alpha_v3(session, as_of_date=pred_date, version=trained["version"])
     mark_now(LAST_TRAIN_TS)
+    return {"trained": 1, "predictions": preds}
+
+
+
+
+def train_alpha_rankpair_v1(
+    session: Session,
+    artifact_root: str = "artifacts/models/alpha_rankpair_v1",
+) -> dict[str, Any] | None:
+    import pickle
+
+    from core.alpha_v3.models import feature_matrix_from_records
+    from core.db.models import AlphaModel
+    from core.ml.rank_pairwise import PairwiseRankConfig, train_pairwise_ranker
+
+    data = _alpha_v3_training_frame(session)
+    if data.empty:
+        return None
+
+    x_frame, cols = feature_matrix_from_records(data)
+    train_frame = pd.concat([data[["symbol", "as_of_date", "y_rank_z"]], x_frame], axis=1)
+
+    cfg = PairwiseRankConfig()
+    model = train_pairwise_ranker(train_frame, feature_columns=cols, config=cfg)
+    if model is None:
+        return None
+
+    version_dt = dt.datetime.utcnow().replace(microsecond=0)
+    while True:
+        version = version_dt.strftime("%Y%m%d_%H%M%S")
+        artifact_dir = Path(artifact_root) / version
+        if not artifact_dir.exists():
+            break
+        version_dt = version_dt + dt.timedelta(seconds=1)
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "feature_columns": model.feature_columns,
+        "config": model.config,
+        "estimator": model.estimator,
+    }
+    with (artifact_dir / "model.pkl").open("wb") as f:
+        pickle.dump(payload, f)
+
+    train_start = data["as_of_date"].min()
+    train_end = data["as_of_date"].max()
+    config_hash = f"rankpair-{len(cols)}-{model.config.pairs_per_date}-{model.config.cv_splits}"
+
+    model_row = session.exec(
+        select(AlphaModel)
+        .where(AlphaModel.model_id == model.config.model_id)
+        .where(AlphaModel.version == version)
+    ).first()
+    if model_row is None:
+        model_row = AlphaModel(
+            model_id=model.config.model_id,
+            version=version,
+            artifact_path=str(artifact_dir),
+            train_start=train_start,
+            train_end=train_end,
+            config_hash=config_hash,
+        )
+    else:
+        model_row.artifact_path = str(artifact_dir)
+        model_row.train_start = train_start
+        model_row.train_end = train_end
+        model_row.config_hash = config_hash
+    session.add(model_row)
+    session.commit()
+
+    return {
+        "model_id": model.config.model_id,
+        "version": version,
+        "artifact_path": str(artifact_dir),
+        "feature_cols": cols,
+    }
+
+
+def predict_alpha_rankpair_v1(session: Session, as_of_date: dt.date, version: str | None = None) -> int:
+    import pickle
+
+    from core.db.models import AlphaModel
+    from core.ml.rank_pairwise import PairwiseRankModel, predict_rank_score
+
+    q = select(AlphaModel).where(AlphaModel.model_id == "alpha_rankpair_v1")
+    if version:
+        q = q.where(AlphaModel.version == version)
+    model_row = session.exec(q.order_by(AlphaModel.version.desc())).first()
+    if model_row is None:
+        return 0
+
+    artifact_dir = Path(model_row.artifact_path)
+    model_file = artifact_dir / "model.pkl"
+    if not model_file.exists():
+        return 0
+
+    with model_file.open("rb") as f:
+        payload = pickle.load(f)
+    model = PairwiseRankModel(
+        config=payload["config"],
+        feature_columns=[str(c) for c in payload["feature_columns"]],
+        estimator=payload["estimator"],
+    )
+
+    feat_rows = session.exec(
+        select(MlFeature)
+        .where(MlFeature.feature_version == "v3")
+        .where(MlFeature.as_of_date == as_of_date)
+    ).all()
+    if not feat_rows:
+        return 0
+
+    feat_df = pd.DataFrame(
+        [
+            {
+                k: v
+                for k, v in r.model_dump().items()
+                if k not in {"id", "created_at"}
+            }
+            for r in feat_rows
+        ]
+    )
+    pred_df = predict_rank_score(model, feat_df, date_col="as_of_date")
+    pred_df = pred_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    existing_rows = session.exec(
+        select(AlphaPrediction)
+        .where(AlphaPrediction.model_id == "alpha_rankpair_v1")
+        .where(AlphaPrediction.as_of_date == as_of_date)
+    ).all()
+    existing = {r.symbol: r for r in existing_rows}
+
+    now = dt.datetime.utcnow()
+    for _, r in pred_df.iterrows():
+        symbol = str(r["symbol"])
+        row = existing.get(symbol)
+        score = float(r["score_z"])
+        raw_score = float(r["raw_score"])
+        if row is None:
+            row = AlphaPrediction(
+                model_id="alpha_rankpair_v1",
+                as_of_date=as_of_date,
+                symbol=symbol,
+                score=score,
+                mu=raw_score,
+                uncert=0.0,
+                pred_base=raw_score,
+                created_at=now,
+            )
+        else:
+            row.score = score
+            row.mu = raw_score
+            row.uncert = 0.0
+            row.pred_base = raw_score
+        session.add(row)
+
+    session.commit()
+    return len(pred_df)
+
+
+def job_train_alpha_rankpair_v1(session: Session, as_of_date: dt.date | None = None) -> dict[str, int]:
+    trained = train_alpha_rankpair_v1(session)
+    if trained is None:
+        return {"trained": 0, "predictions": 0}
+
+    pred_date = as_of_date
+    if pred_date is None:
+        pred_date = session.exec(
+            select(MlFeature.as_of_date)
+            .where(MlFeature.feature_version == "v3")
+            .order_by(MlFeature.as_of_date.desc())
+        ).first()
+    if pred_date is None:
+        return {"trained": 1, "predictions": 0}
+
+    preds = predict_alpha_rankpair_v1(session, as_of_date=pred_date, version=trained["version"])
     return {"trained": 1, "predictions": preds}
 
 
