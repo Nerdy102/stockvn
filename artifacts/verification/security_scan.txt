@@ -1,0 +1,7 @@
+## secret pattern scan
+.env.example:29:SSI_PASSWORD=
+## hardcoded url scan
+apps/dashboard_streamlit/lib/api.py:10:    return os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
+packages/core/core/settings.py:27:    SSI_FCDATA_BASE_URL: str = Field(default="https://fc-data.ssi.com.vn/api/v2")
+packages/core/core/settings.py:35:    API_BASE_URL: str = Field(default="http://localhost:8000")
+packages/data/data/providers/ssi_fastconnect/provider.py:15:        self.base_url = os.getenv("SSI_FCDATA_BASE_URL", "https://fc-data.ssi.com.vn/api/v2")

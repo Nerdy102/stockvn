@@ -26,7 +26,8 @@ def ic_decay(df: pd.DataFrame, horizons: list[int] | None = None) -> dict[str, f
     for h in horizons:
         tmp = base.copy()
         tmp[f"y_excess_h{h}"] = tmp.groupby("symbol")["y_excess"].shift(-h)
-        ic = rank_ic(tmp.rename(columns={f"y_excess_h{h}": "y_excess"}))
+        tmp = tmp.drop(columns=["y_excess"], errors="ignore").rename(columns={f"y_excess_h{h}": "y_excess"})
+        ic = rank_ic(tmp)
         out[f"ic_decay_{h}"] = float(ic["rank_ic"].mean()) if not ic.empty else 0.0
     return out
 

@@ -1539,9 +1539,9 @@ def job_train_alpha_v3(session: Session, as_of_date: dt.date | None = None) -> d
         return {"trained": 1, "predictions": 0}
 
     preds = predict_alpha_v3(session, as_of_date=pred_date, version=trained["version"])
-    cp = job_update_alpha_v3_cp(session, as_of_date=pred_date)
+    job_update_alpha_v3_cp(session, as_of_date=pred_date)
     mark_now(LAST_TRAIN_TS)
-    return {"trained": 1, "predictions": preds + int(cp.get("predictions", 0))}
+    return {"trained": 1, "predictions": preds}
 
 
 

@@ -1,0 +1,15 @@
+{
+  "feature_build": {
+    "seconds": 0.731,
+    "peak_mem_mb": 16.54,
+    "rows_scores": 200
+  },
+  "screener_run": {
+    "seconds": 0.029,
+    "status_code": 422
+  },
+  "chart_downsample": {
+    "input_points": 20000,
+    "output_points": 10000
+  }
+}
