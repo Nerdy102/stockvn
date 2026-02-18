@@ -1,0 +1,11 @@
+{
+  "target_coverage": 0.8,
+  "window": 252,
+  "expected": {
+    "coverage": 0.8,
+    "gap": 0.0,
+    "sharpness_median": 0.4,
+    "width_p90": 0.6,
+    "count": 10
+  }
+}

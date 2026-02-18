@@ -22,6 +22,12 @@ from core.portfolio.analytics import (
     time_weighted_return,
 )
 from core.regime import classify_market_regime
+from core.portfolio.dashboard import (
+    apply_scenario_shocks,
+    build_portfolio_dashboard,
+    build_rebalance_preview,
+    resolve_portfolio_id,
+)
 from core.settings import get_settings
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -318,3 +324,34 @@ def rebalance_suggest(
     cash_now = float(s.get("cash_now", 0.0))
     rules = payload.model_dump()
     return suggest_rebalance(pos, tick_df, cash=cash_now, rules=rules)
+
+
+
+@router.get("/dashboard")
+def portfolio_dashboard(portfolio_id: int | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
+    pid = resolve_portfolio_id(db, portfolio_id)
+    if pid <= 0:
+        return {
+            "as_of_date": "",
+            "nav": 0.0,
+            "cash": 0.0,
+            "holdings": [],
+            "exposures": {"sector": {}, "style": {}},
+            "risk": {"vol": 0.0, "beta": 0.0, "cvar": 0.0, "mdd": 0.0, "var_hist": 0.0},
+            "risk_contrib": {"names": [], "sectors": [], "clusters": []},
+            "constraints": {"active": [], "violations_pre": [], "violations_post": [], "distance_metrics": {}},
+            "capacity": {"by_symbol": [], "flags": []},
+        }
+    return build_portfolio_dashboard(db, pid)
+
+
+@router.get("/{portfolio_id}/rebalance-preview")
+def portfolio_rebalance_preview(portfolio_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
+    return build_rebalance_preview(db, portfolio_id)
+
+
+@router.get("/{portfolio_id}/scenario-lab")
+def portfolio_scenario_lab(portfolio_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
+    dash = build_portfolio_dashboard(db, portfolio_id)
+    prev = build_rebalance_preview(db, portfolio_id)
+    return {"portfolio_id": portfolio_id, "scenarios": apply_scenario_shocks(dash, prev)}

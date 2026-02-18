@@ -17,6 +17,7 @@ from worker_scheduler.jobs import ensure_seeded
 
 from api_fastapi.routers import (
     alerts,
+    data_health,
     chart,
     fundamentals,
     health,
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
     app.include_router(signals.router)
     app.include_router(portfolio.router)
     app.include_router(alerts.router)
+    app.include_router(data_health.router)
     app.include_router(chart.router)
     app.include_router(ml.router)
     app.include_router(universe.router)
