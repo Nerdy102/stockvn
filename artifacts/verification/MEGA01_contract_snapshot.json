@@ -1,0 +1,38 @@
+{
+  "MarketEventV1": {
+    "schema_version": "v1",
+    "event_id": "evt_a0cb4e94022494fe7899e702",
+    "payload_hash": "354d2543bb71e4fc7068c45e60a4abec6cb242e2a7bcea746cab58fe9652bbe2",
+    "payload": {
+      "symbol": "AAA",
+      "price": 10.5,
+      "qty": 100
+    }
+  },
+  "CanonicalBarV1": {
+    "schema_version": "v1",
+    "event_id": "evt_462d97887567aca7c8c71dfc",
+    "payload_hash": "7cb1b92da3d6c3eaed4b6650f4137f8984a5ec5f0d94dc469d812e0beeee4bdc",
+    "payload": {
+      "symbol": "AAA",
+      "timeframe": "1D",
+      "bar_start": "2025-01-02T00:00:00",
+      "bar_end": "2025-01-02T23:59:59",
+      "open": 10.0,
+      "high": 11.0,
+      "low": 9.8,
+      "close": 10.5,
+      "volume": 120000
+    }
+  },
+  "ProviderSnapshot": {
+    "schema_version": "v1",
+    "event_id": "evt_464ff667fb27bf652c5f23d3",
+    "payload_hash": "dd709a687210c17674c992d004b12c2f323aeb71d8325194aa913afeca548af3",
+    "payload": {
+      "symbol": "AAA",
+      "last": 10.5,
+      "total_volume": 120000
+    }
+  }
+}

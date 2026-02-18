@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import datetime as dt
+from datetime import date
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, Column, DateTime, Index, String
+from sqlalchemy import JSON, BigInteger, Column, Date, DateTime, Index, String
 from sqlmodel import Field, SQLModel
 
 
@@ -414,6 +415,8 @@ class DataHealthIncident(SQLModel, table=True):
     runbook_section: str = Field(default="DH-000", index=True)
     suggested_actions_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: dt.datetime = Field(default_factory=utcnow)
+
+
 class Workspace(SQLModel, table=True):
     __tablename__ = "workspaces"
     __table_args__ = (Index("ux_workspaces_user_name", "user_id", "name", unique=True),)
@@ -679,6 +682,213 @@ class StreamDedup(SQLModel, table=True):
     rtype: str = Field(index=True)
     payload_hash: str = Field(index=True)
     first_seen_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class SchemaVersion(SQLModel, table=True):
+    __tablename__ = "schema_versions"
+    __table_args__ = (
+        Index("ix_schema_versions_source_channel_seen", "source", "channel", "first_seen_at"),
+        Index("ux_schema_versions_scope_hash", "source", "channel", "version_hash", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    source: str = Field(index=True)
+    channel: str = Field(index=True)
+    version_hash: str = Field(index=True)
+    keys_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    first_seen_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class DQMetric(SQLModel, table=True):
+    __tablename__ = "dq_metrics"
+    __table_args__ = (Index("ix_dq_metrics_dt_source_channel", "dt", "source", "channel"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    metric_date: date = Field(sa_column=Column("dt", Date(), nullable=False, index=True))
+    source: str = Field(index=True)
+    channel: str = Field(index=True)
+    missing_rate: float = 0.0
+    duplicate_rate: float = 0.0
+    ohlc_invariant_rate: float = 0.0
+    psi: float = 0.0
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class CanonicalTrade(SQLModel, table=True):
+    __tablename__ = "canonical_trades"
+    __table_args__ = (
+        Index("ix_canonical_trades_symbol_ts", "symbol", "ts_utc"),
+        Index("ux_canonical_trades_event", "event_id", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    event_id: str = Field(index=True)
+    source: str = Field(index=True)
+    symbol: str = Field(index=True)
+    exchange: str = Field(default="UNKNOWN")
+    instrument: str = Field(default="EQUITY")
+    ts_utc: dt.datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False, index=True)
+    )
+    price: float
+    qty: float
+    payload_hash: str = Field(index=True)
+
+
+class CanonicalQuote(SQLModel, table=True):
+    __tablename__ = "canonical_quotes"
+    __table_args__ = (
+        Index("ix_canonical_quotes_symbol_ts", "symbol", "ts_utc"),
+        Index("ux_canonical_quotes_event", "event_id", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    event_id: str = Field(index=True)
+    source: str = Field(index=True)
+    symbol: str = Field(index=True)
+    ts_utc: dt.datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False, index=True)
+    )
+    bid_px: float = 0.0
+    bid_qty: float = 0.0
+    ask_px: float = 0.0
+    ask_qty: float = 0.0
+    payload_hash: str = Field(index=True)
+
+
+class BarsIntraday(SQLModel, table=True):
+    __tablename__ = "bars_intraday"
+    __table_args__ = (
+        Index("ix_bars_intraday_symbol_tf_start", "symbol", "timeframe", "start_ts"),
+        Index(
+            "ux_bars_intraday_symbol_tf_start_end",
+            "symbol",
+            "timeframe",
+            "start_ts",
+            "end_ts",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    timeframe: str = Field(index=True)
+    start_ts: dt.datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
+    end_ts: dt.datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
+    o: float
+    h: float
+    l: float
+    c: float
+    v: float
+    n_trades: int = 0
+    vwap: float = 0.0
+    finalized: bool = True
+    build_ts: dt.datetime = Field(default_factory=utcnow)
+    bar_hash: str = Field(index=True)
+    lineage_payload_hashes_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class BarCorrection(SQLModel, table=True):
+    __tablename__ = "bar_corrections"
+    __table_args__ = (
+        Index("ix_bar_corrections_symbol_tf_start", "symbol", "timeframe", "bar_start_ts"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    timeframe: str = Field(index=True)
+    bar_start_ts: dt.datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False, index=True)
+    )
+    bar_end_ts: dt.datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False, index=True)
+    )
+    reason: str = Field(default="late_event")
+    original_event_id: str = Field(default="", index=True)
+    payload_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class FeatureSnapshot(SQLModel, table=True):
+    __tablename__ = "feature_snapshots"
+    __table_args__ = (
+        Index("ix_feature_snapshots_symbol_tf_asof", "symbol", "timeframe", "as_of_ts"),
+        Index(
+            "ux_feature_snapshots_symbol_tf_asof", "symbol", "timeframe", "as_of_ts", unique=True
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    as_of_ts: dt.datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False, index=True)
+    )
+    symbol: str = Field(index=True)
+    timeframe: str = Field(index=True)
+    features_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    feature_hash: str = Field(index=True)
+    lineage_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    as_of_date: dt.date = Field(index=True)
+    matured_date: dt.date = Field(index=True)
+    public_date: dt.date = Field(index=True)
+
+
+class SignalIntraday(SQLModel, table=True):
+    __tablename__ = "signals_intraday"
+    __table_args__ = (
+        Index("ix_signals_intraday_symbol_tf_end", "symbol", "timeframe", "end_ts"),
+        Index("ux_signals_intraday_symbol_tf_end", "symbol", "timeframe", "end_ts", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    timeframe: str = Field(index=True)
+    end_ts: dt.datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False, index=True)
+    )
+    indicators_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    setups_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    signal_hash: str = Field(index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class AlertIntraday(SQLModel, table=True):
+    __tablename__ = "alerts_intraday"
+    __table_args__ = (
+        Index("ix_alerts_intraday_symbol_tf_end", "symbol", "timeframe", "end_ts"),
+        Index(
+            "ux_alerts_intraday_symbol_tf_end_key",
+            "symbol",
+            "timeframe",
+            "end_ts",
+            "alert_key",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    timeframe: str = Field(index=True)
+    end_ts: dt.datetime = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=False, index=True)
+    )
+    alert_key: str = Field(index=True)
+    severity: int = Field(default=1, index=True)
+    payload_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class AlertCooldown(SQLModel, table=True):
+    __tablename__ = "alert_cooldowns"
+    __table_args__ = (
+        Index("ux_alert_cooldowns_symbol_tf_rule", "symbol", "timeframe", "rule_key", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    timeframe: str = Field(index=True)
+    rule_key: str = Field(index=True)
+    last_bar_index: int = 0
+    updated_at: dt.datetime = Field(default_factory=utcnow)
 
 
 class EventLog(SQLModel, table=True):

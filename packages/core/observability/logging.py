@@ -9,6 +9,7 @@ def structured_log(
     trace_id: str,
     message: str,
     symbol: str | None = None,
+    timeframe: str | None = None,
     tf: str | None = None,
     run_id: str | None = None,
     **extra: Any,
@@ -20,8 +21,9 @@ def structured_log(
     }
     if symbol is not None:
         record["symbol"] = symbol
-    if tf is not None:
-        record["tf"] = tf
+    resolved_timeframe = timeframe if timeframe is not None else tf
+    if resolved_timeframe is not None:
+        record["timeframe"] = resolved_timeframe
     if run_id is not None:
         record["run_id"] = run_id
     record.update(extra)

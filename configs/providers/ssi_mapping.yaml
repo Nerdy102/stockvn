@@ -1,0 +1,14 @@
+schema_version: v1
+event_type_map:
+  X-TRADE: trade
+  X-QUOTE: quote
+  B: bar
+field_mappings:
+  ts: provider_ts
+  price: price
+  qty: qty
+  symbol: symbol
+  exchange: exchange
+  instrument: instrument
+notes:
+  - "Template only: no provider URL and no secrets in this file"

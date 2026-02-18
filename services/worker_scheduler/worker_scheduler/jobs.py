@@ -21,6 +21,12 @@ from core.db.models import (
     DataHealthIncident,
     BronzeFile,
     DataQualityMetric,
+    DQMetric,
+    SchemaVersion,
+    CanonicalTrade,
+    CanonicalQuote,
+    BarsIntraday,
+    FeatureSnapshot,
     DriftAlert,
     DriftMetric,
     FactorScore,
@@ -95,6 +101,16 @@ from data.providers.base import BaseMarketDataProvider
 from data.providers.ssi_fastconnect.mapper_stream import map_stream_payload
 from data.repository.ssi_stream_ingest import SsiStreamIngestRepository
 from sqlmodel import Session, select
+
+from lakehouse.bronze import append_bronze_records, read_bronze_partition
+from lakehouse.gold import build_bars_from_trades, build_feature_snapshots
+from lakehouse.silver import (
+    bronze_to_canonical_quotes,
+    bronze_to_canonical_trades,
+    compute_silver_dq_metrics,
+    dq_incident_severity,
+)
+from contracts.canonical import hash_payload
 
 log = get_logger(__name__)
 
@@ -173,7 +189,9 @@ def _ml_feature_payload_from_row(row: pd.Series, feature_cols: list[str]) -> dic
     return payload
 
 
-def _coverage_metrics_for_date(df: pd.DataFrame, feature_cols: list[str]) -> tuple[float, dict[str, Any]]:
+def _coverage_metrics_for_date(
+    df: pd.DataFrame, feature_cols: list[str]
+) -> tuple[float, dict[str, Any]]:
     if df.empty:
         metrics = {
             "missing_rate_per_feature": {c: 1.0 for c in feature_cols},
@@ -563,7 +581,11 @@ def generate_alerts(session: Session) -> None:
                             state="NEW",
                             severity=1,
                             sla_escalated=False,
-                            reason_json={"rule_id": int(rule.id or 0), "rule_name": rule.name, "expression": rule.expression},
+                            reason_json={
+                                "rule_id": int(rule.id or 0),
+                                "rule_name": rule.name,
+                                "expression": rule.expression,
+                            },
                         )
                     )
     session.commit()
@@ -814,8 +836,6 @@ def compute_indicators_incremental(session: Session, timeframe: str = "1D") -> i
     return updates
 
 
-
-
 def _schema_monitor_log_incident(session: Session, sample_row: dict[str, Any]) -> int:
     current_keys = set(sample_row.keys())
     last = session.exec(
@@ -852,6 +872,7 @@ def _schema_monitor_log_incident(session: Session, sample_row: dict[str, Any]) -
     )
     return 1
 
+
 def compute_data_quality_metrics_job(session: Session) -> list[dict[str, Any]]:
     run = JobRun(job_name="compute_data_quality_metrics")
     session.add(run)
@@ -867,7 +888,9 @@ def compute_data_quality_metrics_job(session: Session) -> list[dict[str, Any]]:
 
     df = pd.DataFrame([p.model_dump() for p in prices])
     metrics = compute_data_quality_metrics(df, provider="db", timeframe="mixed")
-    schema_incidents = _schema_monitor_log_incident(session, sample_row=df.iloc[-1].to_dict() if not df.empty else {})
+    schema_incidents = _schema_monitor_log_incident(
+        session, sample_row=df.iloc[-1].to_dict() if not df.empty else {}
+    )
     today = dt.date.today()
     for m in metrics:
         session.add(
@@ -922,8 +945,12 @@ def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
 
     ret = mkt["close"].pct_change().dropna()
     vol = mkt["volume"].astype(float).iloc[1:]
-    spread_proxy = ((mkt["high"] - mkt["low"]) / mkt["close"].replace(0, pd.NA)).fillna(0.0).iloc[1:]
-    flow_intensity = (mkt["value_vnd"].astype(float) / mkt["volume"].replace(0, pd.NA)).fillna(0.0).iloc[1:]
+    spread_proxy = (
+        ((mkt["high"] - mkt["low"]) / mkt["close"].replace(0, pd.NA)).fillna(0.0).iloc[1:]
+    )
+    flow_intensity = (
+        (mkt["value_vnd"].astype(float) / mkt["volume"].replace(0, pd.NA)).fillna(0.0).iloc[1:]
+    )
     metrics = compute_weekly_drift_metrics(ret, vol, spread_proxy, flow_intensity)
 
     today = dt.date.today()
@@ -1016,8 +1043,6 @@ def compute_ml_labels_rank_z(session: Session) -> int:
     return up
 
 
-
-
 def job_build_labels_v3(session: Session) -> int:
     from core.alpha_v3.targets import build_labels_v3
 
@@ -1079,7 +1104,9 @@ def job_build_ml_features_v3(session: Session) -> int:
     ).first()
     last_processed_date = state.last_date if state else None
     if last_processed_date is not None:
-        pending_dates = sorted(d for d in price_df["date"].dropna().unique().tolist() if d > last_processed_date)
+        pending_dates = sorted(
+            d for d in price_df["date"].dropna().unique().tolist() if d > last_processed_date
+        )
     else:
         pending_dates = sorted(price_df["date"].dropna().unique().tolist())
     if not pending_dates:
@@ -1090,9 +1117,25 @@ def job_build_ml_features_v3(session: Session) -> int:
     tickers = pd.DataFrame([r.model_dump() for r in session.exec(select(Ticker)).all()])
 
     start_date = min(pending_dates) if pending_dates else None
-    flow = load_table_df(session, DailyFlowFeature, "daily_flow_features", "date", settings, start_date=start_date)
-    orderbook = load_table_df(session, DailyOrderbookFeature, "daily_orderbook_features", "date", settings, start_date=start_date)
-    intra = load_table_df(session, DailyIntradayFeature, "daily_intraday_features", "date", settings, start_date=start_date)
+    flow = load_table_df(
+        session, DailyFlowFeature, "daily_flow_features", "date", settings, start_date=start_date
+    )
+    orderbook = load_table_df(
+        session,
+        DailyOrderbookFeature,
+        "daily_orderbook_features",
+        "date",
+        settings,
+        start_date=start_date,
+    )
+    intra = load_table_df(
+        session,
+        DailyIntradayFeature,
+        "daily_intraday_features",
+        "date",
+        settings,
+        start_date=start_date,
+    )
 
     feat = build_ml_features_v3(
         prices=price_df,
@@ -1128,7 +1171,9 @@ def job_build_ml_features_v3(session: Session) -> int:
                     .where(FeatureCoverage.feature_version == feature_version)
                 ).first()
                 if cov is None:
-                    cov = FeatureCoverage(date=day, feature_version=feature_version, metrics_json=coverage_metrics)
+                    cov = FeatureCoverage(
+                        date=day, feature_version=feature_version, metrics_json=coverage_metrics
+                    )
                 else:
                     cov.metrics_json = coverage_metrics
                 session.add(cov)
@@ -1172,6 +1217,7 @@ def job_build_ml_features_v3(session: Session) -> int:
     session.add(state)
     session.commit()
     return up
+
 
 def train_models_v2(session: Session) -> int:
     from core.alpha_v3.features import enforce_no_leakage_guard
@@ -1327,7 +1373,6 @@ def ensure_partitions_monthly(session: Session) -> int:
     return ensure_partitions_monthly_impl(session, months_ahead=3)
 
 
-
 def _git_commit_hash() -> str:
     import subprocess
 
@@ -1346,17 +1391,16 @@ def _alpha_v3_training_frame(session: Session) -> pd.DataFrame:
 
     feat_df = pd.DataFrame(
         [
-            {
-                k: v
-                for k, v in r.model_dump().items()
-                if k not in {"id", "created_at"}
-            }
+            {k: v for k, v in r.model_dump().items() if k not in {"id", "created_at"}}
             for r in feat_rows
         ]
     )
     feat_df = feat_df.drop(columns=["y_rank_z", "y_excess"], errors="ignore")
     lbl_df = pd.DataFrame(
-        [{"symbol": r.symbol, "date": r.date, "y_rank_z": r.y_rank_z, "y_excess": r.y_excess} for r in label_rows]
+        [
+            {"symbol": r.symbol, "date": r.date, "y_rank_z": r.y_rank_z, "y_excess": r.y_excess}
+            for r in label_rows
+        ]
     )
     merged = feat_df.merge(
         lbl_df,
@@ -1475,11 +1519,7 @@ def predict_alpha_v3(session: Session, as_of_date: dt.date, version: str | None 
 
     feat_df = pd.DataFrame(
         [
-            {
-                k: v
-                for k, v in r.model_dump().items()
-                if k not in {"id", "created_at"}
-            }
+            {k: v for k, v in r.model_dump().items() if k not in {"id", "created_at"}}
             for r in feat_rows
         ]
     )
@@ -1542,8 +1582,6 @@ def job_train_alpha_v3(session: Session, as_of_date: dt.date | None = None) -> d
     job_update_alpha_v3_cp(session, as_of_date=pred_date)
     mark_now(LAST_TRAIN_TS)
     return {"trained": 1, "predictions": preds}
-
-
 
 
 def train_alpha_rankpair_v1(
@@ -1619,7 +1657,9 @@ def train_alpha_rankpair_v1(
     }
 
 
-def predict_alpha_rankpair_v1(session: Session, as_of_date: dt.date, version: str | None = None) -> int:
+def predict_alpha_rankpair_v1(
+    session: Session, as_of_date: dt.date, version: str | None = None
+) -> int:
     import pickle
 
     from core.db.models import AlphaModel
@@ -1655,11 +1695,7 @@ def predict_alpha_rankpair_v1(session: Session, as_of_date: dt.date, version: st
 
     feat_df = pd.DataFrame(
         [
-            {
-                k: v
-                for k, v in r.model_dump().items()
-                if k not in {"id", "created_at"}
-            }
+            {k: v for k, v in r.model_dump().items() if k not in {"id", "created_at"}}
             for r in feat_rows
         ]
     )
@@ -1701,7 +1737,9 @@ def predict_alpha_rankpair_v1(session: Session, as_of_date: dt.date, version: st
     return len(pred_df)
 
 
-def job_train_alpha_rankpair_v1(session: Session, as_of_date: dt.date | None = None) -> dict[str, int]:
+def job_train_alpha_rankpair_v1(
+    session: Session, as_of_date: dt.date | None = None
+) -> dict[str, int]:
     trained = train_alpha_rankpair_v1(session)
     if trained is None:
         return {"trained": 0, "predictions": 0}
@@ -1720,13 +1758,17 @@ def job_train_alpha_rankpair_v1(session: Session, as_of_date: dt.date | None = N
     return {"trained": 1, "predictions": preds}
 
 
-
 def train_alpha_listnet_v2(
     session: Session,
     artifact_root: str = "artifacts/models/alpha_listnet_v2",
 ) -> dict[str, Any] | None:
     from core.db.models import AlphaModel, DiagnosticsMetric, DiagnosticsRun
-    from core.ml.listnet import ListNetConfig, cross_validate_listnet, prepare_listnet_training_frame, train_listnet_linear
+    from core.ml.listnet import (
+        ListNetConfig,
+        cross_validate_listnet,
+        prepare_listnet_training_frame,
+        train_listnet_linear,
+    )
     from core.ml.prob_calibration import calibration_metrics
 
     data = _alpha_v3_training_frame(session)
@@ -1741,11 +1783,15 @@ def train_alpha_listnet_v2(
     cv_df = cross_validate_listnet(prep, feature_columns=feature_cols, config=cfg)
     model = train_listnet_linear(prep, feature_columns=feature_cols, config=cfg)
 
-    pred_full = model.predict_frame(prep[["symbol", "as_of_date", *[c for c in feature_cols if c != "missing_count"]]])
+    pred_full = model.predict_frame(
+        prep[["symbol", "as_of_date", *[c for c in feature_cols if c != "missing_count"]]]
+    )
     eval_full = prep[["as_of_date", "y_excess"]].copy()
     eval_full["z"] = (eval_full["y_excess"].astype(float) > 0.0).astype(float)
     eval_full["p_cal"] = pred_full["p_cal"].to_numpy(dtype=float)
-    calib_stats = calibration_metrics(eval_full["p_cal"].to_numpy(dtype=float), eval_full["z"].to_numpy(dtype=float), bins=10)
+    calib_stats = calibration_metrics(
+        eval_full["p_cal"].to_numpy(dtype=float), eval_full["z"].to_numpy(dtype=float), bins=10
+    )
 
     version_dt = dt.datetime.utcnow().replace(microsecond=0)
     while True:
@@ -1789,11 +1835,41 @@ def train_alpha_listnet_v2(
     session.add(diag)
 
     if not cv_df.empty:
-        session.add(DiagnosticsMetric(run_id=run_id, metric_name="cv_mean_ndcg_at_30", metric_value=float(cv_df["ndcg_at_30"].mean())))
-        session.add(DiagnosticsMetric(run_id=run_id, metric_name="cv_mean_rank_ic", metric_value=float(cv_df["rank_ic"].mean())))
-    session.add(DiagnosticsMetric(run_id=run_id, metric_name="train_dates", metric_value=float(prep["as_of_date"].nunique())))
-    session.add(DiagnosticsMetric(run_id=run_id, metric_name="pcal_brier", metric_value=float(calib_stats.get("brier", 0.0))))
-    session.add(DiagnosticsMetric(run_id=run_id, metric_name="pcal_ece_10", metric_value=float(calib_stats.get("ece", 0.0))))
+        session.add(
+            DiagnosticsMetric(
+                run_id=run_id,
+                metric_name="cv_mean_ndcg_at_30",
+                metric_value=float(cv_df["ndcg_at_30"].mean()),
+            )
+        )
+        session.add(
+            DiagnosticsMetric(
+                run_id=run_id,
+                metric_name="cv_mean_rank_ic",
+                metric_value=float(cv_df["rank_ic"].mean()),
+            )
+        )
+    session.add(
+        DiagnosticsMetric(
+            run_id=run_id,
+            metric_name="train_dates",
+            metric_value=float(prep["as_of_date"].nunique()),
+        )
+    )
+    session.add(
+        DiagnosticsMetric(
+            run_id=run_id,
+            metric_name="pcal_brier",
+            metric_value=float(calib_stats.get("brier", 0.0)),
+        )
+    )
+    session.add(
+        DiagnosticsMetric(
+            run_id=run_id,
+            metric_name="pcal_ece_10",
+            metric_value=float(calib_stats.get("ece", 0.0)),
+        )
+    )
 
     session.commit()
 
@@ -1806,7 +1882,9 @@ def train_alpha_listnet_v2(
     }
 
 
-def predict_alpha_listnet_v2(session: Session, as_of_date: dt.date, version: str | None = None) -> int:
+def predict_alpha_listnet_v2(
+    session: Session, as_of_date: dt.date, version: str | None = None
+) -> int:
     from core.db.models import AlphaModel
     from core.ml.listnet import load_npz
 
@@ -1830,10 +1908,12 @@ def predict_alpha_listnet_v2(session: Session, as_of_date: dt.date, version: str
     if not feat_rows:
         return 0
 
-    feat_df = pd.DataFrame([
-        {k: v for k, v in r.model_dump().items() if k not in {"id", "created_at"}}
-        for r in feat_rows
-    ])
+    feat_df = pd.DataFrame(
+        [
+            {k: v for k, v in r.model_dump().items() if k not in {"id", "created_at"}}
+            for r in feat_rows
+        ]
+    )
     pred_df = model.predict_frame(feat_df).replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
     existing_rows = session.exec(
@@ -1873,7 +1953,9 @@ def predict_alpha_listnet_v2(session: Session, as_of_date: dt.date, version: str
     return len(pred_df)
 
 
-def job_train_alpha_listnet_v2(session: Session, as_of_date: dt.date | None = None) -> dict[str, int]:
+def job_train_alpha_listnet_v2(
+    session: Session, as_of_date: dt.date | None = None
+) -> dict[str, int]:
     trained = train_alpha_listnet_v2(session)
     if trained is None:
         return {"trained": 0, "predictions": 0}
@@ -1892,9 +1974,9 @@ def job_train_alpha_listnet_v2(session: Session, as_of_date: dt.date | None = No
     return {"trained": 1, "predictions": preds}
 
 
-
-
-def job_prob_calibration_governance_listnet_v2(session: Session, lookback_days: int = 20, ece_threshold: float = 0.05) -> dict[str, float | int | bool]:
+def job_prob_calibration_governance_listnet_v2(
+    session: Session, lookback_days: int = 20, ece_threshold: float = 0.05
+) -> dict[str, float | int | bool]:
     from core.alpha_v3.calibration import compute_probability_calibration_metrics
 
     preds = session.exec(
@@ -1913,11 +1995,13 @@ def job_prob_calibration_governance_listnet_v2(session: Session, lookback_days: 
         key = (str(p.symbol), p.as_of_date)
         if key not in lbl_map:
             continue
-        rows.append({
-            "as_of_date": p.as_of_date,
-            "p_cal": float(p.mu),
-            "z": 1.0 if float(lbl_map[key]) > 0.0 else 0.0,
-        })
+        rows.append(
+            {
+                "as_of_date": p.as_of_date,
+                "p_cal": float(p.mu),
+                "z": 1.0 if float(lbl_map[key]) > 0.0 else 0.0,
+            }
+        )
     if not rows:
         return {"triggered": False, "latest_ece": 0.0, "days_above": 0}
 
@@ -1928,7 +2012,9 @@ def job_prob_calibration_governance_listnet_v2(session: Session, lookback_days: 
         daily.append({"as_of_date": d, "ece": float(met.get("ece", 0.0))})
     day_df = pd.DataFrame(daily).sort_values("as_of_date").reset_index(drop=True)
     day_df["above"] = (day_df["ece"] > float(ece_threshold)).astype(int)
-    day_df["above_rolling"] = day_df["above"].rolling(int(lookback_days), min_periods=int(lookback_days)).sum()
+    day_df["above_rolling"] = (
+        day_df["above"].rolling(int(lookback_days), min_periods=int(lookback_days)).sum()
+    )
 
     triggered = bool((day_df["above_rolling"] >= lookback_days).any())
     latest_ece = float(day_df["ece"].iloc[-1])
@@ -1967,9 +2053,6 @@ def job_prob_calibration_governance_listnet_v2(session: Session, lookback_days: 
     return {"triggered": triggered, "latest_ece": latest_ece, "days_above": days_above}
 
 
-
-
-
 def job_update_alpha_v3_cp(session: Session, as_of_date: dt.date | None = None) -> dict[str, int]:
     from core.alpha_v3.conformal import apply_cp_predictions, update_delayed_residuals
 
@@ -1988,12 +2071,17 @@ def job_update_alpha_v3_cp(session: Session, as_of_date: dt.date | None = None) 
     return {"updated_residuals": updated_residuals, "predictions": preds}
 
 
-def nightly_parquet_export_job(session: Session, as_of_date: dt.date | None = None) -> dict[str, Any]:
+def nightly_parquet_export_job(
+    session: Session, as_of_date: dt.date | None = None
+) -> dict[str, Any]:
     target_day = as_of_date or (dt.datetime.utcnow().date() - dt.timedelta(days=1))
     settings = Settings()
     counts = export_partitioned_parquet_for_day(session, settings=settings, as_of_date=target_day)
     manifests = session.exec(
-        select(ParquetManifest).where(ParquetManifest.year == target_day.year).where(ParquetManifest.month == target_day.month).where(ParquetManifest.day == target_day.day)
+        select(ParquetManifest)
+        .where(ParquetManifest.year == target_day.year)
+        .where(ParquetManifest.month == target_day.month)
+        .where(ParquetManifest.day == target_day.day)
     ).all()
     return {
         "status": "ok",
@@ -2003,14 +2091,14 @@ def nightly_parquet_export_job(session: Session, as_of_date: dt.date | None = No
     }
 
 
-
-
 def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, Any]:
     """Persist DSR/PBO/Bootstrap controls from available alpha_v3 prediction-label panel."""
     preds = pd.DataFrame(
         [
             p.model_dump()
-            for p in session.exec(select(AlphaPrediction).where(AlphaPrediction.model_id == "alpha_v3")).all()
+            for p in session.exec(
+                select(AlphaPrediction).where(AlphaPrediction.model_id == "alpha_v3")
+            ).all()
         ]
     )
     labels = pd.DataFrame(
@@ -2035,7 +2123,10 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
 
     sensitivity = run_sensitivity(base_metrics={}, base_returns=returns)
     variants_df = pd.DataFrame(
-        {k: pd.Series(v, dtype=float) for k, v in (sensitivity.get("variant_returns", {}) or {}).items()}
+        {
+            k: pd.Series(v, dtype=float)
+            for k, v in (sensitivity.get("variant_returns", {}) or {}).items()
+        }
     )
     if variants_df.empty:
         variants_df = pd.DataFrame({"base": returns, "base_cost": returns - 0.0001})
@@ -2045,8 +2136,12 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
     phi, logits_summary = compute_pbo_cscv(variants_df, slices=10)
     psr = compute_psr(returns, sr_threshold=0.0)
     mintrl = compute_mintrl(returns, sr_threshold=0.0, alpha=0.95)
-    rc_p, rc_components = white_reality_check(returns, variants_df, n_bootstrap=1000, block_mean=20.0, seed=42)
-    spa_p, spa_components = hansen_spa_test(returns, variants_df, n_bootstrap=1000, block_mean=20.0, seed=42)
+    rc_p, rc_components = white_reality_check(
+        returns, variants_df, n_bootstrap=1000, block_mean=20.0, seed=42
+    )
+    spa_p, spa_components = hansen_spa_test(
+        returns, variants_df, n_bootstrap=1000, block_mean=20.0, seed=42
+    )
     ci = alpha_v3_block_bootstrap_ci(returns, block=20, n_resamples=1000)
     gates = evaluate_research_gates(
         dsr_value=dsr.dsr_value,
@@ -2109,7 +2204,9 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
         mintrl_row.alpha = mintrl.alpha
     session.add(mintrl_row)
 
-    rc_row = session.exec(select(RealityCheckResult).where(RealityCheckResult.run_id == run_id)).first()
+    rc_row = session.exec(
+        select(RealityCheckResult).where(RealityCheckResult.run_id == run_id)
+    ).first()
     if rc_row is None:
         rc_row = RealityCheckResult(run_id=run_id, p_value=rc_p, components=rc_components)
     else:
@@ -2127,7 +2224,12 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
 
     gate_row = session.exec(select(GateResult).where(GateResult.run_id == run_id)).first()
     if gate_row is None:
-        gate_row = GateResult(run_id=run_id, status=gates.get("status", "FAIL"), reasons={"reasons": gates.get("reasons", [])}, details=gates)
+        gate_row = GateResult(
+            run_id=run_id,
+            status=gates.get("status", "FAIL"),
+            reasons={"reasons": gates.get("reasons", [])},
+            details=gates,
+        )
     else:
         gate_row.status = gates.get("status", "FAIL")
         gate_row.reasons = {"reasons": gates.get("reasons", [])}
@@ -2149,7 +2251,6 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
     }
 
 
-
 def _trading_days_age(start_date: dt.date, end_date: dt.date) -> int:
     cal = get_trading_calendar_vn()
     if end_date <= start_date:
@@ -2165,9 +2266,7 @@ def seed_alerts_v5_from_events(session: Session) -> int:
         d = ev.triggered_at.date()
         reason = (ev.meta or {}).get("expression", "legacy_event")
         old = session.exec(
-            select(AlertV5)
-            .where(AlertV5.symbol == ev.symbol)
-            .where(AlertV5.date == d)
+            select(AlertV5).where(AlertV5.symbol == ev.symbol).where(AlertV5.date == d)
         ).first()
         if old is not None:
             continue
@@ -2206,7 +2305,11 @@ def job_alert_sla_escalation_daily(session: Session) -> dict[str, int]:
                 AlertAction(
                     alert_id=int(a.id or 0),
                     action="SLA_ESCALATE",
-                    payload_json={"from": "NEW", "age_trading_days": age_td, "new_severity": a.severity},
+                    payload_json={
+                        "from": "NEW",
+                        "age_trading_days": age_td,
+                        "new_severity": a.severity,
+                    },
                 )
             )
             escalated += 1
@@ -2226,7 +2329,11 @@ def job_alert_sla_escalation_daily(session: Session) -> dict[str, int]:
                         status="OPEN",
                         symbol=a.symbol,
                         summary=f"Stale HIGH alert for {a.symbol}",
-                        details_json={"alert_id": a.id, "age_trading_days": age_td, "date": str(a.date)},
+                        details_json={
+                            "alert_id": a.id,
+                            "age_trading_days": age_td,
+                            "date": str(a.date),
+                        },
                     )
                 )
                 session.add(
@@ -2259,7 +2366,9 @@ def job_alert_digest_daily(session: Session, settings: Settings | None = None) -
     if not active:
         return {"sent": 0, "alerts": 0}
 
-    df = pd.DataFrame([{"symbol": a.symbol, "severity": int(a.severity), "id": int(a.id or 0)} for a in active])
+    df = pd.DataFrame(
+        [{"symbol": a.symbol, "severity": int(a.severity), "id": int(a.id or 0)} for a in active]
+    )
     by_sev = {str(k): int(v) for k, v in df.groupby("severity").size().to_dict().items()}
     by_sym = {str(k): int(v) for k, v in df.groupby("symbol").size().to_dict().items()}
     payload = {
@@ -2277,3 +2386,268 @@ def job_alert_digest_daily(session: Session, settings: Settings | None = None) -
         session.add(a)
     session.commit()
     return {"sent": 1, "alerts": int(len(df))}
+
+
+def _to_naive_utc(ts: str) -> dt.datetime:
+    v = pd.Timestamp(ts)
+    if v.tzinfo is None:
+        v = v.tz_localize("UTC")
+    else:
+        v = v.tz_convert("UTC")
+    return v.tz_localize(None).to_pydatetime()
+
+
+def job_bronze_ingest_replay(
+    session: Session, records: list[dict[str, Any]], *, base_dir: str = "data_lake/bronze_lh"
+) -> dict[str, int]:
+    run = JobRun(job_name="job_bronze_ingest_replay")
+    session.add(run)
+    session.commit()
+    out = append_bronze_records(base_dir, records)
+    run.status = "completed"
+    run.end_ts = dt.datetime.utcnow()
+    run.rows_in = len(records)
+    run.rows_out = len(records)
+    session.add(run)
+    session.commit()
+    return {"rows_in": len(records), "rows_out": len(records), "written": int(out is not None)}
+
+
+def job_bronze_to_silver(
+    session: Session, *, base_dir: str, dt_value: dt.date, source: str, channel: str
+) -> dict[str, int]:
+    bronze_df = read_bronze_partition(base_dir, dt_value=dt_value, source=source, channel=channel)
+    trades = bronze_to_canonical_trades(bronze_df)
+    quotes = bronze_to_canonical_quotes(bronze_df)
+
+    inserted_trades = 0
+    for _, row in trades.iterrows():
+        exists = session.exec(
+            select(CanonicalTrade).where(CanonicalTrade.event_id == str(row["event_id"]))
+        ).first()
+        if exists is not None:
+            continue
+        session.add(
+            CanonicalTrade(
+                event_id=str(row["event_id"]),
+                source=str(row["source"]),
+                symbol=str(row["symbol"]),
+                exchange=str(row["exchange"]),
+                instrument=str(row["instrument"]),
+                ts_utc=_to_naive_utc(str(row["ts_utc"])),
+                price=float(row["price"]),
+                qty=float(row["qty"]),
+                payload_hash=str(row["payload_hash"]),
+            )
+        )
+        inserted_trades += 1
+
+    inserted_quotes = 0
+    for _, row in quotes.iterrows():
+        exists = session.exec(
+            select(CanonicalQuote).where(CanonicalQuote.event_id == str(row["event_id"]))
+        ).first()
+        if exists is not None:
+            continue
+        session.add(
+            CanonicalQuote(
+                event_id=str(row["event_id"]),
+                source=str(row["source"]),
+                symbol=str(row["symbol"]),
+                ts_utc=_to_naive_utc(str(row["ts_utc"])),
+                bid_px=float(row["bid_px"]),
+                bid_qty=float(row["bid_qty"]),
+                ask_px=float(row["ask_px"]),
+                ask_qty=float(row["ask_qty"]),
+                payload_hash=str(row["payload_hash"]),
+            )
+        )
+        inserted_quotes += 1
+
+    metrics = compute_silver_dq_metrics(trades)
+    session.add(DQMetric(metric_date=dt_value, source=source, channel=channel, **metrics))
+    sev = dq_incident_severity(metrics)
+    if sev is not None:
+        session.add(
+            DataHealthIncident(
+                source="data_plane_dq",
+                severity=sev,
+                status="OPEN",
+                summary=f"DQ threshold breach for {source}/{channel}",
+                details_json={"metrics": metrics, "dt": dt_value.isoformat()},
+                runbook_section="RB-DQ-DATA-PLANE",
+                suggested_actions_json={
+                    "actions": ["Inspect upstream parser", "Run deterministic replay"]
+                },
+            )
+        )
+
+    session.commit()
+    return {"trades": inserted_trades, "quotes": inserted_quotes}
+
+
+def job_silver_to_gold(
+    session: Session, *, dt_value: dt.date, source: str, timeframe: str = "15m"
+) -> dict[str, int]:
+    rows = session.exec(select(CanonicalTrade).where(CanonicalTrade.source == source)).all()
+    if not rows:
+        return {"bars": 0, "features": 0}
+    tdf = pd.DataFrame(
+        [
+            {
+                "event_id": r.event_id,
+                "symbol": r.symbol,
+                "ts_utc": r.ts_utc.isoformat() + "Z",
+                "price": r.price,
+                "qty": r.qty,
+                "payload_hash": r.payload_hash,
+            }
+            for r in rows
+        ]
+    )
+    tdf = tdf[pd.to_datetime(tdf["ts_utc"]).dt.date == dt_value]
+    bars = build_bars_from_trades(tdf, timeframe=timeframe)
+    features = build_feature_snapshots(bars)
+
+    bars_inserted = 0
+    for _, row in bars.iterrows():
+        symbol = str(row["symbol"])
+        start_ts = _to_naive_utc(str(row["start_ts"]))
+        exists = session.exec(
+            select(BarsIntraday)
+            .where(BarsIntraday.symbol == symbol)
+            .where(BarsIntraday.timeframe == timeframe)
+            .where(BarsIntraday.start_ts == start_ts)
+        ).first()
+        if exists is not None:
+            continue
+        session.add(
+            BarsIntraday(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_ts=start_ts,
+                end_ts=_to_naive_utc(str(row["end_ts"])),
+                o=float(row["o"]),
+                h=float(row["h"]),
+                l=float(row["l"]),
+                c=float(row["c"]),
+                v=float(row["v"]),
+                n_trades=int(row["n_trades"]),
+                vwap=float(row["vwap"]),
+                finalized=bool(row["finalized"]),
+                build_ts=_to_naive_utc(str(row["build_ts"]).replace("Z", "+00:00")),
+                bar_hash=str(row["bar_hash"]),
+                lineage_payload_hashes_json={
+                    "payload_hashes": json.loads(str(row["lineage_payload_hashes_json"]))
+                },
+            )
+        )
+        bars_inserted += 1
+
+    features_inserted = 0
+    for _, row in features.iterrows():
+        symbol = str(row["symbol"])
+        asof = _to_naive_utc(str(row["as_of_ts"]))
+        exists = session.exec(
+            select(FeatureSnapshot)
+            .where(FeatureSnapshot.symbol == symbol)
+            .where(FeatureSnapshot.timeframe == timeframe)
+            .where(FeatureSnapshot.as_of_ts == asof)
+        ).first()
+        if exists is not None:
+            continue
+        session.add(
+            FeatureSnapshot(
+                as_of_ts=asof,
+                symbol=symbol,
+                timeframe=timeframe,
+                features_json=json.loads(str(row["features_json"])),
+                feature_hash=str(row["feature_hash"]),
+                lineage_json=json.loads(str(row["lineage_json"])),
+                as_of_date=pd.Timestamp(str(row["as_of_date"])).date(),
+                matured_date=pd.Timestamp(str(row["matured_date"])).date(),
+                public_date=pd.Timestamp(str(row["public_date"])).date(),
+            )
+        )
+        features_inserted += 1
+
+    if not bars.empty:
+        inv = float((bars["h"] < bars["l"]).mean())
+        session.add(
+            DQMetric(
+                metric_date=dt_value,
+                source=source,
+                channel=f"gold_{timeframe}",
+                missing_rate=0.0,
+                duplicate_rate=0.0,
+                ohlc_invariant_rate=inv,
+                psi=0.0,
+            )
+        )
+    session.commit()
+    return {"bars": bars_inserted, "features": features_inserted}
+
+
+def job_schema_monitor(
+    session: Session, *, base_dir: str, dt_value: dt.date, source: str, channel: str
+) -> dict[str, int]:
+    bronze_df = read_bronze_partition(base_dir, dt_value=dt_value, source=source, channel=channel)
+    if bronze_df.empty:
+        return {"schema_versions": 0, "incidents": 0}
+
+    payloads = [json.loads(str(v)) for v in bronze_df["payload_json"].tolist()]
+    key_set = sorted({k for p in payloads for k in p.keys()})
+    vhash = hash_payload({"keys": key_set})
+    existing = session.exec(
+        select(SchemaVersion)
+        .where(SchemaVersion.source == source)
+        .where(SchemaVersion.channel == channel)
+        .where(SchemaVersion.version_hash == vhash)
+    ).first()
+    created = 0
+    if existing is None:
+        session.add(
+            SchemaVersion(
+                source=source, channel=channel, version_hash=vhash, keys_json={"keys": key_set}
+            )
+        )
+        created = 1
+
+    latest = session.exec(
+        select(SchemaVersion)
+        .where(SchemaVersion.source == source)
+        .where(SchemaVersion.channel == channel)
+        .order_by(SchemaVersion.id.desc())
+    ).all()
+    incidents = 0
+    if len(latest) >= 2:
+        prev = set((latest[1].keys_json or {}).get("keys", []))
+        curr = set((latest[0].keys_json or {}).get("keys", []))
+        added = sorted(curr - prev)
+        removed = sorted(prev - curr)
+        if added or removed:
+            session.add(
+                DataHealthIncident(
+                    source="schema_monitor",
+                    severity="HIGH",
+                    status="OPEN",
+                    summary="Schema key-set change detected in bronze payloads",
+                    details_json={
+                        "added_keys": added,
+                        "removed_keys": removed,
+                        "source": source,
+                        "channel": channel,
+                    },
+                    runbook_section="RB-SCHEMA-DIFF",
+                    suggested_actions_json={
+                        "actions": [
+                            "Approve schema update",
+                            "Register new schema version",
+                            "Replay bronze->silver",
+                        ]
+                    },
+                )
+            )
+            incidents = 1
+    session.commit()
+    return {"schema_versions": created, "incidents": incidents}

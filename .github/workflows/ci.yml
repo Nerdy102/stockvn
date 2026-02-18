@@ -35,6 +35,14 @@ jobs:
         run: |
           python -m pip install -U pip
           pip install -r requirements.txt -r requirements-dev.txt
+      - name: Ruff
+        run: python -m ruff check .
+      - name: Black
+        run: python -m black --check .
+      - name: MyPy
+        run: PYTHONPATH=${{ env.PYTHONPATH }} python -m mypy .
+      - name: Pytest
+        run: PYTHONPATH=${{ env.PYTHONPATH }} pytest -q
       - name: Quality gate
         run: make quality-gate
       - name: UI forbidden strings guardrail
@@ -50,7 +58,7 @@ jobs:
       - name: Postgres migration/partition tests
         run: pytest -q tests/test_migrations_postgres_apply.py tests/test_partition_manager_creates_next_month_partition.py tests/test_postgres_runtime_smoke.py
       - name: Tests (smoke + contracts)
-        run: PYTHONPATH=${{ env.PYTHONPATH }} pytest -q tests/test_contract_hash_stability.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py
+        run: PYTHONPATH=${{ env.PYTHONPATH }} pytest -q tests/test_contract_hash_stability.py tests/test_schema_registry_versioning.py tests/test_bronze_to_silver_deterministic.py tests/test_silver_validations_reject_invalid.py tests/test_lineage_preserved.py tests/test_schema_monitor_detects_key_change.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py tests/test_gateway_event_id_deterministic.py tests/test_gateway_dedup_skips_duplicates.py tests/test_event_log_rotation_checksum_verify.py tests/test_replay_publishes_ordered.py tests/test_bar_alignment_lunch_split.py tests/test_bar_hash_deterministic.py tests/test_late_event_correction_policy.py tests/test_redis_hot_cache_rolls_last_200.py tests/test_incremental_matches_batch.py tests/test_trend_definition_exact.py tests/test_intraday_cooldown_26_bars.py tests/test_alert_dsl_eval_on_bar_close.py tests/test_signal_idempotent.py
       - name: Verify program
         run: make verify-program
       - name: Upload verification artifacts

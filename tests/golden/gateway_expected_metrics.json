@@ -1,0 +1,4 @@
+{
+  "required_keys": ["consumed", "published", "duplicates", "late"],
+  "mode": "replay"
+}

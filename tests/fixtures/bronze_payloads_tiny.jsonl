@@ -1,0 +1,3 @@
+{"source":"demo","channel":"trade","received_ts_utc":"2025-01-02T09:00:00Z","schema_version":"v1","payload_json":{"symbol":"AAA","ts_utc":"2025-01-02T09:00:00Z","price":10.5,"qty":100,"exchange":"HOSE","instrument":"EQUITY"},"trace_json":{"trace_id":"t1"}}
+{"source":"demo","channel":"trade","received_ts_utc":"2025-01-02T09:05:00Z","schema_version":"v1","payload_json":{"symbol":"AAA","ts_utc":"2025-01-02T09:05:00Z","price":10.8,"qty":150,"exchange":"HOSE","instrument":"EQUITY"},"trace_json":{"trace_id":"t2"}}
+{"source":"demo","channel":"trade","received_ts_utc":"2025-01-02T09:05:00Z","schema_version":"v1","payload_json":{"symbol":"AAA","ts_utc":"2025-01-02T09:05:00Z","price":10.8,"qty":150,"exchange":"HOSE","instrument":"EQUITY"},"trace_json":{"trace_id":"t2"}}

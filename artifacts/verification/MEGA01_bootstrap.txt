@@ -1,26 +1,21 @@
-[MEGA01 bootstrap evidence]
+MEGA01 bootstrap verification
+============================
 
 Command: make quality-gate
-Result: PASS
-
-Command: PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps pytest -q tests/test_contract_hash_stability.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py
-Result: PASS
-Output: 8 passed
-
-Command: PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m scripts.replay_events --fixture tests/fixtures/replay/event_log_fixture.jsonl --speed max --dry-run
-Result: PASS
-Output: {"replayed": 4}
-
-Command: make rt-load-test
-Result: PASS
-Artifact: artifacts/verification/MEGA09_load_results.json
-
-Command: make rt-chaos-test
-Result: PASS
-Artifact: artifacts/verification/MEGA09_chaos_results.json
+Status: PASS
+Key output:
+- ruff check: All checks passed
+- black --check: 22 files unchanged
+- mypy: Success, no issues found
+- pytest subset: 11 passed
+- scripts/quality_gate.py: quality_gate OK
 
 Command: make verify-program
-Result: PASS
-Artifacts:
-- artifacts/verification/PROGRAM_VERIFICATION_REPORT.md
-- artifacts/verification/PROGRAM_VERIFICATION_REPORT.json
+Status: PASS
+Key output:
+- scripts.verify_program executed successfully
+
+Command: python -m pytest -q tests/test_contract_hash_stability.py tests/test_schema_registry_versioning.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py
+Status: PASS
+Key output:
+- 8 passed

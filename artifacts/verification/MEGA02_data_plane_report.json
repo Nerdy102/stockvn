@@ -1,0 +1,58 @@
+{
+  "counts": {
+    "canonical_trades": 2,
+    "bars_intraday": 1,
+    "feature_snapshots": 1,
+    "schema_versions": 1,
+    "dq_metrics": 2
+  },
+  "job_outputs": {
+    "schema_monitor": {
+      "schema_versions": 1,
+      "incidents": 0
+    },
+    "bronze_to_silver": {
+      "trades": 2,
+      "quotes": 0
+    },
+    "silver_to_gold": {
+      "bars": 1,
+      "features": 1
+    }
+  },
+  "dq_metrics": [
+    {
+      "dt": "2025-01-02",
+      "source": "demo",
+      "channel": "trade",
+      "missing_rate": 0.0,
+      "duplicate_rate": 0.0,
+      "ohlc_invariant_rate": 0.0,
+      "psi": 0.0
+    },
+    {
+      "dt": "2025-01-02",
+      "source": "demo",
+      "channel": "gold_15m",
+      "missing_rate": 0.0,
+      "duplicate_rate": 0.0,
+      "ohlc_invariant_rate": 0.0,
+      "psi": 0.0
+    }
+  ],
+  "schema_versions": [
+    {
+      "source": "demo",
+      "channel": "trade",
+      "version_hash": "e12752ddf9c80900d950f8a29711fce6d804edd1929a53efa71cdaced1053e96",
+      "keys": [
+        "exchange",
+        "instrument",
+        "price",
+        "qty",
+        "symbol",
+        "ts_utc"
+      ]
+    }
+  ]
+}

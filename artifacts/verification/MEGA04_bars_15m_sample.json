@@ -1,0 +1,44 @@
+[
+  {
+    "symbol": "AAA",
+    "timeframe": "15m",
+    "start_ts": "2025-01-02T02:00:00Z",
+    "end_ts": "2025-01-02T02:15:00Z",
+    "o": 10.0,
+    "h": 11.0,
+    "l": 10.0,
+    "c": 11.0,
+    "v": 300.0,
+    "n_trades": 2,
+    "vwap": 10.666666666666666,
+    "bar_hash": "ab99360ea8dc22c17c0a435b5a62078483fe3a59cd650eeaf459ce3191780ed0"
+  },
+  {
+    "symbol": "AAA",
+    "timeframe": "15m",
+    "start_ts": "2025-01-02T03:00:00Z",
+    "end_ts": "2025-01-02T03:15:00Z",
+    "o": 12.0,
+    "h": 12.0,
+    "l": 12.0,
+    "c": 12.0,
+    "v": 50.0,
+    "n_trades": 1,
+    "vwap": 12.0,
+    "bar_hash": "21946627b4ef5f90dfac85ba3eded6b52c7610d8d97086fa4969913b93b3de63"
+  },
+  {
+    "symbol": "AAA",
+    "timeframe": "15m",
+    "start_ts": "2025-01-02T06:00:00Z",
+    "end_ts": "2025-01-02T06:15:00Z",
+    "o": 13.0,
+    "h": 13.0,
+    "l": 13.0,
+    "c": 13.0,
+    "v": 70.0,
+    "n_trades": 1,
+    "vwap": 13.0,
+    "bar_hash": "fdf2e2abb3b122f46b65b25a31af554ba76a7178d150b31dedee67c39e5fefce"
+  }
+]

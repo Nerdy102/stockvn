@@ -1,0 +1,6 @@
+{
+  "source": "schema_monitor",
+  "severity": "HIGH",
+  "status": "OPEN",
+  "summary": "Schema key-set change detected in bronze payloads"
+}
