@@ -7,6 +7,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stockvn_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PYTHONPATH: packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps
+      TEST_DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/stockvn_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,7 +37,15 @@ jobs:
         run: ruff check .
       - name: Format check (black)
         run: black --check .
-      - name: Tests
+      - name: SQLite migrations
         env:
-          PYTHONPATH: packages/core:packages/data:services/api_fastapi:services/worker_scheduler:apps
+          DATABASE_URL: sqlite:///./ci_sqlite.db
+        run: alembic upgrade head
+      - name: Postgres migrations
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: alembic upgrade head
+      - name: Postgres migration/partition tests
+        run: pytest -q tests/test_migrations_postgres_apply.py tests/test_partition_manager_creates_next_month_partition.py tests/test_postgres_runtime_smoke.py
+      - name: Tests
         run: pytest -q
