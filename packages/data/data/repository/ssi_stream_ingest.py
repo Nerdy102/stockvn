@@ -14,6 +14,7 @@ from core.db.models import (
     StreamDedup,
     TradeTape,
 )
+from core.db.event_log import append_event_log
 from sqlmodel import Session, delete, select
 
 
@@ -45,15 +46,23 @@ class SsiStreamIngestRepository:
         )
 
     def append_bronze(self, *, channel: str, payload_hash: str, payload: str, rtype: str) -> None:
+        ts = dt.datetime.utcnow()
         self.session.add(
             BronzeRaw(
                 provider_name="ssi_stream",
                 endpoint_or_channel=channel,
                 payload_hash=payload_hash,
                 raw_payload=payload,
-                received_at=dt.datetime.utcnow(),
+                received_at=ts,
                 schema_version="v1",
             )
+        )
+        append_event_log(
+            self.session,
+            ts_utc=ts,
+            source="ssi_stream",
+            event_type=rtype,
+            payload_json={"channel": channel, "payload": payload},
         )
 
     def upsert_quote(self, quote: Any) -> None:

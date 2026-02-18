@@ -1,0 +1,4 @@
+{"ts_utc":"2025-01-06T09:00:00","source":"fixture","event_type":"signal","symbol":"AAA","payload_json":{"symbol":"AAA","target":1},"payload_hash":"a1"}
+{"ts_utc":"2025-01-06T09:01:00","source":"fixture","event_type":"bar","symbol":"AAA","payload_json":{"symbol":"AAA","open":10.0},"payload_hash":"a2"}
+{"ts_utc":"2025-01-07T09:00:00","source":"fixture","event_type":"signal","symbol":"AAA","payload_json":{"symbol":"AAA","target":0},"payload_hash":"a3"}
+{"ts_utc":"2025-01-07T09:01:00","source":"fixture","event_type":"bar","symbol":"AAA","payload_json":{"symbol":"AAA","open":11.0},"payload_hash":"a4"}

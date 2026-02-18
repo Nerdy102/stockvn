@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover
     orjson = None
 
 from core.db.session import create_db_and_tables, get_engine
+from core.db.event_log import append_event_log
 from sqlmodel import Session
 
 from data.bronze.writer import BronzeWriter
@@ -143,6 +144,13 @@ class SsiRestProvider:
                 self._bronze_writers[channel] = writer
             writer.write(rec, now_utc=now)
             writer.flush(now_utc=now)
+            append_event_log(
+                self.session,
+                ts_utc=now.replace(tzinfo=None),
+                source="ssi_fastconnect_rest",
+                event_type=channel,
+                payload_json=rec,
+            )
             return
 
         if self._engine is not None:
@@ -155,6 +163,14 @@ class SsiRestProvider:
                 )
                 writer.write(rec, now_utc=now)
                 writer.flush(now_utc=now)
+                append_event_log(
+                    temp_session,
+                    ts_utc=now.replace(tzinfo=None),
+                    source="ssi_fastconnect_rest",
+                    event_type=channel,
+                    payload_json=rec,
+                )
+                temp_session.commit()
             return
 
         day = now.strftime("%Y/%m/%d")

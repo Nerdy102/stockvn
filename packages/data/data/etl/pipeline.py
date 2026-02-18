@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from core.db.event_log import append_event_log
 from core.db.models import BronzeRaw, IngestState, PriceOHLCV
 from core.metrics import METRICS
 from core.settings import get_settings
@@ -54,6 +55,14 @@ def append_bronze(
         raw_payload=json.dumps(payload, ensure_ascii=False, default=str),
     )
     session.add(raw)
+    append_event_log(
+        session,
+        ts_utc=dt.datetime.utcnow(),
+        source=provider_name,
+        event_type=endpoint_or_channel,
+        symbol=symbol,
+        payload_json=payload,
+    )
     METRICS.inc("ingest_events_total", channel=endpoint_or_channel)
     return True
 

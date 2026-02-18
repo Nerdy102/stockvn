@@ -491,6 +491,26 @@ class StreamDedup(SQLModel, table=True):
     first_seen_at: dt.datetime = Field(default_factory=utcnow)
 
 
+class EventLog(SQLModel, table=True):
+    __tablename__ = "event_log"
+    __table_args__ = (
+        Index("ix_event_log_ts_utc", "ts_utc"),
+        Index("ix_event_log_source_type", "source", "event_type"),
+        Index("ix_event_log_symbol_ts", "symbol", "ts_utc"),
+        Index("ix_event_log_run_id", "run_id"),
+        Index("ix_event_log_payload_hash", "payload_hash"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    ts_utc: dt.datetime = Field(sa_column=Column(DateTime(timezone=False), nullable=False))
+    source: str
+    event_type: str
+    symbol: str | None = None
+    payload_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    payload_hash: str
+    run_id: str | None = None
+
+
 class DailyFlowFeature(SQLModel, table=True):
     __tablename__ = "daily_flow_features"
     __table_args__ = (
