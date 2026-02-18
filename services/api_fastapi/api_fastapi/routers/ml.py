@@ -718,6 +718,82 @@ def alpha_v3_cp_coverage(
     return {"model_id": "alpha_v3_cp", "buckets": by_bucket}
 
 
+@router.get("/listnet_v2/reliability")
+def listnet_v2_reliability(
+    end: str | None = Query(default=None),
+    window: int = Query(default=252, ge=20, le=756),
+    db: Session = Depends(get_db),
+) -> dict:
+    date_end = dt.datetime.strptime(end, "%d-%m-%Y").date() if end else None
+
+    pred_q = select(AlphaPrediction).where(AlphaPrediction.model_id == "alpha_listnet_v2")
+    lbl_q = select(MlLabel).where(MlLabel.label_version == "v3")
+    if date_end is not None:
+        pred_q = pred_q.where(AlphaPrediction.as_of_date <= date_end)
+        lbl_q = lbl_q.where(MlLabel.date <= date_end)
+
+    preds = db.exec(pred_q).all()
+    labels = db.exec(lbl_q).all()
+    if not preds or not labels:
+        return {
+            "window": int(window),
+            "prob_calibration_metrics": {"brier": 0.0, "ece": 0.0, "reliability_bins_json": []},
+            "governance_warning": False,
+            "rolling_ece_20": [],
+        }
+
+    lbl = {(str(r.symbol), r.date): float(r.y_excess) for r in labels}
+    rows = []
+    for r in preds:
+        key = (str(r.symbol), r.as_of_date)
+        if key not in lbl:
+            continue
+        rows.append({
+            "as_of_date": r.as_of_date,
+            "p_cal": float(r.mu),
+            "z": 1.0 if float(lbl[key]) > 0.0 else 0.0,
+        })
+    if not rows:
+        return {
+            "window": int(window),
+            "prob_calibration_metrics": {"brier": 0.0, "ece": 0.0, "reliability_bins_json": []},
+            "governance_warning": False,
+            "rolling_ece_20": [],
+        }
+
+    df = pd.DataFrame(rows)
+    if date_end is not None:
+        df = df[df["as_of_date"] <= date_end]
+
+    dates = sorted(df["as_of_date"].unique().tolist())
+    keep_dates = dates[-int(window):]
+    df = df[df["as_of_date"].isin(set(keep_dates))]
+
+    met = compute_probability_calibration_metrics(df["p_cal"].tolist(), df["z"].tolist(), bins=10)
+
+    daily = []
+    for d, g in df.groupby("as_of_date", sort=True):
+        dm = compute_probability_calibration_metrics(g["p_cal"].tolist(), g["z"].tolist(), bins=10)
+        daily.append({"date": d.isoformat(), "ece": float(dm.get("ece", 0.0))})
+    daily_df = pd.DataFrame(daily)
+    if daily_df.empty:
+        rolling = []
+        warn = False
+    else:
+        daily_df["above"] = (daily_df["ece"] > 0.05).astype(int)
+        daily_df["above_rolling"] = daily_df["above"].rolling(20, min_periods=20).sum()
+        rolling = daily_df[["date", "ece", "above_rolling"]].to_dict(orient="records")
+        warn = bool((daily_df["above_rolling"] >= 20).any())
+
+    return {
+        "window": int(window),
+        "prob_calibration_metrics": met,
+        "governance_warning": warn,
+        "rolling_ece_20": rolling,
+    }
+
+
+
 @router.get("/research_v4/compare")
 def research_v4_compare(
     run_a: str = Query(...),

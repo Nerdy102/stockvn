@@ -8,12 +8,14 @@ import pandas as pd
 from sqlmodel import Session, select
 
 from core.calendar_vn import get_trading_calendar_vn
+from core.db.event_log import append_event_log
 from core.db.models import (
     AlphaPrediction,
     ConformalBucketSpec,
     ConformalCoverageDaily,
     ConformalResidual,
     ConformalState,
+    EventLog,
     MlFeature,
     MlLabel,
 )
@@ -27,6 +29,10 @@ LAMBDA_DECAY = 0.99
 ALPHA_MIN = 0.05
 ALPHA_MAX = 0.50
 HORIZON = 21
+RESET_WINDOW_MATURED_DAYS = 63
+COOLDOWN_TRADING_DAYS = 20
+CUSUM_K = 0.01
+CUSUM_H = 0.4
 
 
 @dataclass
@@ -53,6 +59,131 @@ def _weighted_quantile(values: np.ndarray, q: float, decay: float = LAMBDA_DECAY
     ws = w[order]
     c = np.cumsum(ws) / np.sum(ws)
     return float(xs[np.searchsorted(c, min(max(q, 0.0), 1.0), side="left")])
+
+
+def cusum_detect_index(miss_values: list[float] | np.ndarray, k: float = CUSUM_K, h: float = CUSUM_H) -> int | None:
+    s_pos = 0.0
+    arr = np.asarray(miss_values, dtype=float)
+    for i, m in enumerate(arr.tolist()):
+        e = float(m) - ALPHA_TARGET
+        s_pos = max(0.0, s_pos + e - float(k))
+        if s_pos > float(h):
+            return i
+    return None
+
+
+def _latest_reset_date_for_bucket(session: Session, bucket_id: int) -> dt.date | None:
+    rows = session.exec(
+        select(EventLog)
+        .where(EventLog.source == "alpha_v3_cp")
+        .where(EventLog.event_type == "conformal_reset")
+        .where(EventLog.symbol == f"bucket:{bucket_id}")
+        .order_by(EventLog.ts_utc.desc())
+    ).all()
+    if not rows:
+        return None
+    return rows[0].ts_utc.date()
+
+
+def _is_bucket_in_cooldown(session: Session, bucket_id: int, matured_date: dt.date) -> bool:
+    last_reset = _latest_reset_date_for_bucket(session, bucket_id)
+    if last_reset is None:
+        return False
+    cal = get_trading_calendar_vn()
+    cooldown_until = cal.shift_trading_days(last_reset, COOLDOWN_TRADING_DAYS)
+    return matured_date <= cooldown_until
+
+
+def _apply_reset_window(session: Session, bucket_id: int, matured_date: dt.date) -> tuple[int, dt.date]:
+    cal = get_trading_calendar_vn()
+    window_start = cal.shift_trading_days(matured_date, -(RESET_WINDOW_MATURED_DAYS - 1))
+    old = session.exec(
+        select(ConformalResidual)
+        .where(ConformalResidual.model_id == MODEL_ID_CP)
+        .where(ConformalResidual.bucket_id == bucket_id)
+        .where(ConformalResidual.date < window_start)
+    ).all()
+    removed = 0
+    for r in old:
+        session.delete(r)
+        removed += 1
+    return removed, window_start
+
+
+def _bucket_coverage_recent(session: Session, bucket_id: int, matured_date: dt.date) -> float:
+    cal = get_trading_calendar_vn()
+    start = cal.shift_trading_days(matured_date, -(RESET_WINDOW_MATURED_DAYS - 1))
+    rows = session.exec(
+        select(ConformalResidual)
+        .where(ConformalResidual.model_id == MODEL_ID_CP)
+        .where(ConformalResidual.bucket_id == bucket_id)
+        .where(ConformalResidual.date >= start)
+        .where(ConformalResidual.date <= matured_date)
+        .order_by(ConformalResidual.date.asc(), ConformalResidual.id.asc())
+    ).all()
+    if not rows:
+        return 1.0
+    return float(np.mean([1.0 - float(r.miss) for r in rows]))
+
+
+def _maybe_cusum_reset_bucket(session: Session, bucket_id: int, matured_date: dt.date) -> bool:
+    if _is_bucket_in_cooldown(session, bucket_id, matured_date):
+        return False
+
+    cal = get_trading_calendar_vn()
+    start = cal.shift_trading_days(matured_date, -(RESET_WINDOW_MATURED_DAYS - 1))
+    rows = session.exec(
+        select(ConformalResidual)
+        .where(ConformalResidual.model_id == MODEL_ID_CP)
+        .where(ConformalResidual.bucket_id == bucket_id)
+        .where(ConformalResidual.date >= start)
+        .where(ConformalResidual.date <= matured_date)
+        .order_by(ConformalResidual.date.asc(), ConformalResidual.id.asc())
+    ).all()
+    if len(rows) < RESET_WINDOW_MATURED_DAYS:
+        return False
+
+    misses = [float(r.miss) for r in rows]
+    hit_idx = cusum_detect_index(misses, k=CUSUM_K, h=CUSUM_H)
+    if hit_idx is None:
+        return False
+
+    before_cov = _bucket_coverage_recent(session, bucket_id, matured_date)
+    st = _get_or_create_state(session, bucket_id)
+    st.alpha_b = ALPHA_TARGET
+    st.miss_ema = ALPHA_TARGET
+    st.updated_at = dt.datetime.utcnow()
+    session.add(st)
+
+    removed, window_start = _apply_reset_window(session, bucket_id, matured_date)
+    after_cov = _bucket_coverage_recent(session, bucket_id, matured_date)
+
+    cooldown_until = cal.shift_trading_days(matured_date, COOLDOWN_TRADING_DAYS)
+    append_event_log(
+        session,
+        ts_utc=dt.datetime.combine(matured_date, dt.time(15, 0, 0)),
+        source="alpha_v3_cp",
+        event_type="conformal_reset",
+        symbol=f"bucket:{bucket_id}",
+        payload_json={
+            "bucket_id": int(bucket_id),
+            "matured_date": matured_date.isoformat(),
+            "reset_window_matured_days": int(RESET_WINDOW_MATURED_DAYS),
+            "cooldown_trading_days": int(COOLDOWN_TRADING_DAYS),
+            "cooldown_until": cooldown_until.isoformat(),
+            "cusum_k": float(CUSUM_K),
+            "cusum_h": float(CUSUM_H),
+            "cusum_hit_index": int(hit_idx),
+            "window_start": window_start.isoformat(),
+            "window_end": matured_date.isoformat(),
+            "before_coverage": float(before_cov),
+            "after_coverage": float(after_cov),
+            "removed_residual_rows": int(removed),
+        },
+        run_id=f"aci_cusum_{matured_date.isoformat()}",
+    )
+    session.commit()
+    return True
 
 
 def recompute_bucket_spec_monthly(session: Session, as_of_date: dt.date) -> BucketBounds:
@@ -223,6 +354,10 @@ def update_delayed_residuals(session: Session, as_of_date: dt.date) -> int:
             cd.count = len(rows)
         session.add(cd)
     session.commit()
+
+    for b in range(3):
+        _ = _maybe_cusum_reset_bucket(session, b, matured_date)
+
     return updated
 
 

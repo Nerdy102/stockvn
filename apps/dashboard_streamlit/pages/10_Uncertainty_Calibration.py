@@ -68,6 +68,35 @@ def render() -> None:
         st.line_chart(chart_df)
         st.dataframe(rel, use_container_width=True)
 
+    st.markdown("---")
+    st.subheader("ListNet v2 Calibrated Outperformance Probability")
+    try:
+        rel_v2 = cached_get_json(
+            "/ml/listnet_v2/reliability",
+            params={"end": end.strftime("%d-%m-%Y"), "window": 252},
+            ttl_s=120,
+        )
+    except Exception:
+        rel_v2 = {"prob_calibration_metrics": {}, "governance_warning": False, "rolling_ece_20": []}
+
+    pmet = rel_v2.get("prob_calibration_metrics") or {}
+    v2_brier = float(pmet.get("brier", 0.0))
+    v2_ece = float(pmet.get("ece", 0.0))
+    k1, k2 = st.columns(2)
+    k1.metric("ListNet Brier", f"{v2_brier:.4f}")
+    k2.metric("ListNet ECE(10)", f"{v2_ece:.4f}")
+
+    if bool(rel_v2.get("governance_warning", False)):
+        st.warning("Governance Warning: rolling 20-trading-day ECE > 0.05 for ListNet v2")
+
+    rel2 = pd.DataFrame(pmet.get("reliability_bins_json", []))
+    if not rel2.empty:
+        st.line_chart(rel2[["bin", "avg_pred", "freq"]].set_index("bin"))
+
+    rolling = pd.DataFrame(rel_v2.get("rolling_ece_20", []))
+    if not rolling.empty:
+        st.line_chart(rolling.set_index("date")[["ece"]])
+
     st.subheader("Reset events timeline")
     events = pd.DataFrame(body.get("reset_events", []))
     if events.empty:
