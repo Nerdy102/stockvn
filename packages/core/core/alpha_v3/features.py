@@ -5,6 +5,7 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 
+from core.calendar_vn import get_trading_calendar_vn
 from core.market_rules import load_market_rules
 
 FEATURE_VERSION = "v3"
@@ -146,7 +147,7 @@ def add_regime_flags(base: pd.DataFrame) -> pd.DataFrame:
 
 
 def assert_no_leakage(features_date: dt.date, label_date: dt.date, horizon: int = HORIZON) -> None:
-    min_label_date = features_date + dt.timedelta(days=horizon)
+    min_label_date = get_trading_calendar_vn().shift_trading_days(features_date, horizon)
     if label_date < min_label_date:
         raise RuntimeError(
             "Leakage guard triggered: "

@@ -8,6 +8,7 @@ import uuid
 import numpy as np
 import pandas as pd
 from core.alpha_v3.features import enforce_no_leakage_guard
+from core.calendar_vn import get_trading_calendar_vn
 from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
 from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
 from core.alpha_v3.gates import evaluate_research_gates
@@ -148,7 +149,10 @@ def train_models(db: Session = Depends(get_db), settings: Settings = Depends(get
         return {"status": "insufficient_data", "rows": 0, "models": MODEL_IDS}
 
     leakage_check = feat[["as_of_date"]].drop_duplicates().rename(columns={"as_of_date": "date"})
-    leakage_check["label_date"] = pd.to_datetime(leakage_check["date"]) + pd.to_timedelta(21, unit="D")
+    cal = get_trading_calendar_vn()
+    leakage_check["label_date"] = leakage_check["date"].map(
+        lambda d: cal.shift_trading_days(pd.to_datetime(d).date(), 21)
+    )
     enforce_no_leakage_guard(leakage_check, horizon=21)
 
     cols = feature_columns(feat)

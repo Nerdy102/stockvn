@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pandas as pd
 
+from core.calendar_vn import get_trading_calendar_vn
 from core.cost_model import calc_fill_ratio, calc_slippage_bps
 from core.fees_taxes import compute_commission, compute_sell_tax
 from core.ml.models import MlModelBundle
@@ -21,11 +22,35 @@ SENSITIVITY_BASE_BPS = (10, 20)
 
 
 def walk_forward_splits(dates: list, train_window: int = TRAIN_WINDOW, test_window: int = TEST_WINDOW, step: int = STEP):
-    i = 0
-    n = len(dates)
-    while i + train_window + test_window <= n:
-        yield (dates[i : i + train_window], dates[i + train_window : i + train_window + test_window])
-        i += step
+    cal = get_trading_calendar_vn()
+    uniq = sorted(pd.to_datetime(pd.Series(dates)).dt.date.unique().tolist())
+    if not uniq:
+        return
+
+    available = set(uniq)
+    start_idx = 0
+    n = len(uniq)
+    while start_idx < n:
+        train_start = uniq[start_idx]
+        train_end = cal.shift_trading_days(train_start, train_window - 1)
+        test_start = cal.shift_trading_days(train_end, 1)
+        test_end = cal.shift_trading_days(test_start, test_window - 1)
+
+        if test_end > uniq[-1]:
+            break
+
+        train_dates = [d for d in cal.trading_days_between(train_start, train_end) if d in available]
+        test_dates = [d for d in cal.trading_days_between(test_start, test_end) if d in available]
+        if len(train_dates) == train_window and len(test_dates) == test_window:
+            yield (train_dates, test_dates)
+
+        next_start = cal.shift_trading_days(train_start, step)
+        if next_start not in available:
+            later = [d for d in uniq if d >= next_start]
+            if not later:
+                break
+            next_start = later[0]
+        start_idx = uniq.index(next_start)
 
 
 def run_walk_forward(features: pd.DataFrame, feature_cols: list[str]) -> tuple[pd.DataFrame, dict]:

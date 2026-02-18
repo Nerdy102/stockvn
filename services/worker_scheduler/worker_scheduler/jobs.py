@@ -38,6 +38,7 @@ from core.db.models import (
 from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
 from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
 from core.alpha_v3.pbo import compute_pbo_cscv
+from core.calendar_vn import get_trading_calendar_vn
 from core.ml.backtest import run_sensitivity
 from core.db.partitioning import ensure_partitions_monthly as ensure_partitions_monthly_impl
 from core.features.daily_flow import compute_daily_flow_features as compute_daily_flow_features_impl
@@ -167,9 +168,11 @@ def ensure_seeded(session: Session, provider: BaseMarketDataProvider, settings: 
         if not df.empty:
             ingest_prices(session, sym, "1D", df)
 
-    # FIXED: intraday seed range should use last_date from demo data (not dt.date.today()).
-    last_date = _provider_last_date(provider, symbols) or dt.date.today()
-    start = last_date - dt.timedelta(days=20)
+    # Intraday seed range anchors strictly to last daily date from provider.
+    last_date = _provider_last_date(provider, symbols)
+    if last_date is None:
+        raise RuntimeError("Cannot seed intraday data: provider has no daily anchor date.")
+    start = get_trading_calendar_vn().shift_trading_days(last_date, -20)
 
     # Ingest intraday bars (MVP) to support 60m/15m charting
     for sym in symbols:
@@ -985,7 +988,10 @@ def train_models_v2(session: Session) -> int:
     )
     feat = feat.dropna(subset=["y_rank_z"])
     leakage_check = feat[["as_of_date"]].drop_duplicates().rename(columns={"as_of_date": "date"})
-    leakage_check["label_date"] = pd.to_datetime(leakage_check["date"]) + pd.to_timedelta(21, unit="D")
+    cal = get_trading_calendar_vn()
+    leakage_check["label_date"] = leakage_check["date"].map(
+        lambda d: cal.shift_trading_days(pd.to_datetime(d).date(), 21)
+    )
     enforce_no_leakage_guard(leakage_check, horizon=21)
     cols = feature_columns(feat)
     model = MlModelV2Bundle().fit(feat[cols], feat["y_rank_z"])
