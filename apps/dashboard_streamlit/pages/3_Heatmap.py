@@ -119,8 +119,9 @@ def render() -> None:
         if "tags" in df.columns:
             df["tags"] = df["tags"].apply(lambda v: ",".join(v) if isinstance(v, list) else str(v))
 
+        display_cols = ["id", "symbol", "exchange", "tags", "note", "pinned"] if "exchange" in df.columns else ["id", "symbol", "tags", "note", "pinned"]
         edited = st.data_editor(
-            df[["id", "symbol", "tags", "note", "pinned"]],
+            df[display_cols],
             use_container_width=True,
             num_rows="fixed",
             disabled=["id", "symbol"],

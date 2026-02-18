@@ -39,10 +39,19 @@ def _to_df(rows: list[dict]) -> pd.DataFrame:
 
 def render() -> None:
     tickers = _tickers_universe()
-    symbols = [t["symbol"] for t in tickers] if tickers else ["FVNA", "FVNB", "VNINDEX"]
+    if tickers:
+        symbol_options = [f"{t['symbol']} · {str(t.get('exchange', 'NA')).upper()}" for t in tickers]
+        symbol_from_option = {f"{t['symbol']} · {str(t.get('exchange', 'NA')).upper()}": t["symbol"] for t in tickers}
+        exchange_from_symbol = {t["symbol"]: str(t.get("exchange", "NA")).upper() for t in tickers}
+    else:
+        symbol_options = ["FVNA · HOSE", "FVNB · HOSE", "VNINDEX · HOSE"]
+        symbol_from_option = {x: x.split(" · ")[0] for x in symbol_options}
+        exchange_from_symbol = {x.split(" · ")[0]: "HOSE" for x in symbol_options}
 
     c1, c2, c3, c4 = st.columns(4)
-    symbol = c1.selectbox("Symbol", options=symbols, index=0)
+    symbol_label = c1.selectbox("Symbol", options=symbol_options, index=0)
+    symbol = symbol_from_option[symbol_label]
+    c1.caption(f"Exchange: {exchange_from_symbol.get(symbol, 'NA')}")
     timeframe = c2.selectbox("Timeframe", options=["1D", "1W", "60m", "15m"], index=0)
     adjusted = c3.checkbox("Adjusted (CA/TR aware)", value=True)
     show_ca = c4.checkbox("Show CA markers", value=True)
