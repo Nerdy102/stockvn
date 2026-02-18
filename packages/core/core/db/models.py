@@ -215,15 +215,49 @@ class Fundamental(SQLModel, table=True):
 
 
 class CorporateAction(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_ca_symbol_exdate", "symbol", "ex_date"),
+        Index("ix_ca_symbol_public_date", "symbol", "public_date"),
+    )
+
     id: int | None = Field(default=None, primary_key=True)
-    symbol: str
-    action_type: str
-    ex_date: dt.date | None = None
+    symbol: str = Field(index=True)
+    action_type: str = Field(index=True)
+    ex_date: dt.date
     record_date: dt.date | None = None
     pay_date: dt.date | None = None
-    amount: float | None = None
-    adjust_method: str = "none"
-    meta: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    public_date: dt.date | None = None
+    params_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    source: str = "unknown"
+    raw_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class CorporateActionLedger(SQLModel, table=True):
+    __tablename__ = "ca_ledger"
+    __table_args__ = (
+        Index(
+            "ux_ca_ledger_pf_symbol_ex_type",
+            "portfolio_id",
+            "symbol",
+            "ex_date",
+            "action_type",
+            unique=True,
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    portfolio_id: int = Field(index=True)
+    symbol: str = Field(index=True)
+    ex_date: dt.date = Field(index=True)
+    action_type: str
+    qty_before: float = 0.0
+    qty_after: float = 0.0
+    cash_delta: float = 0.0
+    avg_cost_before: float = 0.0
+    avg_cost_after: float = 0.0
+    fee: float = 0.0
+    tax: float = 0.0
+    notes_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class ScreenResult(SQLModel, table=True):

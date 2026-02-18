@@ -34,8 +34,10 @@ from core.db.models import (
     DailyFlowFeature,
     DailyIntradayFeature,
     DailyOrderbookFeature,
+    CorporateAction,
 )
 from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
+from core.corporate_actions import adjust_prices
 from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
 from core.alpha_v3.pbo import compute_pbo_cscv
 from core.calendar_vn import get_trading_calendar_vn
@@ -219,6 +221,7 @@ def update_market_caps(session: Session) -> None:
     if not prices:
         return
     pdf = pd.DataFrame([p.model_dump() for p in prices])
+    pdf = _adjust_daily_prices_with_ca(session, pdf)
     pdf["date"] = pd.to_datetime(pdf["timestamp"]).dt.date
     last_close = pdf.sort_values(["symbol", "date"]).groupby("symbol")["close"].last()
 
@@ -230,6 +233,35 @@ def update_market_caps(session: Session) -> None:
     session.commit()
 
 
+def _adjust_daily_prices_with_ca(session: Session, df: pd.DataFrame) -> pd.DataFrame:
+    """Apply CA adjusted=True,total_return=False to daily bars before indicators/factors."""
+    if df.empty:
+        return df
+    ca_rows = session.exec(select(CorporateAction)).all()
+    if not ca_rows:
+        return df
+    ca_df = pd.DataFrame([c.model_dump() for c in ca_rows])
+    out_parts: list[pd.DataFrame] = []
+    for sym, g in df.groupby("symbol", sort=False):
+        adj = adjust_prices(
+            symbol=str(sym),
+            bars=g.copy(),
+            start=pd.to_datetime(g["timestamp"]).dt.date.min(),
+            end=pd.to_datetime(g["timestamp"]).dt.date.max(),
+            method="ca",
+            corporate_actions=ca_df,
+            total_return=False,
+        )
+        # keep source timestamp for downstream jobs
+        if "timestamp" in g.columns and "timestamp" not in adj.columns:
+            adj["timestamp"] = g["timestamp"].values
+        out_parts.append(adj)
+    out = pd.concat(out_parts, ignore_index=True)
+    if "timestamp" in out.columns:
+        out["timestamp"] = pd.to_datetime(out["timestamp"])
+    return out
+
+
 def compute_indicators(session: Session) -> None:
     """Job: compute_indicators -> store IndicatorValue (idempotent)."""
     prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
@@ -238,6 +270,7 @@ def compute_indicators(session: Session) -> None:
     df = pd.DataFrame([p.model_dump() for p in prices])
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.sort_values(["symbol", "timestamp"])
+    df = _adjust_daily_prices_with_ca(session, df)
 
     indicators = ["SMA20", "EMA20", "EMA50", "RSI14", "MACD", "ATR14", "VWAP"]
 
@@ -278,6 +311,7 @@ def compute_factor_scores(session: Session) -> None:
     tdf = pd.DataFrame([t.model_dump() for t in tickers if t.symbol != "VNINDEX"])
     fdf = pd.DataFrame([f.model_dump() for f in fundamentals])
     pdf = pd.DataFrame([p.model_dump() for p in prices])
+    pdf = _adjust_daily_prices_with_ca(session, pdf)
     pdf["date"] = pd.to_datetime(pdf["timestamp"]).dt.date
 
     out = compute_factors(
