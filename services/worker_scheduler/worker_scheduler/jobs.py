@@ -4,6 +4,7 @@ import datetime as dt
 import json
 import math
 import os
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,10 @@ from core.db.models import (
     AlphaPrediction,
     AlertEvent,
     AlertRule,
+    AlertV5,
+    AlertAction,
+    NotificationLog,
+    DataHealthIncident,
     BronzeFile,
     DataQualityMetric,
     DriftAlert,
@@ -68,6 +73,7 @@ from core.factors import compute_factors
 from core.indicators import RSIState, add_indicators, ema_incremental, rsi_incremental
 from core.logging import get_logger
 from core.monitoring.data_quality import compute_data_quality_metrics
+from core.monitoring.data_health import compute_schema_diff, redact_payload
 from core.monitoring.drift import compute_weekly_drift_metrics
 from core.monitoring.prometheus_metrics import (
     INGEST_ERRORS_TOTAL,
@@ -543,6 +549,23 @@ def generate_alerts(session: Session) -> None:
                         meta={"expression": rule.expression},
                     )
                 )
+                existing_v5 = session.exec(
+                    select(AlertV5)
+                    .where(AlertV5.symbol == sym)
+                    .where(AlertV5.date == ts.date())
+                    .where(AlertV5.state != "RESOLVED")
+                ).first()
+                if existing_v5 is None:
+                    session.add(
+                        AlertV5(
+                            symbol=sym,
+                            date=ts.date(),
+                            state="NEW",
+                            severity=1,
+                            sla_escalated=False,
+                            reason_json={"rule_id": int(rule.id or 0), "rule_name": rule.name, "expression": rule.expression},
+                        )
+                    )
     session.commit()
     log.info("Alerts generated (MVP).")
 
@@ -791,6 +814,44 @@ def compute_indicators_incremental(session: Session, timeframe: str = "1D") -> i
     return updates
 
 
+
+
+def _schema_monitor_log_incident(session: Session, sample_row: dict[str, Any]) -> int:
+    current_keys = set(sample_row.keys())
+    last = session.exec(
+        select(DataHealthIncident)
+        .where(DataHealthIncident.source == "schema_monitor")
+        .order_by(DataHealthIncident.id.desc())
+    ).first()
+    old_keys = set((last.details_json or {}).get("schema_keys", [])) if last else set()
+    diff = compute_schema_diff(old_keys, current_keys)
+    if not diff["added_keys"] and not diff["removed_keys"]:
+        return 0
+
+    session.add(
+        DataHealthIncident(
+            source="schema_monitor",
+            severity="HIGH",
+            status="OPEN",
+            symbol=None,
+            summary="Schema diff detected in data monitor",
+            details_json={
+                "schema_diff": diff,
+                "schema_keys": sorted(list(current_keys)),
+                "sample_payload_redacted": redact_payload(sample_row),
+            },
+            runbook_section="RB-SCHEMA-DIFF",
+            suggested_actions_json={
+                "actions": [
+                    "Confirm upstream contract change and owner approval",
+                    "Update parser + backfill tests",
+                    "Run replay on last 7 days before promoting",
+                ]
+            },
+        )
+    )
+    return 1
+
 def compute_data_quality_metrics_job(session: Session) -> list[dict[str, Any]]:
     run = JobRun(job_name="compute_data_quality_metrics")
     session.add(run)
@@ -806,6 +867,7 @@ def compute_data_quality_metrics_job(session: Session) -> list[dict[str, Any]]:
 
     df = pd.DataFrame([p.model_dump() for p in prices])
     metrics = compute_data_quality_metrics(df, provider="db", timeframe="mixed")
+    schema_incidents = _schema_monitor_log_incident(session, sample_row=df.iloc[-1].to_dict() if not df.empty else {})
     today = dt.date.today()
     for m in metrics:
         session.add(
@@ -821,7 +883,7 @@ def compute_data_quality_metrics_job(session: Session) -> list[dict[str, Any]]:
     run.status = "completed"
     run.end_ts = dt.datetime.utcnow()
     run.rows_in = len(df)
-    run.rows_out = len(metrics)
+    run.rows_out = len(metrics) + int(schema_incidents)
     session.add(run)
     session.commit()
     UPSERT_ROWS_TOTAL.labels(table="data_quality_metrics").inc(len(metrics))
@@ -891,7 +953,7 @@ def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
     run.status = "completed"
     run.end_ts = dt.datetime.utcnow()
     run.rows_in = len(df)
-    run.rows_out = len(metrics)
+    run.rows_out = len(metrics) + int(schema_incidents)
     session.add(run)
     session.commit()
     UPSERT_ROWS_TOTAL.labels(table="drift_metrics").inc(len(metrics))
@@ -1837,3 +1899,133 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
         "gate": gates,
         "ci": ci,
     }
+
+
+
+def _trading_days_age(start_date: dt.date, end_date: dt.date) -> int:
+    cal = get_trading_calendar_vn()
+    if end_date <= start_date:
+        return 0
+    return max(0, len(cal.trading_days_between(start_date, end_date, inclusive="right")))
+
+
+def seed_alerts_v5_from_events(session: Session) -> int:
+    """Backfill NEW alerts_v5 from legacy AlertEvent rows (idempotent by symbol/date/reason)."""
+    events = session.exec(select(AlertEvent)).all()
+    up = 0
+    for ev in events:
+        d = ev.triggered_at.date()
+        reason = (ev.meta or {}).get("expression", "legacy_event")
+        old = session.exec(
+            select(AlertV5)
+            .where(AlertV5.symbol == ev.symbol)
+            .where(AlertV5.date == d)
+        ).first()
+        if old is not None:
+            continue
+        row = AlertV5(
+            symbol=ev.symbol,
+            date=d,
+            state="NEW",
+            severity=1,
+            sla_escalated=False,
+            reason_json={"reason": reason, "rule_id": ev.rule_id, "legacy_message": ev.message},
+        )
+        session.add(row)
+        up += 1
+    if up:
+        session.commit()
+    return up
+
+
+def job_alert_sla_escalation_daily(session: Session) -> dict[str, int]:
+    """Escalate NEW/HIGH stale alerts using trading-day age, respecting snooze."""
+    today = dt.datetime.now().date()
+    rows = session.exec(select(AlertV5).where(AlertV5.state.in_(["NEW", "ACK"]))).all()
+    escalated = 0
+    incidents = 0
+    for a in rows:
+        if a.snooze_until is not None and a.snooze_until >= today:
+            continue
+        age_td = _trading_days_age(a.date, today)
+
+        if a.state == "NEW" and age_td > 3 and not bool(a.sla_escalated):
+            a.severity = int(min(3, int(a.severity) + 1))
+            a.sla_escalated = True
+            a.updated_at = dt.datetime.utcnow()
+            session.add(a)
+            session.add(
+                AlertAction(
+                    alert_id=int(a.id or 0),
+                    action="SLA_ESCALATE",
+                    payload_json={"from": "NEW", "age_trading_days": age_td, "new_severity": a.severity},
+                )
+            )
+            escalated += 1
+
+        if int(a.severity) >= 3 and age_td > 5:
+            open_inc = session.exec(
+                select(DataHealthIncident)
+                .where(DataHealthIncident.source == "alerts_v5")
+                .where(DataHealthIncident.symbol == a.symbol)
+                .where(DataHealthIncident.status == "OPEN")
+            ).first()
+            if open_inc is None:
+                session.add(
+                    DataHealthIncident(
+                        source="alerts_v5",
+                        severity="HIGH",
+                        status="OPEN",
+                        symbol=a.symbol,
+                        summary=f"Stale HIGH alert for {a.symbol}",
+                        details_json={"alert_id": a.id, "age_trading_days": age_td, "date": str(a.date)},
+                    )
+                )
+                session.add(
+                    AlertAction(
+                        alert_id=int(a.id or 0),
+                        action="INCIDENT_CREATE",
+                        payload_json={"age_trading_days": age_td, "severity": a.severity},
+                    )
+                )
+                incidents += 1
+
+    session.commit()
+    return {"escalated": escalated, "incidents": incidents}
+
+
+def job_alert_digest_daily(session: Session, settings: Settings | None = None) -> dict[str, int]:
+    settings = settings or Settings()
+    if not bool(settings.ALERT_EMAIL_ENABLED):
+        return {"sent": 0, "alerts": 0}
+
+    vn_now = dt.datetime.now(tz=ZoneInfo("Asia/Ho_Chi_Minh"))
+    # run only at/after 18:00 VN time; scheduler can call often.
+    if vn_now.hour < 18:
+        return {"sent": 0, "alerts": 0}
+
+    today = vn_now.date()
+    q = select(AlertV5).where(AlertV5.state == "NEW")
+    rows = session.exec(q).all()
+    active = [a for a in rows if not (a.snooze_until is not None and a.snooze_until >= today)]
+    if not active:
+        return {"sent": 0, "alerts": 0}
+
+    df = pd.DataFrame([{"symbol": a.symbol, "severity": int(a.severity), "id": int(a.id or 0)} for a in active])
+    by_sev = {str(k): int(v) for k, v in df.groupby("severity").size().to_dict().items()}
+    by_sym = {str(k): int(v) for k, v in df.groupby("symbol").size().to_dict().items()}
+    payload = {
+        "date": str(today),
+        "recipient": settings.ALERT_DIGEST_RECIPIENT,
+        "summary_by_severity": by_sev,
+        "summary_by_symbol": by_sym,
+        "count": int(len(df)),
+    }
+    session.add(NotificationLog(kind="alert_digest_v5", channel="email", payload_json=payload))
+    now = dt.datetime.utcnow()
+    for a in active:
+        a.last_notified_at = now
+        a.updated_at = now
+        session.add(a)
+    session.commit()
+    return {"sent": 1, "alerts": int(len(df))}

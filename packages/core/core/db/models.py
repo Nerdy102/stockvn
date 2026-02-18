@@ -358,6 +358,62 @@ class AlertEvent(SQLModel, table=True):
     meta: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
+class AlertV5(SQLModel, table=True):
+    __tablename__ = "alerts_v5"
+    __table_args__ = (
+        Index("ix_alerts_v5_date_state", "date", "state"),
+        Index("ix_alerts_v5_symbol_state", "symbol", "state"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    state: str = Field(default="NEW", index=True)
+    snooze_until: dt.date | None = Field(default=None, index=True)
+    severity: int = Field(default=1, index=True)
+    sla_escalated: bool = Field(default=False)
+    last_notified_at: dt.datetime | None = None
+    reason_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class AlertAction(SQLModel, table=True):
+    __tablename__ = "alert_actions"
+    __table_args__ = (Index("ix_alert_actions_alert_ts", "alert_id", "action_at"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    alert_id: int = Field(index=True)
+    action: str = Field(index=True)
+    payload_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    action_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class NotificationLog(SQLModel, table=True):
+    __tablename__ = "notification_log"
+    __table_args__ = (Index("ix_notification_log_type_ts", "kind", "created_at"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    kind: str = Field(index=True)
+    channel: str = Field(default="email", index=True)
+    payload_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class DataHealthIncident(SQLModel, table=True):
+    __tablename__ = "data_health_incidents"
+    __table_args__ = (Index("ix_dhi_status_created", "status", "created_at"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    source: str = Field(default="alerts_v5", index=True)
+    severity: str = Field(default="HIGH", index=True)
+    status: str = Field(default="OPEN", index=True)
+    symbol: str | None = Field(default=None, index=True)
+    summary: str
+    details_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    runbook_section: str = Field(default="DH-000", index=True)
+    suggested_actions_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
 class Workspace(SQLModel, table=True):
     __tablename__ = "workspaces"
     __table_args__ = (Index("ux_workspaces_user_name", "user_id", "name", unique=True),)

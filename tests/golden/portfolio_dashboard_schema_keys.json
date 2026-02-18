@@ -1,0 +1,16 @@
+{
+  "required_top_level": [
+    "as_of_date",
+    "nav",
+    "cash",
+    "holdings",
+    "exposures",
+    "risk",
+    "risk_contrib",
+    "constraints",
+    "capacity"
+  ],
+  "required_risk_keys": ["vol", "beta", "cvar", "mdd"],
+  "required_constraints_keys": ["active", "violations_pre", "violations_post", "distance_metrics"],
+  "required_capacity_keys": ["by_symbol", "flags"]
+}

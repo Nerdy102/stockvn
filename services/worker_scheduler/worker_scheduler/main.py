@@ -30,6 +30,8 @@ from worker_scheduler.jobs import (
     ensure_seeded,
     generate_alerts,
     ingest_prices_job,
+    job_alert_sla_escalation_daily,
+    job_alert_digest_daily,
 )
 
 settings = get_settings()
@@ -114,6 +116,14 @@ def main() -> None:
             cleanup_stream_dedup_job(session)
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
+
+    def job_alert_ops() -> None:
+        job_log = get_logger(__name__, job_id="alerts_ops")
+        with Session(engine) as session:
+            out1 = job_alert_sla_escalation_daily(session)
+            out2 = job_alert_digest_daily(session, settings)
+        job_log.info("worker_job_completed", extra={"event": "worker_job", **out1, **out2})
+
     def job_nightly_parquet_export() -> None:
         job_log = get_logger(__name__, job_id="nightly_parquet_export")
         with Session(engine) as session:
@@ -129,6 +139,7 @@ def main() -> None:
         job_ensure_partitions()
         job_cleanup_dedup()
         job_nightly_parquet_export()
+        job_alert_ops()
         job_bronze_cleanup()
         return
 
@@ -194,6 +205,14 @@ def main() -> None:
         hour=1,
         minute=10,
         id="nightly_parquet_export",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_alert_ops,
+        "cron",
+        hour=11,
+        minute=5,
+        id="alerts_ops",
         replace_existing=True,
     )
     scheduler.add_job(

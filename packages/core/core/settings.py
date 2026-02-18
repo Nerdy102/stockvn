@@ -34,6 +34,9 @@ class Settings(BaseSettings):
 
     API_BASE_URL: str = Field(default="http://localhost:8000")
 
+    ALERT_EMAIL_ENABLED: bool = Field(default=False)
+    ALERT_DIGEST_RECIPIENT: str = Field(default="")
+
     SSI_CONSUMER_ID: str = Field(default="")
     SSI_CONSUMER_SECRET: str = Field(default="")
     SSI_PRIVATE_KEY_PATH: str = Field(default="")
