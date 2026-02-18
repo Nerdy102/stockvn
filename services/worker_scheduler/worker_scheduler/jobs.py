@@ -1045,3 +1045,210 @@ def run_diagnostics_v2(session: Session) -> int:
 def ensure_partitions_monthly(session: Session) -> int:
     """Ensure +3 monthly partitions for high-volume postgres tables."""
     return ensure_partitions_monthly_impl(session, months_ahead=3)
+
+
+
+def _git_commit_hash() -> str:
+    import subprocess
+
+    try:
+        out = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        return out
+    except Exception:
+        return "unknown"
+
+
+def _alpha_v3_training_frame(session: Session) -> pd.DataFrame:
+    feat_rows = session.exec(select(MlFeature).where(MlFeature.feature_version == "v3")).all()
+    label_rows = session.exec(select(MlLabel).where(MlLabel.label_version == "v3")).all()
+    if not feat_rows or not label_rows:
+        return pd.DataFrame()
+
+    feat_df = pd.DataFrame(
+        [
+            {
+                "symbol": r.symbol,
+                "as_of_date": r.as_of_date,
+                **(r.features_json or {}),
+            }
+            for r in feat_rows
+        ]
+    )
+    lbl_df = pd.DataFrame(
+        [{"symbol": r.symbol, "date": r.date, "y_rank_z": r.y_rank_z} for r in label_rows]
+    )
+    merged = feat_df.merge(
+        lbl_df,
+        left_on=["symbol", "as_of_date"],
+        right_on=["symbol", "date"],
+        how="inner",
+    )
+    merged = merged.dropna(subset=["y_rank_z"]).reset_index(drop=True)
+    return merged
+
+
+def train_alpha_v3(
+    session: Session,
+    artifact_root: str = "artifacts/models/alpha_v3",
+) -> dict[str, Any] | None:
+    from core.alpha_v3.models import (
+        AlphaV3Config,
+        AlphaV3ModelBundle,
+        feature_matrix_from_records,
+        metadata_payload,
+        write_metadata,
+    )
+    from core.db.models import AlphaModel
+
+    data = _alpha_v3_training_frame(session)
+    if data.empty:
+        return None
+
+    config = AlphaV3Config()
+    x, cols = feature_matrix_from_records(data)
+    y = data["y_rank_z"].astype(float)
+
+    bundle = AlphaV3ModelBundle(config=config).fit(x, y)
+    version_dt = dt.datetime.utcnow().replace(microsecond=0)
+    while True:
+        version = version_dt.strftime("%Y%m%d_%H%M%S")
+        artifact_dir = Path(artifact_root) / version
+        if not artifact_dir.exists():
+            break
+        version_dt = version_dt + dt.timedelta(seconds=1)
+    bundle.dump(artifact_dir)
+
+    train_start = data["as_of_date"].min()
+    train_end = data["as_of_date"].max()
+    meta = metadata_payload(
+        train_start,
+        train_end,
+        _git_commit_hash(),
+        config,
+        feature_columns=cols,
+    )
+    write_metadata(artifact_dir / "metadata.json", meta)
+
+    config_hash = config.config_hash()
+    model_row = session.exec(
+        select(AlphaModel)
+        .where(AlphaModel.model_id == config.model_id)
+        .where(AlphaModel.version == version)
+    ).first()
+    if model_row is None:
+        model_row = AlphaModel(
+            model_id=config.model_id,
+            version=version,
+            artifact_path=str(artifact_dir),
+            train_start=train_start,
+            train_end=train_end,
+            config_hash=config_hash,
+        )
+    else:
+        model_row.artifact_path = str(artifact_dir)
+        model_row.train_start = train_start
+        model_row.train_end = train_end
+        model_row.config_hash = config_hash
+    session.add(model_row)
+    session.commit()
+
+    return {
+        "model_id": config.model_id,
+        "version": version,
+        "artifact_path": str(artifact_dir),
+        "train_start": train_start,
+        "train_end": train_end,
+        "config_hash": config_hash,
+        "feature_cols": cols,
+    }
+
+
+def predict_alpha_v3(session: Session, as_of_date: dt.date, version: str | None = None) -> int:
+    from core.alpha_v3.models import (
+        align_feature_matrix,
+        feature_matrix_from_records,
+        load_alpha_v3_bundle,
+        read_metadata,
+    )
+    from core.db.models import AlphaModel, AlphaPrediction
+
+    q = select(AlphaModel).where(AlphaModel.model_id == "alpha_v3")
+    if version:
+        q = q.where(AlphaModel.version == version)
+    model_row = session.exec(q.order_by(AlphaModel.version.desc())).first()
+    if model_row is None:
+        return 0
+
+    artifact_dir = Path(model_row.artifact_path)
+    bundle = load_alpha_v3_bundle(artifact_dir)
+    metadata = read_metadata(artifact_dir / "metadata.json")
+    train_feature_cols = metadata.get("feature_columns")
+
+    feat_rows = session.exec(
+        select(MlFeature)
+        .where(MlFeature.feature_version == "v3")
+        .where(MlFeature.as_of_date == as_of_date)
+    ).all()
+    if not feat_rows:
+        return 0
+
+    feat_df = pd.DataFrame(
+        [{"symbol": r.symbol, "as_of_date": r.as_of_date, **(r.features_json or {})} for r in feat_rows]
+    )
+    x_raw, inferred_cols = feature_matrix_from_records(feat_df)
+    if isinstance(train_feature_cols, list) and train_feature_cols:
+        x = align_feature_matrix(x_raw, [str(c) for c in train_feature_cols])
+    else:
+        x = align_feature_matrix(x_raw, inferred_cols)
+    comp = bundle.predict_components(x)
+
+    symbols = [str(x) for x in feat_df["symbol"].tolist()]
+    existing_rows = session.exec(
+        select(AlphaPrediction)
+        .where(AlphaPrediction.model_id == "alpha_v3")
+        .where(AlphaPrediction.as_of_date == as_of_date)
+    ).all()
+    existing = {r.symbol: r for r in existing_rows}
+
+    now = dt.datetime.utcnow()
+    for i, symbol in enumerate(symbols):
+        row = existing.get(symbol)
+        if row is None:
+            row = AlphaPrediction(
+                model_id="alpha_v3",
+                as_of_date=as_of_date,
+                symbol=symbol,
+                score=float(comp["score"][i]),
+                mu=float(comp["mu"][i]),
+                uncert=float(comp["uncert"][i]),
+                pred_base=float(comp["pred_base"][i]),
+                created_at=now,
+            )
+        else:
+            row.score = float(comp["score"][i])
+            row.mu = float(comp["mu"][i])
+            row.uncert = float(comp["uncert"][i])
+            row.pred_base = float(comp["pred_base"][i])
+        session.add(row)
+
+    session.commit()
+    return len(symbols)
+
+
+def job_train_alpha_v3(session: Session, as_of_date: dt.date | None = None) -> dict[str, int]:
+    trained = train_alpha_v3(session)
+    if trained is None:
+        return {"trained": 0, "predictions": 0}
+
+    pred_date = as_of_date
+    if pred_date is None:
+        pred_date = session.exec(
+            select(MlFeature.as_of_date)
+            .where(MlFeature.feature_version == "v3")
+            .order_by(MlFeature.as_of_date.desc())
+        ).first()
+    if pred_date is None:
+        return {"trained": 1, "predictions": 0}
+
+    preds = predict_alpha_v3(session, as_of_date=pred_date, version=trained["version"])
+    return {"trained": 1, "predictions": preds}

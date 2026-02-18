@@ -504,6 +504,37 @@ class MlPrediction(SQLModel, table=True):
     meta: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
+class AlphaModel(SQLModel, table=True):
+    __tablename__ = "alpha_models"
+    __table_args__ = (Index("ux_alpha_models", "model_id", "version", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    version: str = Field(index=True)
+    artifact_path: str
+    train_start: dt.date
+    train_end: dt.date
+    config_hash: str = Field(index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class AlphaPrediction(SQLModel, table=True):
+    __tablename__ = "alpha_predictions"
+    __table_args__ = (
+        Index("ux_alpha_predictions", "model_id", "as_of_date", "symbol", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    as_of_date: dt.date = Field(index=True)
+    symbol: str = Field(index=True)
+    score: float
+    mu: float
+    uncert: float
+    pred_base: float
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
 class BacktestRun(SQLModel, table=True):
     __tablename__ = "backtest_runs"
 
