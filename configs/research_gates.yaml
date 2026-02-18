@@ -1,5 +1,6 @@
 research_gates:
   dsr_min: 0.95
   pbo_max: 0.10
-  turnover_max: 2.00
-  capacity_max: 0.20
+  psr_min: 0.95
+  rc_p_max: 0.10
+  spa_p_max: 0.10

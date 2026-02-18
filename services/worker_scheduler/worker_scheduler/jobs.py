@@ -26,7 +26,11 @@ from core.db.models import (
     MlFeature,
     MlLabel,
     DsrResult,
+    GateResult,
+    MinTrlResult,
     PboResult,
+    ParquetManifest,
+    PsrResult,
     PriceOHLCV,
     QuoteL2,
     Signal,
@@ -37,13 +41,21 @@ from core.db.models import (
     CorporateAction,
     FeatureCoverage,
     FeatureLastProcessed,
+    RealityCheckResult,
+    SpaResult,
 )
 from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
 from core.corporate_actions import adjust_prices
 from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
+from core.alpha_v3.gates import evaluate_research_gates
 from core.alpha_v3.pbo import compute_pbo_cscv
 from core.calendar_vn import get_trading_calendar_vn
 from core.ml.backtest import run_sensitivity
+from core.data_lake.feature_source import load_table_df
+from core.data_lake.parquet_export import export_partitioned_parquet_for_day
+from research.stats.psr_mintrl import compute_mintrl, compute_psr
+from research.stats.reality_check import white_reality_check
+from research.stats.spa_test import hansen_spa_test
 from core.db.partitioning import ensure_partitions_monthly as ensure_partitions_monthly_impl
 from core.features.daily_flow import compute_daily_flow_features as compute_daily_flow_features_impl
 from core.features.daily_intraday import (
@@ -984,11 +996,18 @@ def job_build_ml_features_v3(session: Session) -> int:
 
     session.commit()
     feature_version = "v3"
-    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
-    if not prices:
+    settings = Settings()
+    price_df = load_table_df(
+        session=session,
+        model=PriceOHLCV,
+        table_name="prices_ohlcv",
+        date_col="timestamp",
+        settings=settings,
+    )
+    if price_df.empty:
         return 0
-
-    price_df = pd.DataFrame([p.model_dump() for p in prices])
+    if "timeframe" in price_df.columns:
+        price_df = price_df[price_df["timeframe"] == "1D"].copy()
     price_df["date"] = pd.to_datetime(price_df["timestamp"]).dt.date
 
     state = session.exec(
@@ -1007,9 +1026,11 @@ def job_build_ml_features_v3(session: Session) -> int:
     factors = pd.DataFrame([r.model_dump() for r in session.exec(select(FactorScore)).all()])
     fundamentals = pd.DataFrame([r.model_dump() for r in session.exec(select(Fundamental)).all()])
     tickers = pd.DataFrame([r.model_dump() for r in session.exec(select(Ticker)).all()])
-    flow = pd.DataFrame([r.model_dump() for r in session.exec(select(DailyFlowFeature)).all()])
-    orderbook = pd.DataFrame([r.model_dump() for r in session.exec(select(DailyOrderbookFeature)).all()])
-    intra = pd.DataFrame([r.model_dump() for r in session.exec(select(DailyIntradayFeature)).all()])
+
+    start_date = min(pending_dates) if pending_dates else None
+    flow = load_table_df(session, DailyFlowFeature, "daily_flow_features", "date", settings, start_date=start_date)
+    orderbook = load_table_df(session, DailyOrderbookFeature, "daily_orderbook_features", "date", settings, start_date=start_date)
+    intra = load_table_df(session, DailyIntradayFeature, "daily_intraday_features", "date", settings, start_date=start_date)
 
     feat = build_ml_features_v3(
         prices=price_df,
@@ -1657,6 +1678,23 @@ def job_update_alpha_v3_cp(session: Session, as_of_date: dt.date | None = None) 
     return {"updated_residuals": updated_residuals, "predictions": preds}
 
 
+def nightly_parquet_export_job(session: Session, as_of_date: dt.date | None = None) -> dict[str, Any]:
+    target_day = as_of_date or (dt.datetime.utcnow().date() - dt.timedelta(days=1))
+    settings = Settings()
+    counts = export_partitioned_parquet_for_day(session, settings=settings, as_of_date=target_day)
+    manifests = session.exec(
+        select(ParquetManifest).where(ParquetManifest.year == target_day.year).where(ParquetManifest.month == target_day.month).where(ParquetManifest.day == target_day.day)
+    ).all()
+    return {
+        "status": "ok",
+        "as_of_date": target_day.isoformat(),
+        "datasets": counts,
+        "manifest_rows": len(manifests),
+    }
+
+
+
+
 def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, Any]:
     """Persist DSR/PBO/Bootstrap controls from available alpha_v3 prediction-label panel."""
     preds = pd.DataFrame(
@@ -1692,9 +1730,21 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
     if variants_df.empty:
         variants_df = pd.DataFrame({"base": returns, "base_cost": returns - 0.0001})
 
-    dsr = compute_deflated_sharpe_ratio(returns, n_trials=len(variants_df.columns))
+    n_trials = len(variants_df.columns)
+    dsr = compute_deflated_sharpe_ratio(returns, n_trials=n_trials)
     phi, logits_summary = compute_pbo_cscv(variants_df, slices=10)
+    psr = compute_psr(returns, sr_threshold=0.0)
+    mintrl = compute_mintrl(returns, sr_threshold=0.0, alpha=0.95)
+    rc_p, rc_components = white_reality_check(returns, variants_df, n_bootstrap=1000, block_mean=20.0, seed=42)
+    spa_p, spa_components = hansen_spa_test(returns, variants_df, n_bootstrap=1000, block_mean=20.0, seed=42)
     ci = alpha_v3_block_bootstrap_ci(returns, block=20, n_resamples=1000)
+    gates = evaluate_research_gates(
+        dsr_value=dsr.dsr_value,
+        pbo_phi=phi,
+        psr_value=psr.psr_value,
+        rc_p_value=rc_p,
+        spa_p_value=spa_p,
+    )
 
     dsr_row = session.exec(select(DsrResult).where(DsrResult.run_id == run_id)).first()
     if dsr_row is None:
@@ -1711,6 +1761,68 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
         pbo_row.phi = phi
         pbo_row.logits_summary = logits_summary
     session.add(pbo_row)
+
+    psr_row = session.exec(select(PsrResult).where(PsrResult.run_id == run_id)).first()
+    if psr_row is None:
+        psr_row = PsrResult(
+            run_id=run_id,
+            psr_value=psr.psr_value,
+            sr_hat=psr.sr_hat,
+            sr_threshold=psr.sr_threshold,
+            t=psr.t,
+            skew=psr.skew,
+            kurt=psr.kurt,
+        )
+    else:
+        psr_row.psr_value = psr.psr_value
+        psr_row.sr_hat = psr.sr_hat
+        psr_row.sr_threshold = psr.sr_threshold
+        psr_row.t = psr.t
+        psr_row.skew = psr.skew
+        psr_row.kurt = psr.kurt
+    session.add(psr_row)
+
+    mintrl_row = session.exec(select(MinTrlResult).where(MinTrlResult.run_id == run_id)).first()
+    mintrl_value = 0 if np.isinf(mintrl.mintrl) else int(mintrl.mintrl)
+    if mintrl_row is None:
+        mintrl_row = MinTrlResult(
+            run_id=run_id,
+            mintrl=mintrl_value,
+            sr_hat=mintrl.sr_hat,
+            sr_threshold=mintrl.sr_threshold,
+            alpha=mintrl.alpha,
+        )
+    else:
+        mintrl_row.mintrl = mintrl_value
+        mintrl_row.sr_hat = mintrl.sr_hat
+        mintrl_row.sr_threshold = mintrl.sr_threshold
+        mintrl_row.alpha = mintrl.alpha
+    session.add(mintrl_row)
+
+    rc_row = session.exec(select(RealityCheckResult).where(RealityCheckResult.run_id == run_id)).first()
+    if rc_row is None:
+        rc_row = RealityCheckResult(run_id=run_id, p_value=rc_p, components=rc_components)
+    else:
+        rc_row.p_value = rc_p
+        rc_row.components = rc_components
+    session.add(rc_row)
+
+    spa_row = session.exec(select(SpaResult).where(SpaResult.run_id == run_id)).first()
+    if spa_row is None:
+        spa_row = SpaResult(run_id=run_id, p_value=spa_p, components=spa_components)
+    else:
+        spa_row.p_value = spa_p
+        spa_row.components = spa_components
+    session.add(spa_row)
+
+    gate_row = session.exec(select(GateResult).where(GateResult.run_id == run_id)).first()
+    if gate_row is None:
+        gate_row = GateResult(run_id=run_id, status=gates.get("status", "FAIL"), reasons={"reasons": gates.get("reasons", [])}, details=gates)
+    else:
+        gate_row.status = gates.get("status", "FAIL")
+        gate_row.reasons = {"reasons": gates.get("reasons", [])}
+        gate_row.details = gates
+    session.add(gate_row)
     session.commit()
 
     return {
@@ -1718,5 +1830,10 @@ def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, An
         "run_id": run_id,
         "dsr": dsr.dsr_value,
         "pbo": phi,
+        "psr": psr.psr_value,
+        "mintrl": mintrl_value,
+        "rc_p": rc_p,
+        "spa_p": spa_p,
+        "gate": gates,
         "ci": ci,
     }

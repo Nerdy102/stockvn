@@ -20,10 +20,15 @@ from core.db.models import (
     ConformalCoverageDaily,
     DsrResult,
     ForeignRoom,
+    GateResult,
+    MinTrlResult,
     MlPrediction,
     PboResult,
+    PsrResult,
     PriceOHLCV,
     QuoteL2,
+    RealityCheckResult,
+    SpaResult,
 )
 from core.market_rules import clamp_qty_to_board_lot
 from core.ml.backtest import run_sensitivity, run_stress, run_walk_forward
@@ -42,6 +47,9 @@ from core.ml.reports import build_metrics_table, disclaimer
 from core.ml.targets import compute_rank_z_label
 from core.settings import Settings, get_settings
 from core.universe.manager import UniverseManager
+from research.stats.psr_mintrl import compute_mintrl, compute_psr
+from research.stats.reality_check import white_reality_check
+from research.stats.spa_test import hansen_spa_test
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
@@ -419,40 +427,56 @@ def backtest(
 
     wf_curve = pd.DataFrame(out.get("walk_forward", {}).get("equity_curve", []))
     sensitivity = out.get("sensitivity", {})
-    sensitivity_variants = sensitivity.get("variants", [])
-    n_trials = max(1, len(sensitivity_variants))
+    variant_returns_raw = sensitivity.get("variant_returns", {})
+    n_trials = max(1, len(variant_returns_raw))
     ret = wf_curve.get("net_ret", pd.Series(dtype=float)) if not wf_curve.empty else pd.Series(dtype=float)
 
     dsr = compute_deflated_sharpe_ratio(pd.Series(ret, dtype=float), n_trials=n_trials)
-    variant_returns_raw = sensitivity.get("variant_returns", {})
     variant_returns = pd.DataFrame({k: pd.Series(v, dtype=float) for k, v in variant_returns_raw.items()})
     if variant_returns.empty:
         variant_returns = pd.DataFrame({"base": pd.Series(ret, dtype=float), "base_cost": pd.Series(ret, dtype=float) - 0.0001})
     phi, logits_summary = compute_pbo_cscv(variant_returns, slices=10)
+    psr = compute_psr(pd.Series(ret, dtype=float), sr_threshold=0.0)
+    mintrl = compute_mintrl(pd.Series(ret, dtype=float), sr_threshold=0.0, alpha=0.95)
+    rc_p, rc_components = white_reality_check(pd.Series(ret, dtype=float), variant_returns, n_bootstrap=1000, block_mean=20.0, seed=42)
+    spa_p, spa_components = hansen_spa_test(pd.Series(ret, dtype=float), variant_returns, n_bootstrap=1000, block_mean=20.0, seed=42)
     ci = alpha_v3_block_bootstrap_ci(pd.Series(ret, dtype=float), block=20, n_resamples=1000)
 
-    turnover = 0.0
-    metrics_rows = out.get("walk_forward", {}).get("metrics", [])
-    if metrics_rows:
-        for row in metrics_rows:
-            if row.get("metric") == "turnover":
-                turnover = float(row.get("value", 0.0))
-                break
     gates = evaluate_research_gates(
         dsr_value=dsr.dsr_value,
         pbo_phi=phi,
-        turnover=turnover,
-        capacity_avg_order_notional_over_adtv=0.0,
+        psr_value=psr.psr_value,
+        rc_p_value=rc_p,
+        spa_p_value=spa_p,
     )
 
     out["overfit_controls"] = {
         "dsr": dsr.dsr_value,
         "pbo": phi,
+        "psr": psr.psr_value,
+        "mintrl": mintrl.mintrl,
+        "rc_p": rc_p,
+        "spa_p": spa_p,
         "bootstrap_ci": ci,
         "gate": gates,
         "components": {
             "dsr": dsr.components,
             "pbo": logits_summary,
+            "psr": {
+                "sr_hat": psr.sr_hat,
+                "sr_threshold": psr.sr_threshold,
+                "t": psr.t,
+                "skew": psr.skew,
+                "kurt": psr.kurt,
+            },
+            "mintrl": {
+                "mintrl": mintrl.mintrl,
+                "sr_hat": mintrl.sr_hat,
+                "sr_threshold": mintrl.sr_threshold,
+                "alpha": mintrl.alpha,
+            },
+            "reality_check": rc_components,
+            "spa": spa_components,
             "n_trials": n_trials,
         },
     }
@@ -475,6 +499,71 @@ def backtest(
         pbo_row.phi = phi
         pbo_row.logits_summary = logits_summary
         db.add(pbo_row)
+
+    psr_row = db.exec(select(PsrResult).where(PsrResult.run_id == key)).first()
+    if psr_row is None:
+        db.add(
+            PsrResult(
+                run_id=key,
+                psr_value=psr.psr_value,
+                sr_hat=psr.sr_hat,
+                sr_threshold=psr.sr_threshold,
+                t=psr.t,
+                skew=psr.skew,
+                kurt=psr.kurt,
+            )
+        )
+    else:
+        psr_row.psr_value = psr.psr_value
+        psr_row.sr_hat = psr.sr_hat
+        psr_row.sr_threshold = psr.sr_threshold
+        psr_row.t = psr.t
+        psr_row.skew = psr.skew
+        psr_row.kurt = psr.kurt
+        db.add(psr_row)
+
+    mintrl_row = db.exec(select(MinTrlResult).where(MinTrlResult.run_id == key)).first()
+    if mintrl_row is None:
+        db.add(
+            MinTrlResult(
+                run_id=key,
+                mintrl=0 if np.isinf(mintrl.mintrl) else int(mintrl.mintrl),
+                sr_hat=mintrl.sr_hat,
+                sr_threshold=mintrl.sr_threshold,
+                alpha=mintrl.alpha,
+            )
+        )
+    else:
+        mintrl_row.mintrl = 0 if np.isinf(mintrl.mintrl) else int(mintrl.mintrl)
+        mintrl_row.sr_hat = mintrl.sr_hat
+        mintrl_row.sr_threshold = mintrl.sr_threshold
+        mintrl_row.alpha = mintrl.alpha
+        db.add(mintrl_row)
+
+    rc_row = db.exec(select(RealityCheckResult).where(RealityCheckResult.run_id == key)).first()
+    if rc_row is None:
+        db.add(RealityCheckResult(run_id=key, p_value=rc_p, components=rc_components))
+    else:
+        rc_row.p_value = rc_p
+        rc_row.components = rc_components
+        db.add(rc_row)
+
+    spa_row = db.exec(select(SpaResult).where(SpaResult.run_id == key)).first()
+    if spa_row is None:
+        db.add(SpaResult(run_id=key, p_value=spa_p, components=spa_components))
+    else:
+        spa_row.p_value = spa_p
+        spa_row.components = spa_components
+        db.add(spa_row)
+
+    gate_row = db.exec(select(GateResult).where(GateResult.run_id == key)).first()
+    if gate_row is None:
+        db.add(GateResult(run_id=key, status=gates.get("status", "FAIL"), reasons={"reasons": gates.get("reasons", [])}, details=gates))
+    else:
+        gate_row.status = gates.get("status", "FAIL")
+        gate_row.reasons = {"reasons": gates.get("reasons", [])}
+        gate_row.details = gates
+        db.add(gate_row)
 
     db.commit()
     return {"cached": False, "run_hash": key, **out}

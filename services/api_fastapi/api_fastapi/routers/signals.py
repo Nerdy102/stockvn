@@ -3,10 +3,10 @@ from __future__ import annotations
 import datetime as dt
 
 from core.db.models import Signal
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, select
 
-from api_fastapi.deps import get_db
+from api_fastapi.deps import enforce_time_series_bounds, get_db
 
 router = APIRouter(tags=["signals"])
 
@@ -18,23 +18,19 @@ def list_signals(
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=2000),
-    offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None, description="pagination cursor (integer offset token)"),
     db: Session = Depends(get_db),
 ) -> list[Signal]:
-    if start and end:
-        s = dt.datetime.fromisoformat(start)
-        e = dt.datetime.fromisoformat(end)
-        if e < s:
-            raise HTTPException(status_code=400, detail="end must be >= start")
-        if offset == 0 and (e - s).days > 365:
-            raise HTTPException(status_code=400, detail="max range 365 days without pagination")
+    s = dt.datetime.fromisoformat(start) if start else None
+    e = dt.datetime.fromisoformat(end) if end else None
+    offset = enforce_time_series_bounds(start=s, end=e, cursor=cursor, max_days=365)
 
     q = select(Signal).where(Signal.timeframe == timeframe)
     if symbol:
         q = q.where(Signal.symbol == symbol)
-    if start:
-        q = q.where(Signal.timestamp >= dt.datetime.fromisoformat(start))
-    if end:
-        q = q.where(Signal.timestamp <= dt.datetime.fromisoformat(end))
+    if s:
+        q = q.where(Signal.timestamp >= s)
+    if e:
+        q = q.where(Signal.timestamp <= e)
     q = q.order_by(Signal.timestamp.desc()).offset(offset).limit(limit)
     return list(db.exec(q).all())

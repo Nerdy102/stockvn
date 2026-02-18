@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from api_fastapi.deps import get_db
+from api_fastapi.deps import enforce_time_series_bounds, get_db
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -45,9 +45,22 @@ def create_rule(payload: CreateRuleRequest, db: Session = Depends(get_db)) -> Al
 
 @router.get("/events", response_model=list[AlertEvent])
 def list_events(
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=2000),
-    offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None, description="pagination cursor (integer offset token)"),
     db: Session = Depends(get_db),
 ) -> list[AlertEvent]:
-    q = select(AlertEvent).order_by(AlertEvent.triggered_at.desc()).offset(offset).limit(limit)
+    import datetime as dt
+
+    s = dt.datetime.fromisoformat(start) if start else None
+    e = dt.datetime.fromisoformat(end) if end else None
+    offset = enforce_time_series_bounds(start=s, end=e, cursor=cursor, max_days=365)
+
+    q = select(AlertEvent)
+    if s:
+        q = q.where(AlertEvent.triggered_at >= s)
+    if e:
+        q = q.where(AlertEvent.triggered_at <= e)
+    q = q.order_by(AlertEvent.triggered_at.desc()).offset(offset).limit(limit)
     return list(db.exec(q).all())

@@ -36,7 +36,7 @@ def test_prices_endpoint_bounded_default_range() -> None:
             )
         s.commit()
 
-    r = client.get("/prices", params={"symbol": "AAA", "timeframe": "1D"})
+    r = client.get("/prices", params={"symbol": "AAA", "timeframe": "1D", "cursor": "0", "limit": 200})
     assert r.status_code == 200
     data = r.json()
     assert len(data) <= 1000
