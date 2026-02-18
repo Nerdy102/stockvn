@@ -89,7 +89,6 @@ class IngestState(SQLModel, table=True):
 
 class QuoteL2(SQLModel, table=True):
     __table_args__ = (
-        Index("ix_quotes_symbol_ts", "symbol", "ts_utc"),
         Index("ix_quotes_l2_symbol_ts_utc", "symbol", "ts_utc"),
         Index("ux_quotes_l2_symbol_ts_source", "symbol", "ts_utc", "source", unique=True),
     )
@@ -106,7 +105,6 @@ class QuoteL2(SQLModel, table=True):
 
 class TradeTape(SQLModel, table=True):
     __table_args__ = (
-        Index("ix_trades_symbol_ts", "symbol", "ts_utc"),
         Index("ix_trades_tape_symbol_ts_utc", "symbol", "ts_utc"),
         Index("ux_trades_tape_symbol_ts_source", "symbol", "ts_utc", "source", unique=True),
     )
@@ -169,6 +167,8 @@ class MarketDailyMeta(SQLModel, table=True):
     foreign_buy_value: float | None = None
     foreign_sell_value: float | None = None
     net_foreign_volume: float | None = None
+    current_room: float | None = None
+    total_room: float | None = None
     source: str = Field(default="ssi_fcdata")
 
 
@@ -399,6 +399,66 @@ class StreamDedup(SQLModel, table=True):
     rtype: str = Field(index=True)
     payload_hash: str = Field(index=True)
     first_seen_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class DailyFlowFeature(SQLModel, table=True):
+    __tablename__ = "daily_flow_features"
+    __table_args__ = (
+        Index("ix_daily_flow_symbol_date", "symbol", "date"),
+        Index("ux_daily_flow_symbol_date_source", "symbol", "date", "source", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    source: str = Field(default="derived", index=True)
+    net_foreign_val_day: float = 0.0
+    net_foreign_val_5d: float = 0.0
+    net_foreign_val_20d: float = 0.0
+    foreign_flow_intensity: float = 0.0
+    foreign_room_util: float | None = None
+
+
+class DailyOrderbookFeature(SQLModel, table=True):
+    __tablename__ = "daily_orderbook_features"
+    __table_args__ = (
+        Index("ix_daily_orderbook_symbol_date", "symbol", "date"),
+        Index("ux_daily_orderbook_symbol_date_source", "symbol", "date", "source", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    source: str = Field(default="derived", index=True)
+    imb_1_day: float = 0.0
+    imb_3_day: float = 0.0
+    spread_day: float = 0.0
+
+
+class DailyIntradayFeature(SQLModel, table=True):
+    __tablename__ = "daily_intraday_features"
+    __table_args__ = (
+        Index("ix_daily_intraday_symbol_date", "symbol", "date"),
+        Index("ux_daily_intraday_symbol_date_source", "symbol", "date", "source", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    source: str = Field(default="derived", index=True)
+    rv_day: float = 0.0
+    vol_first_hour_ratio: float = 0.0
+
+
+class FeatureLastProcessed(SQLModel, table=True):
+    __tablename__ = "feature_last_processed"
+    __table_args__ = (Index("ux_feature_last_processed", "feature_name", "symbol", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    feature_name: str = Field(index=True)
+    symbol: str = Field(default="", index=True)
+    last_date: dt.date
+    updated_at: dt.datetime = Field(default_factory=utcnow)
 
 
 class MlFeature(SQLModel, table=True):

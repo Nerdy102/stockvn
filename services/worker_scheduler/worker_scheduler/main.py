@@ -14,9 +14,12 @@ from worker_scheduler.jobs import (
     bronze_retention_cleanup,
     cleanup_stream_dedup_job,
     compute_data_quality_metrics_job,
+    compute_daily_flow_features,
+    compute_daily_orderbook_features,
     compute_drift_metrics_job,
     compute_factor_scores,
     compute_indicators,
+    compute_daily_intraday_features,
     compute_technical_setups,
     consume_ssi_stream_to_bronze_silver,
     ensure_partitions_monthly,
@@ -60,6 +63,9 @@ def main() -> None:
             compute_technical_setups(session)
             generate_alerts(session)
             compute_data_quality_metrics_job(session)
+            compute_daily_flow_features(session)
+            compute_daily_orderbook_features(session)
+            compute_daily_intraday_features(session)
             compute_drift_metrics_job(session)
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 

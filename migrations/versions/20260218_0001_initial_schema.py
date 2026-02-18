@@ -20,6 +20,12 @@ branch_labels = None
 depends_on = None
 
 PARTITIONED_TABLES = {"prices_ohlcv", "quotes_l2", "trades_tape"}
+FUTURE_TABLES_EXCLUDED_FROM_INITIAL = {
+    "daily_flow_features",
+    "daily_orderbook_features",
+    "daily_intraday_features",
+    "feature_last_processed",
+}
 
 
 def _month_floor(value: dt.datetime) -> dt.datetime:
@@ -128,10 +134,8 @@ def _create_indexes_postgres_only() -> None:
     op.create_index("ix_prices_timestamp", "prices_ohlcv", ["ts_utc"])
 
     op.create_index("ix_quotes_l2_symbol_ts_utc", "quotes_l2", ["symbol", "ts_utc"])
-    op.create_index("ix_quotes_symbol_ts", "quotes_l2", ["symbol", "ts_utc"])
 
     op.create_index("ix_trades_tape_symbol_ts_utc", "trades_tape", ["symbol", "ts_utc"])
-    op.create_index("ix_trades_symbol_ts", "trades_tape", ["symbol", "ts_utc"])
 
 
 def upgrade() -> None:
@@ -145,6 +149,7 @@ def upgrade() -> None:
         table
         for name, table in SQLModel.metadata.tables.items()
         if not (dialect == "postgresql" and name in PARTITIONED_TABLES)
+        and name not in FUTURE_TABLES_EXCLUDED_FROM_INITIAL
     ]
     SQLModel.metadata.create_all(bind=bind, tables=tables)
 
@@ -167,6 +172,7 @@ def downgrade() -> None:
         table
         for name, table in reversed(list(SQLModel.metadata.tables.items()))
         if not (dialect == "postgresql" and name in PARTITIONED_TABLES)
+        and name not in FUTURE_TABLES_EXCLUDED_FROM_INITIAL
     ]
     for table in tables:
         op.drop_table(table.name)
