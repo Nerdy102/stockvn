@@ -822,3 +822,14 @@ class PboResult(SQLModel, table=True):
     phi: float
     logits_summary: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class RebalanceConstraintReport(SQLModel, table=True):
+    __tablename__ = "rebalance_constraint_reports"
+    __table_args__ = (Index("ix_rebalance_constraint_reports_date_tag", "as_of_date", "run_tag"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    as_of_date: dt.date = Field(index=True)
+    run_tag: str = Field(index=True, default="alpha_v3")
+    report_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
