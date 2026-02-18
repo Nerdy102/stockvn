@@ -1,0 +1,9 @@
+{
+  "rows": [
+    {"session": "close_auction", "session_vwap": 10.3, "session_volume": 1000.0, "n_bars": 1},
+    {"session": "continuous_am", "session_vwap": 10.139999999999999, "session_volume": 5000.0, "n_bars": 2},
+    {"session": "continuous_pm", "session_vwap": 10.192857142857141, "session_volume": 7000.0, "n_bars": 2},
+    {"session": "offhours", "session_vwap": 10.4, "session_volume": 500.0, "n_bars": 1},
+    {"session": "open_auction", "session_vwap": 10.0, "session_volume": 3000.0, "n_bars": 1}
+  ]
+}

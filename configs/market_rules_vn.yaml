@@ -74,3 +74,42 @@ price_limits:
 reference_close:
   reference_price: previous_close
   close_price_rule: "last executed price of board-lot matching session; if none => close=reference"
+
+
+markets:
+  HOSE:
+    tick_size:
+      stock_fund:
+        - lt: 10000
+          tick: 10
+        - gte: 10000
+          lt: 50000
+          tick: 50
+        - gte: 50000
+          tick: 100
+      etf:
+        tick: 10
+      cw:
+        tick: 10
+      put_through:
+        tick: 1
+  HNX:
+    tick_size:
+      stock_fund:
+        - tick: 100
+      etf:
+        tick: 100
+      cw:
+        tick: 100
+      put_through:
+        tick: 1
+  UPCOM:
+    tick_size:
+      stock_fund:
+        - tick: 100
+      etf:
+        tick: 100
+      cw:
+        tick: 100
+      put_through:
+        tick: 1

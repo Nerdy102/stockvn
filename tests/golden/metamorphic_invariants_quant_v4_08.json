@@ -1,0 +1,12 @@
+{
+  "transformations": [
+    "symbol_order_permutation_invariance",
+    "score_shift_invariance",
+    "price_scaling_invariance_returns",
+    "split_ca_adjusted_series_invariance"
+  ],
+  "tolerances": {
+    "weight_atol": 1e-8,
+    "return_atol": 1e-12
+  }
+}

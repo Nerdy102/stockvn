@@ -15,6 +15,15 @@ from core.alpha_v3.portfolio import (
     persist_constraint_report,
     rebalance_with_turnover_and_bands,
 )
+from core.alpha_v3.portfolio_v5 import (
+    CASH_TARGET,
+    MAX_CLUSTER_CAP,
+    MAX_SINGLE_CAP,
+    PIPELINE_STEPS,
+    RISK_BUDGET_CAPS,
+    build_portfolio_v5,
+    strict_project_portfolio_v5,
+)
 from core.alpha_v3.targets import HORIZON, build_labels_v3
 
 __all__ = [
@@ -38,6 +47,13 @@ __all__ = [
     "construct_portfolio_v3",
     "construct_portfolio_v3_with_report",
     "persist_constraint_report",
+    "PIPELINE_STEPS",
+    "MAX_SINGLE_CAP",
+    "MAX_CLUSTER_CAP",
+    "RISK_BUDGET_CAPS",
+    "CASH_TARGET",
+    "strict_project_portfolio_v5",
+    "build_portfolio_v5",
     "BacktestV3Config",
     "run_backtest_v3",
 ]

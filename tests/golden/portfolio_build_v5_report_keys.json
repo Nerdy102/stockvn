@@ -1,0 +1,20 @@
+{
+  "required_keys": [
+    "schema_version",
+    "pipeline_steps",
+    "caps",
+    "risk_budgets",
+    "targets",
+    "violations_pre",
+    "violations_post",
+    "active_constraints",
+    "feasible"
+  ],
+  "required_violation_keys": [
+    "nonneg",
+    "sum",
+    "name_cap",
+    "cluster_cap",
+    "risk_budget_cap"
+  ]
+}

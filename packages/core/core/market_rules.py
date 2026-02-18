@@ -26,6 +26,21 @@ class TickRule:
     note: str = ""
 
 
+def _normalize_exchange(v: str | None) -> str:
+    return str(v or "").strip().upper()
+
+
+def _normalize_instrument(v: str | None) -> str:
+    s = str(v or "stock").strip().lower()
+    if s in {"stock", "stocks", "fund", "funds", "stock_fund", "stock_funds"}:
+        return "stock"
+    if s in {"etf"}:
+        return "etf"
+    if s in {"cw", "covered_warrant", "covered_warrants", "warrant"}:
+        return "cw"
+    return s
+
+
 @dataclass(frozen=True)
 class MarketRules:
     """Market microstructure rules (HOSE-focused, extensible)."""
@@ -43,6 +58,7 @@ class MarketRules:
 
     price_limits: dict[str, float]
     special_cases: dict[str, Any]
+    tick_rules_by_exchange: dict[str, dict[str, Any]]
 
     @staticmethod
     def from_yaml(path: str | Path) -> MarketRules:
@@ -78,6 +94,30 @@ class MarketRules:
 
         special_cases = dict((data.get("price_limits", {}) or {}).get("special_cases", {}) or {})
 
+        tick_rules_by_exchange: dict[str, dict[str, Any]] = {}
+        markets_cfg = (data.get("markets", {}) or {})
+        if isinstance(markets_cfg, dict) and markets_cfg:
+            for ex, ex_cfg in markets_cfg.items():
+                ex_u = _normalize_exchange(str(ex))
+                tcfg = (ex_cfg or {}).get("tick_size", {}) or {}
+                stock_rules: list[TickRule] = []
+                for r in (tcfg.get("stock_fund", []) or []):
+                    stock_rules.append(
+                        TickRule(
+                            gte=float(r["gte"]) if "gte" in r and r["gte"] is not None else None,
+                            lt=float(r["lt"]) if "lt" in r and r["lt"] is not None else None,
+                            tick=int(r["tick"]),
+                            note=str(r.get("note", "")),
+                        )
+                    )
+                tick_rules_by_exchange[ex_u] = {
+                    "stock_rules": stock_rules,
+                    "etf_tick": int(((tcfg.get("etf", {}) or {}).get("tick", 10))),
+                    "cw_tick": int(((tcfg.get("cw", {}) or {}).get("tick", 10))),
+                    "put_through_tick": int(((tcfg.get("put_through", {}) or {}).get("tick", 1)),
+                    ),
+                }
+
         return MarketRules(
             market=str(data.get("market", "HOSE")),
             timezone=str(data.get("timezone", "Asia/Ho_Chi_Minh")),
@@ -97,6 +137,7 @@ class MarketRules:
                 if k not in {"special_cases"}
             },
             special_cases=special_cases,
+            tick_rules_by_exchange=tick_rules_by_exchange,
         )
 
     def is_trading_time(self, t: dt.time) -> bool:
@@ -109,14 +150,33 @@ class MarketRules:
         return False
 
     def get_tick_size(
-        self, price: float, instrument: str = "stock", put_through: bool = False
+        self,
+        price: float,
+        instrument: str = "stock",
+        put_through: bool = False,
+        exchange: str | None = None,
     ) -> int:
         """Get tick size for given price and instrument."""
-        if put_through:
-            return self.tick_put_through
-        if instrument.lower() in {"etf", "cw"}:
-            return self.tick_etf_cw
-        for r in self.tick_rules_stocks:
+        ex = _normalize_exchange(exchange or self.market)
+        inst = _normalize_instrument(instrument)
+
+        if ex in self.tick_rules_by_exchange:
+            exr = self.tick_rules_by_exchange[ex]
+            if put_through:
+                return int(exr.get("put_through_tick", self.tick_put_through))
+            if inst == "etf":
+                return int(exr.get("etf_tick", self.tick_etf_cw))
+            if inst == "cw":
+                return int(exr.get("cw_tick", self.tick_etf_cw))
+            stock_rules = list(exr.get("stock_rules", []) or [])
+        else:
+            if put_through:
+                return self.tick_put_through
+            if inst in {"etf", "cw"}:
+                return self.tick_etf_cw
+            stock_rules = self.tick_rules_stocks
+
+        for r in stock_rules:
             if r.gte is not None and price < r.gte:
                 continue
             if r.lt is not None and price >= r.lt:
@@ -125,9 +185,18 @@ class MarketRules:
         return 1
 
     def validate_tick(
-        self, price: float, instrument: str = "stock", put_through: bool = False
+        self,
+        price: float,
+        instrument: str = "stock",
+        put_through: bool = False,
+        exchange: str | None = None,
     ) -> bool:
-        tick = self.get_tick_size(price, instrument=instrument, put_through=put_through)
+        tick = self.get_tick_size(
+            price,
+            instrument=instrument,
+            put_through=put_through,
+            exchange=exchange,
+        )
         if tick <= 0:
             return True
         # Support float input; treat values within 1e-6
@@ -138,10 +207,16 @@ class MarketRules:
         price: float,
         instrument: str = "stock",
         put_through: bool = False,
+        exchange: str | None = None,
         direction: str = "nearest",
     ) -> float:
         """Round price to tick size (nearest/up/down)."""
-        tick = self.get_tick_size(price, instrument=instrument, put_through=put_through)
+        tick = self.get_tick_size(
+            price,
+            instrument=instrument,
+            put_through=put_through,
+            exchange=exchange,
+        )
         if tick <= 0:
             return price
         x = price / tick
@@ -259,6 +334,7 @@ def round_price(
     path: str | Path = "configs/market_rules_vn.yaml",
     instrument: str | None = None,
     put_through: bool | None = None,
+    exchange: str | None = None,
     direction: str | None = None,
 ) -> float:
     """Round price with side-based API and backward-compatible kwargs."""
@@ -270,7 +346,11 @@ def round_price(
         else:
             direction = "up" if str(side).upper() == "BUY" else "down"
     return load_market_rules(path).round_price(
-        price, instrument=inst, put_through=pt, direction=direction
+        price,
+        instrument=inst,
+        put_through=pt,
+        exchange=exchange,
+        direction=direction,
     )
 
 
@@ -278,11 +358,15 @@ def tick_size(
     price: float,
     instrument_type: str,
     is_put_through: bool = False,
+    exchange: str | None = None,
     *,
     path: str | Path = "configs/market_rules_vn.yaml",
 ) -> int:
     return load_market_rules(path).get_tick_size(
-        price=price, instrument=instrument_type, put_through=is_put_through
+        price=price,
+        instrument=instrument_type,
+        put_through=is_put_through,
+        exchange=exchange,
     )
 
 

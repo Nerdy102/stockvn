@@ -176,6 +176,7 @@ def render() -> None:
                         for c in [
                             "rank",
                             "symbol",
+                            "exchange",
                             "score",
                             "adv20_value",
                             "trend",
@@ -187,6 +188,9 @@ def render() -> None:
                         if c in df.columns
                     ]
                     st.dataframe(df[cols], use_container_width=True)
+                    if "exchange" in df.columns:
+                        ex_counts = df["exchange"].fillna("NA").astype(str).str.upper().value_counts().to_dict()
+                        st.caption("Exchanges: " + ", ".join([f"{k}:{v}" for k, v in sorted(ex_counts.items())]))
                 else:
                     st.info("No results.")
 

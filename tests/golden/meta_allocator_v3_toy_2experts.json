@@ -1,0 +1,7 @@
+{
+  "experts": [
+    {"expert": "expert_a", "r21": 0.0200, "cvar": 0.0100, "cost_bps": 6.0},
+    {"expert": "expert_b", "r21": 0.0215, "cvar": 0.0300, "cost_bps": 35.0}
+  ],
+  "expected_higher_weight_expert": "expert_a"
+}
