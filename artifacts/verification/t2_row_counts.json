@@ -1,7 +1,146 @@
 {
-  "after_retry": {
-    "ml_features": 3251,
-    "ml_labels": 2519,
-    "alpha_predictions": 1
-  }
+  "before": {
+    "tickers": 11,
+    "prices_1d": 2750,
+    "factor_scores": 60,
+    "signals": 3,
+    "alerts": 0,
+    "labels_v3": 0,
+    "features_v3": 0,
+    "alpha_predictions": 0,
+    "job_runs": 0
+  },
+  "after": {
+    "tickers": 11,
+    "prices_1d": 2750,
+    "factor_scores": 60,
+    "signals": 3,
+    "alerts": 0,
+    "labels_v3": 2519,
+    "features_v3": 2750,
+    "alpha_predictions": 11,
+    "job_runs": 0
+  },
+  "timings": [
+    {
+      "pass": 1,
+      "job": "ingest_prices",
+      "seconds": 4.272,
+      "result": "None"
+    },
+    {
+      "pass": 1,
+      "job": "compute_indicators",
+      "seconds": 17.606,
+      "result": "None"
+    },
+    {
+      "pass": 1,
+      "job": "compute_factor_scores",
+      "seconds": 0.274,
+      "result": "None"
+    },
+    {
+      "pass": 1,
+      "job": "compute_technical_setups",
+      "seconds": 0.538,
+      "result": "None"
+    },
+    {
+      "pass": 1,
+      "job": "generate_alerts",
+      "seconds": 0.16,
+      "result": "None"
+    },
+    {
+      "pass": 1,
+      "job": "build_labels_v3",
+      "seconds": 4.43,
+      "result": "2519"
+    },
+    {
+      "pass": 1,
+      "job": "build_ml_features_v3",
+      "seconds": 10.126,
+      "result": "2750"
+    },
+    {
+      "pass": 1,
+      "job": "train_listnet_v2",
+      "seconds": 22.83,
+      "result": "{'trained': 1, 'predictions': 11}"
+    },
+    {
+      "pass": 1,
+      "job": "update_conformal",
+      "seconds": 0.003,
+      "result": "{'updated_residuals': 0, 'predictions': 0}"
+    },
+    {
+      "pass": 1,
+      "job": "prob_calibration",
+      "seconds": 0.045,
+      "result": "{'triggered': False, 'latest_ece': 0.0, 'days_above': 0}"
+    },
+    {
+      "pass": 2,
+      "job": "ingest_prices",
+      "seconds": 4.256,
+      "result": "None"
+    },
+    {
+      "pass": 2,
+      "job": "compute_indicators",
+      "seconds": 17.373,
+      "result": "None"
+    },
+    {
+      "pass": 2,
+      "job": "compute_factor_scores",
+      "seconds": 0.473,
+      "result": "None"
+    },
+    {
+      "pass": 2,
+      "job": "compute_technical_setups",
+      "seconds": 0.332,
+      "result": "None"
+    },
+    {
+      "pass": 2,
+      "job": "generate_alerts",
+      "seconds": 0.152,
+      "result": "None"
+    },
+    {
+      "pass": 2,
+      "job": "build_labels_v3",
+      "seconds": 3.694,
+      "result": "2519"
+    },
+    {
+      "pass": 2,
+      "job": "build_ml_features_v3",
+      "seconds": 0.437,
+      "result": "0"
+    },
+    {
+      "pass": 2,
+      "job": "train_listnet_v2",
+      "seconds": 22.939,
+      "result": "{'trained': 1, 'predictions': 11}"
+    },
+    {
+      "pass": 2,
+      "job": "update_conformal",
+      "seconds": 0.001,
+      "result": "{'updated_residuals': 0, 'predictions': 0}"
+    },
+    {
+      "pass": 2,
+      "job": "prob_calibration",
+      "seconds": 0.047,
+      "result": "{'triggered': False, 'latest_ece': 0.0, 'days_above': 0}"
+    }
+  ]
 }

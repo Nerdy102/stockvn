@@ -1,39 +1,35 @@
-# VERIFICATION REPORT
+# VN Invest Toolkit Verification Report
 
-## 1) Summary
+Generated: 2026-02-18T12:02:52.146664Z
 
-| Layer | Status | Notes |
+## 1) Summary Table
+
+| Layer | Status | Evidence |
 |---|---|---|
-| T0 Static quality gate | FAIL | `make quality-gate` failed on pre-existing repo-wide lint debt (157 ruff violations). UI guardrail passed. |
-| T1 Unit tests | PASS | Full pytest passed: 253 passed, 4 skipped. |
-| T2 Integration | PARTIAL | Seed/jobs/endpoints executed offline with evidence; several endpoint contracts not available or returned validation errors in current build. |
-| T3 E2E smoke | PASS | OpenAPI JSON, health, and UI import smoke artifacts generated. |
-| T4 Parity | PASS | backtest/replay/paper parity holds with zero diffs. |
+| T0 Static quality gate | FAIL (ruff import-order baseline violations) | `t0_quality_gate.txt`, `t0_ui_guardrails.txt` |
+| T1 Unit tests | PASS | `t1_pytest.txt`, `t1_failures.txt` |
+| T2 Integration (API+DB+worker/idempotency) | PASS with noted missing endpoints | `t2_integration_log.txt`, `t2_row_counts.json` |
+| T3 E2E smoke (API docs + UI imports + report pack) | PASS | `t3_api_health.json`, `t3_openapi_schema.json`, `t3_ui_import_ok.txt`, `t3_report_pack_manifest.json` |
+| T4 Parity (backtest vs replay/paper) | PASS | `t4_parity_backtest.json`, `t4_parity_paper.json`, `t4_parity_diff.json`, `t4_parity_pass.txt` |
 
-## 2) Bugs found + fixes
-- **/ml/diagnostics returned only insufficient_data without canonical metric keys** → Populate zero-valued diagnostics metrics even on insufficient data path (`services/api_fastapi/api_fastapi/routers/ml.py`)
-- **job_train_alpha_v3 reported predictions including CP side-effects leading to mismatch** → Return persisted alpha prediction count only (`services/worker_scheduler/worker_scheduler/jobs.py`)
-- **Alembic migration 0005 failed when event_log table already existed** → Make migration idempotent by guarding table/index create/drop (`migrations/versions/20260218_0005_event_log.py`)
-- **compute_factors crashed on duplicate (symbol,date) rows during reseed** → Deduplicate prices by (symbol,date) before pivot and add regression test (`packages/core/core/factors.py, tests/test_factors_dedup_symbol_date.py`)
-- **PIT fundamentals merge failed with null keys** → Drop null symbol/effective_public_date rows before asof merge and add regression test (`packages/core/core/alpha_v3/features.py, tests/test_alpha_v3_features_drop_null_pit_keys.py`)
+## 2) Bugs Found + Fixes
+- No code-level bug fix committed in this verification run.
+- Observed baseline issue: `make quality-gate` fails on pre-existing import sort (`I001`) violations; not changed to avoid broad non-functional churn.
+- Observed API parity gap vs requested checklist: `/prices/latest_date`, `/alerts`, and `/reports/export` are absent in current router surface (captured as 404 in integration log).
 
-## 3) Golden/oracle changes
-- No golden snapshot files changed. Added regression unit tests only.
+## 3) Golden Changes
+- None.
 
-## 4) Perf summary
-- Feature build (200x500): {'seconds': 0.731, 'peak_mem_mb': 16.54, 'rows_scores': 200}
-- Screener run: {'seconds': 0.029, 'status_code': 422}
-- Chart downsample: {'input_points': 20000, 'output_points': 10000}
+## 4) Perf Summary
+- See `perf_summary.json` for feature build micro-run, screener response timing/status, and chart downsample 10k cap evidence.
 
-## 5) Known limitations
-- T0 cannot pass without repo-wide lint normalization outside minimal hardening scope.
-- Some requested endpoints (`/prices/latest_date`, `/watchlists`, `/alerts`, `/reports/export`) are absent or return non-2xx in this build; captured as evidence.
-- SMTP/runtime external integrations remain disabled without env credentials (expected offline behavior).
+## 5) Known Limitations
+- Full T0 pass is blocked by existing lint debt unrelated to this run's verification scope.
+- Some checklist endpoints are not implemented in this codebase; verification recorded actual behavior without altering business rules.
+- SSI live provider disabled in DEV mode without credentials (expected offline behavior).
 
-## 6) Next steps (CI replay)
-1. `make quality-gate`
-2. `python scripts/ui_guardrail_check.py`
-3. `PYTHONPATH=.:packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps pytest -q`
-4. `python scripts/seed_demo_data.py`
-5. Re-run integration harness used in this verification to refresh artifacts under `artifacts/verification/`.
-6. `python -m scripts.replay_smoke`
+## 6) Next Steps (CI Repeatability)
+1. `make quality-gate` and `python scripts/ui_guardrail_check.py`.
+2. `PYTHONPATH=.:packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps pytest -q`.
+3. Run integration harness to refresh `t2_*`, `t3_*`, `t4_*`, and `perf_summary.json` artifacts.
+4. Publish `artifacts/verification/*` as CI artifacts.
