@@ -268,7 +268,8 @@ def apply_cp_predictions(session: Session, as_of_date: dt.date) -> int:
         st = _get_or_create_state(session, b)
         width = cp_interval_half_width(session, b, st.alpha_b)
 
-        score = float(p.pred_base) + 0.45 * float(p.mu) - 0.35 * float(width)
+        base_combo = 0.55 * float(p.pred_base) + 0.45 * float(p.mu)
+        score = base_combo - 0.35 * float(width)
         row = existing.get(p.symbol)
         if row is None:
             row = AlphaPrediction(

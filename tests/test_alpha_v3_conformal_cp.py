@@ -107,3 +107,23 @@ def test_cp_prediction_and_coverage_rows_created() -> None:
         assert len(cp_rows) > 0
         assert all(np.isfinite(r.score) for r in cp_rows)
         assert len(cov_rows) >= 0
+
+
+def test_cp_score_uses_base_combo_minus_uncert_penalty() -> None:
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as s:
+        day = dt.date(2024, 5, 20)
+        s.add(MlFeature(symbol="AAA", as_of_date=day, feature_version="v3", adv20_value=100.0))
+        s.add(AlphaPrediction(model_id="alpha_v3", as_of_date=day, symbol="AAA", score=0.0, mu=0.4, uncert=0.1, pred_base=0.2))
+        # seed residual history so non-zero CP width exists
+        for i in range(50):
+            s.add(ConformalResidual(model_id=MODEL_ID_CP, date=dt.date(2024, 1, 1) + dt.timedelta(days=i), symbol=f"S{i}", bucket_id=0, abs_residual=0.1, miss=0.0))
+        s.commit()
+
+        _ = apply_cp_predictions(s, day)
+        row = s.exec(select(AlphaPrediction).where(AlphaPrediction.model_id == MODEL_ID_CP).where(AlphaPrediction.as_of_date == day).where(AlphaPrediction.symbol == "AAA")).first()
+        assert row is not None
+        expected = 0.55 * 0.2 + 0.45 * 0.4 - 0.35 * float(row.uncert)
+        assert abs(float(row.score) - expected) < 1e-9
