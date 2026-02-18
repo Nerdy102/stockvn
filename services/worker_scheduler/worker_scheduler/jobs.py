@@ -1456,8 +1456,9 @@ def job_train_alpha_v3(session: Session, as_of_date: dt.date | None = None) -> d
         return {"trained": 1, "predictions": 0}
 
     preds = predict_alpha_v3(session, as_of_date=pred_date, version=trained["version"])
+    cp = job_update_alpha_v3_cp(session, as_of_date=pred_date)
     mark_now(LAST_TRAIN_TS)
-    return {"trained": 1, "predictions": preds}
+    return {"trained": 1, "predictions": preds + int(cp.get("predictions", 0))}
 
 
 
@@ -1634,6 +1635,26 @@ def job_train_alpha_rankpair_v1(session: Session, as_of_date: dt.date | None = N
 
     preds = predict_alpha_rankpair_v1(session, as_of_date=pred_date, version=trained["version"])
     return {"trained": 1, "predictions": preds}
+
+
+
+
+def job_update_alpha_v3_cp(session: Session, as_of_date: dt.date | None = None) -> dict[str, int]:
+    from core.alpha_v3.conformal import apply_cp_predictions, update_delayed_residuals
+
+    pred_date = as_of_date
+    if pred_date is None:
+        pred_date = session.exec(
+            select(AlphaPrediction.as_of_date)
+            .where(AlphaPrediction.model_id == "alpha_v3")
+            .order_by(AlphaPrediction.as_of_date.desc())
+        ).first()
+    if pred_date is None:
+        return {"updated_residuals": 0, "predictions": 0}
+
+    updated_residuals = update_delayed_residuals(session, pred_date)
+    preds = apply_cp_predictions(session, pred_date)
+    return {"updated_residuals": updated_residuals, "predictions": preds}
 
 
 def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, Any]:

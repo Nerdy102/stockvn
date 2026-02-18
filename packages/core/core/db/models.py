@@ -638,6 +638,59 @@ class FeatureCoverage(SQLModel, table=True):
     metrics_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
+class ConformalState(SQLModel, table=True):
+    __tablename__ = "conformal_state"
+    __table_args__ = (Index("ux_conformal_state", "model_id", "bucket_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    bucket_id: int = Field(index=True)
+    alpha_b: float = 0.20
+    miss_ema: float = 0.20
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class ConformalResidual(SQLModel, table=True):
+    __tablename__ = "conformal_residuals"
+    __table_args__ = (Index("ux_conformal_residual", "model_id", "date", "symbol", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    symbol: str = Field(index=True)
+    bucket_id: int = Field(index=True)
+    abs_residual: float
+    miss: float
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class ConformalBucketSpec(SQLModel, table=True):
+    __tablename__ = "conformal_bucket_spec"
+    __table_args__ = (Index("ux_conformal_bucket_spec", "model_id", "month_start", "bucket_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    month_start: dt.date = Field(index=True)
+    bucket_id: int = Field(index=True)
+    low: float | None = None
+    high: float | None = None
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class ConformalCoverageDaily(SQLModel, table=True):
+    __tablename__ = "conformal_coverage_daily"
+    __table_args__ = (Index("ux_conformal_coverage_daily", "model_id", "date", "bucket_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    model_id: str = Field(index=True)
+    date: dt.date = Field(index=True)
+    bucket_id: int = Field(index=True)
+    coverage: float
+    interval_half_width: float
+    count: int
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
 
 
 class MlLabel(SQLModel, table=True):

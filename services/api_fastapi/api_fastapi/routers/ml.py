@@ -17,6 +17,7 @@ from core.db.models import (
     BacktestRun,
     DiagnosticsMetric,
     DiagnosticsRun,
+    ConformalCoverageDaily,
     DsrResult,
     ForeignRoom,
     MlPrediction,
@@ -477,3 +478,29 @@ def backtest(
 
     db.commit()
     return {"cached": False, "run_hash": key, **out}
+
+
+@router.get("/alpha_v3_cp/coverage")
+def alpha_v3_cp_coverage(
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> dict:
+    q = select(ConformalCoverageDaily).where(ConformalCoverageDaily.model_id == "alpha_v3_cp")
+    if start:
+        q = q.where(ConformalCoverageDaily.date >= dt.datetime.strptime(start, "%d-%m-%Y").date())
+    if end:
+        q = q.where(ConformalCoverageDaily.date <= dt.datetime.strptime(end, "%d-%m-%Y").date())
+    rows = db.exec(q.order_by(ConformalCoverageDaily.date.asc(), ConformalCoverageDaily.bucket_id.asc())).all()
+
+    by_bucket: dict[int, list[dict]] = {0: [], 1: [], 2: []}
+    for r in rows:
+        by_bucket.setdefault(int(r.bucket_id), []).append(
+            {
+                "date": r.date.isoformat(),
+                "coverage": float(r.coverage),
+                "interval_half_width": float(r.interval_half_width),
+                "count": int(r.count),
+            }
+        )
+    return {"model_id": "alpha_v3_cp", "buckets": by_bucket}
