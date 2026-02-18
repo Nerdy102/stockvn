@@ -1,0 +1,24 @@
+{
+  "summary_disabled": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  },
+  "bars_disabled": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  },
+  "signals_disabled": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  },
+  "top_movers_disabled": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  },
+  "volume_spikes_disabled": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  },
+  "limit_violation_bars_status": 422,
+  "limit_violation_hot_status": 422
+}

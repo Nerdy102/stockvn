@@ -1,0 +1,65 @@
+{
+  "job": {
+    "snapshots": 3,
+    "candidates": 4,
+    "incidents_created": 4
+  },
+  "incidents": [
+    {
+      "source": "realtime_ops:gateway",
+      "severity": "HIGH",
+      "summary": "REALTIME_LAG_HIGH on gateway",
+      "runbook_id": "runbook:realtime_lag",
+      "details": {
+        "code": "REALTIME_LAG_HIGH",
+        "service": "gateway",
+        "metric": "ingest_lag_s_p95",
+        "threshold": 5.0,
+        "value": 6.8,
+        "window_s": 300
+      }
+    },
+    {
+      "source": "realtime_ops:bar_builder",
+      "severity": "HIGH",
+      "summary": "BAR_BUILD_SLOW on bar_builder",
+      "runbook_id": "runbook:bar_perf",
+      "details": {
+        "code": "BAR_BUILD_SLOW",
+        "service": "bar_builder",
+        "metric": "bar_build_latency_s_p95",
+        "threshold": 3.0,
+        "value": 3.2,
+        "window_s": 300
+      }
+    },
+    {
+      "source": "realtime_ops:bar_builder",
+      "severity": "HIGH",
+      "summary": "STREAM_BACKLOG on bar_builder",
+      "runbook_id": "runbook:redis_backlog",
+      "details": {
+        "code": "STREAM_BACKLOG",
+        "service": "bar_builder",
+        "metric": "redis_stream_pending",
+        "threshold": 50000.0,
+        "value": 70000.0,
+        "window_s": 300
+      }
+    },
+    {
+      "source": "realtime_ops:signal_engine",
+      "severity": "MEDIUM",
+      "summary": "SIGNAL_SLOW on signal_engine",
+      "runbook_id": "runbook:signal_perf",
+      "details": {
+        "code": "SIGNAL_SLOW",
+        "service": "signal_engine",
+        "metric": "signal_latency_s_p95",
+        "threshold": 5.0,
+        "value": 5.8,
+        "window_s": 300
+      }
+    }
+  ]
+}

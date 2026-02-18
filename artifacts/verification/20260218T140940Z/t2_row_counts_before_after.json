@@ -1,0 +1,23 @@
+{
+  "before": {
+    "tickers": 11,
+    "prices_daily": 2750,
+    "fundamentals": 10,
+    "signals": 3,
+    "alerts": 0
+  },
+  "after_once": {
+    "tickers": 11,
+    "prices_daily": 2750,
+    "fundamentals": 10,
+    "signals": 3,
+    "alerts": 0
+  },
+  "after_twice": {
+    "tickers": 11,
+    "prices_daily": 2750,
+    "fundamentals": 10,
+    "signals": 3,
+    "alerts": 0
+  }
+}

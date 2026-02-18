@@ -1,0 +1,2 @@
+docker_compose_config_exit=127
+rt_verify_exit=0

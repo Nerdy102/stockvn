@@ -1,0 +1,31 @@
+{
+  "snapshots": [
+    {
+      "service": "gateway",
+      "window_s": 300,
+      "ingest_lag_s_p95": 6.8,
+      "ingest_lag_s_p50": 2.1,
+      "bar_build_latency_s_p95": 0.2,
+      "signal_latency_s_p95": 0.1,
+      "redis_stream_pending": 100
+    },
+    {
+      "service": "bar_builder",
+      "window_s": 300,
+      "ingest_lag_s_p95": 0.5,
+      "bar_build_latency_s_p95": 3.2,
+      "bar_build_latency_s_p50": 1.2,
+      "signal_latency_s_p95": 0.1,
+      "redis_stream_pending": 70000
+    },
+    {
+      "service": "signal_engine",
+      "window_s": 300,
+      "ingest_lag_s_p95": 0.4,
+      "bar_build_latency_s_p95": 0.3,
+      "signal_latency_s_p95": 5.8,
+      "signal_latency_s_p50": 2.2,
+      "redis_stream_pending": 12
+    }
+  ]
+}

@@ -1,0 +1,241 @@
+{
+  "status": "NOT READY",
+  "stages": {
+    "T0_quality_gates": "FAIL",
+    "T1_pytest": "FAIL",
+    "T2_batch_pipeline": "PASS",
+    "T3_realtime_smoke": "FAIL",
+    "T4_realtime_api": "FAIL",
+    "T5_ui_smoke": "FAIL",
+    "T6_oms_reconcile": "PASS",
+    "T7_slo_incidents": "PASS",
+    "T8_chaos_load": "FAIL",
+    "T9_quant_governance": "PASS",
+    "T10_report_pack": "PASS"
+  },
+  "stage_details": {
+    "T0_quality_gates": "quality_gate_exit=2\nui_guardrail_exit=0",
+    "T1_pytest": "pytest_exit=2",
+    "T2_batch_pipeline": "seed_exit=0\npipeline_exit=0",
+    "T3_realtime_smoke": "docker_compose_config_exit=127\nrt_verify_exit=0",
+    "T4_realtime_api": "api_surface=recorded_with_enabled_connection_issue",
+    "T5_ui_smoke": "ui_import_exit=2\nui_budget_exit=2",
+    "T6_oms_reconcile": "t6_tests_exit=0",
+    "T7_slo_incidents": "t7_tests_exit=0",
+    "T8_chaos_load": "small_load_exit=0\nsmall_chaos_exit=0\nfull_load_exit=0",
+    "T9_quant_governance": "t9_tests_exit=0",
+    "T10_report_pack": "t10_tests_exit=0"
+  },
+  "hashes": {
+    "t3_realtime_determinism_hash_compare.json": {
+      "load_bars_hash": "c92628b2675183d0ea8070e07ea22c82e117c226bf4fe39d4f5035a1005a9966",
+      "chaos_bars_hash": "b71af41bb1570363dd9ce461d548bc064424dee73b5b8e80132378a0c964a386",
+      "deterministic": false
+    },
+    "t8_rt_chaos_report.json": {
+      "scenario": "chaos",
+      "seed": 42,
+      "symbols": 500,
+      "days": 2,
+      "event_count_after_chaos": 9454,
+      "faults": {
+        "duplicate_ratio": 0.05,
+        "delay_ratio": 0.02,
+        "delay_seconds": 30,
+        "disconnect_reconnect_once": true,
+        "backlog_pause_seconds": 60
+      },
+      "invariants": {
+        "no_duplicate_bars": true,
+        "bars_hash_deterministic": true,
+        "signals_idempotent": true,
+        "no_negative_qty": true,
+        "no_negative_cash": true,
+        "lag_recovered": true,
+        "duplicate_event_count": 450,
+        "duplicate_bar_count": 0,
+        "duplicate_signal_count": 0,
+        "bars_hash": "b71af41bb1570363dd9ce461d548bc064424dee73b5b8e80132378a0c964a386",
+        "lag_tail": [
+          8.0,
+          7.0,
+          6.0,
+          4.0,
+          2.0
+        ]
+      },
+      "perf": {
+        "signal_update_500_symbols_one_bar_s": 1.75,
+        "peak_memory_mb": 512.0,
+        "signal_update_budget_ok": true,
+        "peak_memory_budget_ok": true
+      },
+      "pass": true
+    },
+    "t8_rt_load_report.json": {
+      "scenario": "baseline_load",
+      "seed": 42,
+      "symbols": 500,
+      "days": 2,
+      "event_count": 9000,
+      "perf": {
+        "signal_update_500_symbols_one_bar_s": 0.0424,
+        "signal_update_budget_s": 3.0,
+        "signal_update_budget_ok": true,
+        "peak_memory_mb": 35.74,
+        "peak_memory_budget_mb": 1536.0,
+        "peak_memory_budget_ok": true
+      },
+      "invariants": {
+        "no_duplicate_bars": true,
+        "bars_hash_deterministic": true,
+        "signals_idempotent": true,
+        "no_negative_qty": true,
+        "no_negative_cash": true,
+        "lag_recovered": true,
+        "duplicate_event_count": 0,
+        "duplicate_bar_count": 0,
+        "duplicate_signal_count": 0,
+        "bars_hash": "c92628b2675183d0ea8070e07ea22c82e117c226bf4fe39d4f5035a1005a9966",
+        "lag_tail": [
+          8.0,
+          7.0,
+          6.0,
+          4.0,
+          2.0
+        ]
+      }
+    }
+  },
+  "counts": {
+    "before": {
+      "tickers": 11,
+      "prices_daily": 2750,
+      "fundamentals": 10,
+      "signals": 3,
+      "alerts": 0
+    },
+    "after_once": {
+      "tickers": 11,
+      "prices_daily": 2750,
+      "fundamentals": 10,
+      "signals": 3,
+      "alerts": 0
+    },
+    "after_twice": {
+      "tickers": 11,
+      "prices_daily": 2750,
+      "fundamentals": 10,
+      "signals": 3,
+      "alerts": 0
+    }
+  },
+  "timings": {},
+  "incidents": {
+    "t7_incidents_created.json": {
+      "job": {
+        "snapshots": 3,
+        "candidates": 4,
+        "incidents_created": 4
+      },
+      "incidents": [
+        {
+          "source": "realtime_ops:gateway",
+          "severity": "HIGH",
+          "summary": "REALTIME_LAG_HIGH on gateway",
+          "runbook_id": "runbook:realtime_lag",
+          "details": {
+            "code": "REALTIME_LAG_HIGH",
+            "service": "gateway",
+            "metric": "ingest_lag_s_p95",
+            "threshold": 5.0,
+            "value": 6.8,
+            "window_s": 300
+          }
+        },
+        {
+          "source": "realtime_ops:bar_builder",
+          "severity": "HIGH",
+          "summary": "BAR_BUILD_SLOW on bar_builder",
+          "runbook_id": "runbook:bar_perf",
+          "details": {
+            "code": "BAR_BUILD_SLOW",
+            "service": "bar_builder",
+            "metric": "bar_build_latency_s_p95",
+            "threshold": 3.0,
+            "value": 3.2,
+            "window_s": 300
+          }
+        },
+        {
+          "source": "realtime_ops:bar_builder",
+          "severity": "HIGH",
+          "summary": "STREAM_BACKLOG on bar_builder",
+          "runbook_id": "runbook:redis_backlog",
+          "details": {
+            "code": "STREAM_BACKLOG",
+            "service": "bar_builder",
+            "metric": "redis_stream_pending",
+            "threshold": 50000.0,
+            "value": 70000.0,
+            "window_s": 300
+          }
+        },
+        {
+          "source": "realtime_ops:signal_engine",
+          "severity": "MEDIUM",
+          "summary": "SIGNAL_SLOW on signal_engine",
+          "runbook_id": "runbook:signal_perf",
+          "details": {
+            "code": "SIGNAL_SLOW",
+            "service": "signal_engine",
+            "metric": "signal_latency_s_p95",
+            "threshold": 5.0,
+            "value": 5.8,
+            "window_s": 300
+          }
+        }
+      ]
+    },
+    "t6_governance_pause_evidence.json": {
+      "status": "RUNNING",
+      "pause_reason": "",
+      "updated_at": null,
+      "last_reconciliation": null,
+      "realtime_ops": {
+        "gauges": {
+          "ingest_lag_s_p95": 0.0,
+          "bar_build_latency_s_p95": 0.0,
+          "signal_latency_s_p95": 0.0,
+          "redis_stream_pending": 0.0
+        },
+        "runbooks": {
+          "REALTIME_LAG_HIGH": "runbook:realtime_lag",
+          "BAR_BUILD_SLOW": "runbook:bar_perf",
+          "SIGNAL_SLOW": "runbook:signal_perf",
+          "STREAM_BACKLOG": "runbook:redis_backlog"
+        }
+      }
+    }
+  },
+  "governance": {
+    "status": "RUNNING",
+    "pause_reason": "",
+    "updated_at": null,
+    "last_reconciliation": null,
+    "realtime_ops": {
+      "gauges": {
+        "ingest_lag_s_p95": 0.0,
+        "bar_build_latency_s_p95": 0.0,
+        "signal_latency_s_p95": 0.0,
+        "redis_stream_pending": 0.0
+      },
+      "runbooks": {
+        "REALTIME_LAG_HIGH": "runbook:realtime_lag",
+        "BAR_BUILD_SLOW": "runbook:bar_perf",
+        "SIGNAL_SLOW": "runbook:signal_perf",
+        "STREAM_BACKLOG": "runbook:redis_backlog"
+      }
+    }
+  }
+}

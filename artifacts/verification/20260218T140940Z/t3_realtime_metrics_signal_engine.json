@@ -1,0 +1,5 @@
+{
+  "service": "signal_engine",
+  "from": "harness",
+  "signals_idempotent": true
+}

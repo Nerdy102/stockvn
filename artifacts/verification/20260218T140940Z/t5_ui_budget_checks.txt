@@ -1,0 +1,15 @@
+
+==================================== ERRORS ====================================
+_____________ ERROR collecting tests/test_ui_perf_budget_range.py ______________
+ImportError while importing test module '/workspace/stockvn/tests/test_ui_perf_budget_range.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/root/.pyenv/versions/3.10.19/lib/python3.10/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_ui_perf_budget_range.py:7: in <module>
+    from apps.dashboard_streamlit.ui.perf import DAILY_MAX_DAYS_DEFAULT, enforce_bounded_range
+E   ModuleNotFoundError: No module named 'apps'
+=========================== short test summary info ============================
+ERROR tests/test_ui_perf_budget_range.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.41s

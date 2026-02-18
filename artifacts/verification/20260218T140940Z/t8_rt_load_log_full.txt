@@ -1,0 +1,1 @@
+PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m tools.realtime_harness.run_load --symbols 500 --days 2 --seed 42 --out artifacts/verification/RT_LOAD_REPORT.json

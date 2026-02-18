@@ -1,0 +1,8 @@
+{
+  "note": "report-pack tests executed; inspect t10_tests.txt",
+  "required_hashes": [
+    "dataset_hash",
+    "config_hash",
+    "code_hash"
+  ]
+}

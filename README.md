@@ -237,3 +237,49 @@ Replayable evidence pack is stored in `tests/fixtures/replay/`:
 Rollback plan:
 - Disable realtime profile/feature flags and keep API + batch analytics online.
 - Continue offline replay/analysis workflows until incidents are resolved.
+
+## Realtime UI behavior and budgets
+
+- Realtime API surface is bounded and pull-only (no websocket):
+  - `GET /realtime/summary`
+  - `GET /realtime/bars?symbol=&tf=&limit<=500`
+  - `GET /realtime/signals?symbol=&tf=&limit<=500`
+  - `GET /realtime/hot/top_movers?tf=&limit<=100`
+  - `GET /realtime/hot/volume_spikes?tf=&limit<=100`
+- If realtime is unavailable, endpoints return graceful payload:
+  `{"realtime_disabled": true, "message": "..."}`.
+- Streamlit topbar polls realtime summary every 2s in `LIVE/PAPER` when realtime is enabled.
+- If `stream_lag_s > 5`, UI throttles polling to 5s and shows throttled badge.
+- Chart page keeps `Live refresh` default `OFF`; when enabled it only requests latest 200 bars.
+- Charts never render beyond `MAX_POINTS_PER_CHART`; deterministic downsampling is applied to stay responsive.
+
+
+## Trading OPS hardening (paper OMS)
+
+- OMS lifecycle implemented: `NEW -> VALIDATED -> SUBMITTED -> PARTIAL_FILLED -> FILLED -> CANCELLED -> REJECTED -> EXPIRED`.
+- Paper-only order endpoint: `/orders/submit` (`adapter=paper` required), idempotent by `client_order_id`.
+- Pre-trade hard checks enforce:
+  - max single-name <= 10% NAV
+  - max sector <= 25% NAV
+  - min cash >= 5% NAV
+  - liquidity cap `position_value <= ADTV * 0.05 * 3`
+  - tick / lot / session validation via market rules.
+- Reconciliation fail-safe creates data incident and sets governance `PAUSED` on mismatch.
+- Governance status is exposed at `/governance/status` and surfaced in Portfolio/New Orders UI.
+
+
+## Realtime observability SLOs & incident automation
+
+- Rolling 5-minute SLO windows are computed with cheap in-memory deque + percentile snapshots.
+- SLO metrics tracked:
+  - gateway: `ingest_lag_s` p50/p95
+  - bar builder: `bar_build_latency_s` p50/p95
+  - signal engine: `signal_latency_s` p50/p95
+  - `redis_stream_pending`
+- Incident automation rules:
+  - `REALTIME_LAG_HIGH` (`runbook:realtime_lag`) when ingest lag p95 > 5s
+  - `BAR_BUILD_SLOW` (`runbook:bar_perf`) when bar build latency p95 > 3s
+  - `SIGNAL_SLOW` (`runbook:signal_perf`) when signal latency p95 > 5s
+  - `STREAM_BACKLOG` (`runbook:redis_backlog`) when pending > 50,000
+- Worker job `job_realtime_incident_monitor` evaluates SLO snapshots and creates deterministic `data_health_incidents` rows with runbook IDs.
+- Data Health UI exposes realtime ops gauges/incidents/runbook IDs and governance endpoint includes realtime ops gauges.

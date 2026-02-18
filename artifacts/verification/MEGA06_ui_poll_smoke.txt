@@ -1,0 +1,4 @@
+poll_summary smoke
+default interval (lag=2): 2.0s
+throttled interval (lag=8): 5.0s
+live refresh default: OFF (value=False in chart checkbox)

@@ -20,6 +20,7 @@ from apps.dashboard_streamlit.ui.perf import (
 
 PAGE_ID = "chart"
 PAGE_TITLE = "Chart"
+LIVE_BARS_LIMIT = 200
 
 
 def _tickers_universe() -> list[dict]:
@@ -55,6 +56,7 @@ def render() -> None:
     timeframe = c2.selectbox("Timeframe", options=["1D", "1W", "60m", "15m"], index=0)
     adjusted = c3.checkbox("Adjusted (CA/TR aware)", value=True)
     show_ca = c4.checkbox("Show CA markers", value=True)
+    live_refresh = st.checkbox("Live refresh", value=False, help="Fetch realtime last 200 bars only")
 
     end = st.date_input("End", value=st.session_state.get("as_of_date", dt.date(2025, 12, 31)))
     start = st.date_input("Start", value=end - dt.timedelta(days=365))
@@ -78,6 +80,17 @@ def render() -> None:
         },
         ttl_s=300 if tf == "1D" else 60,
     )
+    if live_refresh:
+        rt_bars = cached_get_json(
+            "/realtime/bars",
+            params={"symbol": symbol, "tf": tf, "limit": LIVE_BARS_LIMIT},
+            ttl_s=1,
+        )
+        if isinstance(rt_bars, dict) and not rt_bars.get("realtime_disabled"):
+            ohlcv_resp["rows"] = rt_bars.get("rows", [])[-LIVE_BARS_LIMIT:]
+            st.caption(f"Live refresh ON: using realtime cache ({LIVE_BARS_LIMIT} bars max).")
+        else:
+            st.caption("Live refresh ON but realtime is unavailable; showing historical API data.")
     ind_resp = cached_get_json(
         "/chart/indicators",
         params={
@@ -105,6 +118,24 @@ def render() -> None:
     ohlcv = _to_df(ohlcv_resp.get("rows", []))
     indicators = _to_df(ind_resp.get("rows", []))
     alpha = _to_df(alpha_resp.get("rows", []))
+
+    hot_c1, hot_c2 = st.columns(2)
+    with hot_c1:
+        st.caption("Top movers (realtime)")
+        try:
+            top_movers = cached_get_json("/realtime/hot/top_movers", params={"tf": tf, "limit": 10}, ttl_s=2)
+            st.dataframe(pd.DataFrame(top_movers.get("rows", [])), use_container_width=True, height=180)
+        except Exception:
+            st.caption("No realtime top movers.")
+    with hot_c2:
+        st.caption("Volume spikes (realtime)")
+        try:
+            vol_spikes = cached_get_json(
+                "/realtime/hot/volume_spikes", params={"tf": tf, "limit": 10}, ttl_s=2
+            )
+            st.dataframe(pd.DataFrame(vol_spikes.get("rows", [])), use_container_width=True, height=180)
+        except Exception:
+            st.caption("No realtime volume spikes.")
 
     if ohlcv.empty:
         st.warning("No OHLCV data.")

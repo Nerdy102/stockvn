@@ -1,0 +1,9 @@
+{
+  "run_id": 1,
+  "status": "MISMATCH",
+  "equity": 999998500.0,
+  "target": 123.0,
+  "gap": 999998377.0,
+  "incident_id": 1,
+  "governance_paused": true
+}

@@ -27,6 +27,24 @@ def render() -> None:
     open_df = pd.DataFrame(summary.get("open_incidents", []))
     st.dataframe(open_df, use_container_width=True)
 
+    st.subheader("Realtime Ops")
+    try:
+        rt_ops = cached_get_json("/data/health/realtime_ops", params=None, ttl_s=10)
+    except Exception:
+        rt_ops = {"gauges": {}, "incidents": [], "runbooks": {}, "snapshots": []}
+
+    gauges_rt = rt_ops.get("gauges", {})
+    r1, r2, r3, r4 = st.columns(4)
+    r1.metric("Ingest lag p95 (s)", f"{float(gauges_rt.get('ingest_lag_s_p95', 0.0)):.2f}")
+    r2.metric("Bar build p95 (s)", f"{float(gauges_rt.get('bar_build_latency_s_p95', 0.0)):.2f}")
+    r3.metric("Signal latency p95 (s)", f"{float(gauges_rt.get('signal_latency_s_p95', 0.0)):.2f}")
+    r4.metric("Redis pending", f"{float(gauges_rt.get('redis_stream_pending', 0.0)):,.0f}")
+
+    st.caption("Runbook IDs")
+    st.json(rt_ops.get("runbooks", {}))
+    st.caption("Realtime incidents")
+    st.dataframe(pd.DataFrame(rt_ops.get("incidents", [])), use_container_width=True)
+
     st.subheader("Incident detail")
     try:
         incidents = cached_get_json("/data/health/incidents", params={"limit": 200}, ttl_s=30)

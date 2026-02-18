@@ -1,0 +1,8 @@
+{
+  "signal_update_s": 0.0424,
+  "signal_budget_ok": true,
+  "peak_memory_mb": 35.74,
+  "peak_memory_budget_ok": true,
+  "chaos_pass": true,
+  "lag_recovered": true
+}

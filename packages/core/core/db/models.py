@@ -572,6 +572,71 @@ class Trade(SQLModel, table=True):
     external_id: str = Field(index=True)
 
 
+
+
+class Order(SQLModel, table=True):
+    __tablename__ = "orders"
+    __table_args__ = (
+        Index("ux_orders_client_order_id", "client_order_id", unique=True),
+        Index("ix_orders_portfolio_state", "portfolio_id", "state"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    portfolio_id: int = Field(index=True)
+    client_order_id: str = Field(index=True)
+    symbol: str = Field(index=True)
+    side: str = Field(index=True)
+    quantity: float
+    price: float
+    order_type: str = Field(default="LIMIT", index=True)
+    adapter: str = Field(default="paper", index=True)
+    state: str = Field(default="NEW", index=True)
+    reject_reason: str = ""
+    idempotent_key: str = Field(default="", index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow)
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class Fill(SQLModel, table=True):
+    __tablename__ = "fills"
+    __table_args__ = (
+        Index("ix_fills_order_id", "order_id"),
+        Index("ux_fills_order_exec", "order_id", "execution_id", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    order_id: int
+    execution_id: str = Field(index=True)
+    quantity: float
+    price: float
+    commission: float = 0.0
+    taxes: float = 0.0
+    filled_at: dt.datetime = Field(default_factory=utcnow, index=True)
+
+
+class ReconciliationRun(SQLModel, table=True):
+    __tablename__ = "reconciliation_runs"
+    __table_args__ = (Index("ix_recon_created", "created_at"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    portfolio_id: int = Field(index=True)
+    status: str = Field(default="OK", index=True)
+    tolerance_vnd: float = 1.0
+    equity_gap: float = 0.0
+    details_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class GovernanceState(SQLModel, table=True):
+    __tablename__ = "governance_state"
+
+    id: int | None = Field(default=None, primary_key=True)
+    status: str = Field(default="RUNNING", index=True)
+    pause_reason: str = ""
+    source: str = Field(default="system", index=True)
+    updated_at: dt.datetime = Field(default_factory=utcnow, index=True)
+
+
 class JobRun(SQLModel, table=True):
     __table_args__ = (Index("ix_job_run_job_start", "job_name", "start_ts"),)
 

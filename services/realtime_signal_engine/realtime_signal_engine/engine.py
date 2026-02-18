@@ -7,6 +7,7 @@ from typing import Any
 
 import pandas as pd
 
+from core.observability.slo import RollingSLO, build_slo_snapshot, snapshot_to_metrics_json
 from indicators.incremental import IndicatorState, update_indicators_state
 
 from .evaluator import evaluate_alert_dsl_on_bar_close, evaluate_setups, governance_paused_flag
@@ -26,6 +27,7 @@ class RealtimeSignalEngine:
         self.storage = storage
         self.state = StateStore(redis_client)
         self.config = config or {}
+        self._signal_latency_s = RollingSLO()
 
     def _read_bar_close_stream(self, tf: str) -> list[dict[str, Any]]:
         rows = self.redis.xrange(f"stream:bar_close:{tf}")
@@ -94,6 +96,10 @@ class RealtimeSignalEngine:
                     )
                 setups = evaluate_setups(hdf, indicators)
                 paused = governance_paused_flag(self.config)
+                signal_ts = dt.datetime.utcnow()
+                lag_signal_s = max(0.0, (signal_ts.replace(tzinfo=end_ts.tzinfo) - end_ts).total_seconds())
+                self._signal_latency_s.add(lag_signal_s)
+
                 snapshot = {
                     "symbol": symbol,
                     "timeframe": tf,
@@ -101,6 +107,7 @@ class RealtimeSignalEngine:
                     "indicators_json": indicators,
                     "setups_json": setups,
                     "order_generation_enabled": not paused,
+                    "signal_ts": signal_ts.isoformat() + "Z",
                 }
                 snapshot["signal_hash"] = sha256(
                     json.dumps(
@@ -132,5 +139,12 @@ class RealtimeSignalEngine:
                     if setups.get("volume_spike", False):
                         self.state.push_hot("volume_spike", payload)
 
-        self.state.set_ops_summary({"last_update": now.isoformat() + "Z", "lag": 0, **metrics})
+        slo = build_slo_snapshot(service="signal_engine", signal_latency=self._signal_latency_s.snapshot())
+        self.state.set_ops_summary({"last_update": now.isoformat() + "Z", "lag": 0, **metrics, "slo": slo})
         return metrics
+
+    def metrics_view(self) -> dict[str, Any]:
+        snap = build_slo_snapshot(service="signal_engine", signal_latency=self._signal_latency_s.snapshot())
+        out: dict[str, Any] = {}
+        out.update(snapshot_to_metrics_json(snap))
+        return out

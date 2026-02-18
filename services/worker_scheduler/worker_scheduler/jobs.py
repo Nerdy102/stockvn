@@ -2651,3 +2651,100 @@ def job_schema_monitor(
             incidents = 1
     session.commit()
     return {"schema_versions": created, "incidents": incidents}
+
+
+def reconcile_intraday_job(session: Session, portfolio_id: int = 1) -> dict[str, Any]:
+    from core.fees_taxes import FeesTaxes
+    from core.reconciliation.reconcile import reconcile_portfolio
+    from core.settings import get_settings
+
+    settings = get_settings()
+    fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
+    return reconcile_portfolio(
+        session,
+        portfolio_id=portfolio_id,
+        broker_name=settings.BROKER_NAME,
+        fees=fees,
+        expected_equity=None,
+        tolerance_vnd=1.0,
+    )
+
+
+def killswitch_check_job(
+    session: Session,
+    *,
+    nav: float,
+    intraday_drawdown: float,
+    expected_daily_vol_proxy: float,
+) -> dict[str, Any]:
+    import datetime as dt
+
+    from core.db.models import GovernanceState
+    from core.risk_overlay import evaluate_intraday_killswitch
+
+    out = evaluate_intraday_killswitch(
+        nav=nav,
+        intraday_drawdown=intraday_drawdown,
+        expected_daily_vol_proxy=expected_daily_vol_proxy,
+    )
+    if out["paused"]:
+        gov = GovernanceState(
+            status="PAUSED",
+            pause_reason=str(out.get("reason") or "intraday_drawdown_killswitch"),
+            source="killswitch",
+            updated_at=dt.datetime.utcnow(),
+        )
+        session.add(gov)
+        session.commit()
+    return out
+
+
+def job_realtime_incident_monitor(
+    session: Session,
+    *,
+    snapshot_paths: list[str] | None = None,
+) -> dict[str, Any]:
+    from core.db.models import DataHealthIncident
+    from core.observability.slo import evaluate_incidents_from_snapshots, load_snapshots
+
+    paths = snapshot_paths or [
+        "artifacts/metrics/gateway_metrics.json",
+        "artifacts/metrics/bar_builder_metrics.json",
+        "artifacts/metrics/signal_engine_metrics.json",
+    ]
+    snapshots = load_snapshots(paths)
+    candidates = evaluate_incidents_from_snapshots(snapshots)
+
+    created = 0
+    for inc in candidates:
+        summary = str(inc.get("summary", ""))
+        source = str(inc.get("source", "realtime_ops"))
+        exists = session.exec(
+            select(DataHealthIncident)
+            .where(DataHealthIncident.source == source)
+            .where(DataHealthIncident.summary == summary)
+            .where(DataHealthIncident.status == "OPEN")
+        ).first()
+        if exists is not None:
+            continue
+        session.add(
+            DataHealthIncident(
+                source=source,
+                severity=str(inc.get("severity", "HIGH")),
+                status="OPEN",
+                summary=summary,
+                details_json=dict(inc.get("details_json") or {}),
+                runbook_section=str(inc.get("runbook_section", "runbook:unknown")),
+                suggested_actions_json={
+                    "actions": [
+                        "Open runbook and validate service health",
+                        "Scale/rollback realtime components as needed",
+                        "Confirm backlog and lag return below thresholds",
+                    ]
+                },
+            )
+        )
+        created += 1
+
+    session.commit()
+    return {"snapshots": len(snapshots), "candidates": len(candidates), "incidents_created": created}

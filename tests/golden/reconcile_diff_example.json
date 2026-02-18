@@ -1,0 +1,5 @@
+{
+  "status": "MISMATCH",
+  "reason": "equity_gap_or_negative_qty",
+  "governance_action": "PAUSED"
+}

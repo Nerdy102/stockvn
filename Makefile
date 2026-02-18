@@ -67,12 +67,13 @@ replay-smoke:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.replay_smoke
 
 rt-load-test:
-	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_load --symbols 500 --days 2 --seed 42 --out artifacts/verification/MEGA09_load_results.json
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_load --symbols 500 --days 2 --seed 42 --out artifacts/verification/RT_LOAD_REPORT.json
 
 rt-chaos-test:
-	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_chaos --seed 42 --out artifacts/verification/MEGA09_chaos_results.json
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_chaos --seed 42 --out artifacts/verification/RT_CHAOS_REPORT.json
 
 rt-verify: rt-load-test rt-chaos-test
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.verify_invariants --events artifacts/verification/RT_LOAD_EVENTS.jsonl --out artifacts/verification/RT_VERIFY_REPORT.json
 
 verify-program:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.verify_program

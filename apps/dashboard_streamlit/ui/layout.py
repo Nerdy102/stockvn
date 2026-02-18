@@ -9,6 +9,7 @@ from pathlib import Path
 import streamlit as st
 
 from apps.dashboard_streamlit.ui.cache import cached_get_json
+from apps.dashboard_streamlit.ui.realtime_poll import poll_summary
 from apps.dashboard_streamlit.ui.text import DISCLAIMER_SHORT
 from apps.dashboard_streamlit.ui.theme import apply_theme
 
@@ -23,6 +24,7 @@ NAV_ORDER = [
     "Research Lab",
     "Data Health",
     "Settings",
+    "New Orders",
 ]
 
 PAGE_PATHS = {
@@ -34,6 +36,7 @@ PAGE_PATHS = {
     "Research Lab": "apps/dashboard_streamlit/pages/6_ML_Lab.py",
     "Data Health": "apps/dashboard_streamlit/pages/8_Data_Health.py",
     "Settings": "apps/dashboard_streamlit/pages/9_Settings.py",
+    "New Orders": "apps/dashboard_streamlit/pages/10_New_Orders.py",
 }
 
 
@@ -96,6 +99,20 @@ def topbar(page_id: str) -> None:
             st.caption(f"As of: {as_of.isoformat()}")
         with c3:
             st.caption(f"Data freshness: {_load_data_health_summary()}")
+            realtime_enabled = bool(st.session_state.get("realtime_enabled", False))
+            summary = poll_summary(ui_mode=mode, realtime_enabled=realtime_enabled)
+            if summary.get("enabled"):
+                lag = summary.get("stream_lag_s")
+                throttled = bool(summary.get("throttled", False))
+                badge = "🟢 realtime"
+                if throttled:
+                    badge = "🟠 realtime throttled"
+                if lag is not None:
+                    st.caption(f"{badge} · lag={lag}s · poll={summary.get('interval_s', 2)}s")
+                else:
+                    st.caption(f"{badge} · poll={summary.get('interval_s', 2)}s")
+            elif summary.get("realtime_disabled"):
+                st.caption("⚪ realtime off")
         with c4:
             st.markdown(
                 f'<div class="disclaimer">⚠️ {DISCLAIMER_SHORT}</div>', unsafe_allow_html=True

@@ -1,0 +1,11 @@
+{
+  "late_event_policy": "simulated_in_harness",
+  "result": "lag_recovered",
+  "lag_tail": [
+    8.0,
+    7.0,
+    6.0,
+    4.0,
+    2.0
+  ]
+}

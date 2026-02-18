@@ -1,0 +1,1 @@
+PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m tools.realtime_harness.run_chaos --seed 42 --out artifacts/verification/RT_CHAOS_REPORT.json
