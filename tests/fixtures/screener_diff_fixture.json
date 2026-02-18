@@ -1,0 +1,11 @@
+{
+  "tickers": [
+    {"symbol":"AAA","name":"AAA","exchange":"HOSE","sector":"Tech","industry":"Soft"},
+    {"symbol":"BBB","name":"BBB","exchange":"HOSE","sector":"Bank","industry":"Bank"},
+    {"symbol":"CCC","name":"CCC","exchange":"HOSE","sector":"Tech","industry":"Hard"},
+    {"symbol":"DDD","name":"DDD","exchange":"HOSE","sector":"Bank","industry":"Bank"},
+    {"symbol":"EEE","name":"EEE","exchange":"HOSE","sector":"Tech","industry":"Chip"}
+  ],
+  "run1": {"scores": {"AAA": 1.0, "BBB": 0.8, "CCC": 0.6, "DDD": 0.4, "EEE": 0.2}},
+  "run2": {"scores": {"AAA": 0.7, "BBB": 1.1, "CCC": 0.5, "DDD": 0.9, "EEE": 0.1}}
+}

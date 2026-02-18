@@ -358,6 +358,140 @@ class AlertEvent(SQLModel, table=True):
     meta: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
+class Workspace(SQLModel, table=True):
+    __tablename__ = "workspaces"
+    __table_args__ = (Index("ux_workspaces_user_name", "user_id", "name", unique=True),)
+
+    id: str = Field(primary_key=True)
+    user_id: str | None = Field(default=None, index=True)
+    name: str = Field(index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class Watchlist(SQLModel, table=True):
+    __tablename__ = "watchlists"
+    __table_args__ = (Index("ux_watchlists_workspace_name", "workspace_id", "name", unique=True),)
+
+    id: str = Field(primary_key=True)
+    workspace_id: str = Field(index=True)
+    name: str
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class WatchlistItem(SQLModel, table=True):
+    __tablename__ = "watchlist_items"
+    __table_args__ = (
+        Index("ux_watchlist_items_watchlist_symbol", "watchlist_id", "symbol", unique=True),
+        Index("idx_watchlist_items_watchlist_id", "watchlist_id"),
+        Index("idx_watchlist_items_symbol", "symbol"),
+    )
+
+    id: str = Field(primary_key=True)
+    watchlist_id: str = Field(index=True)
+    symbol: str = Field(index=True)
+    tags_json: str = Field(default="[]", sa_column=Column(String, nullable=False))
+    note_text: str = Field(default="", sa_column=Column(String, nullable=False))
+    pinned: bool = False
+    created_at: dt.datetime = Field(default_factory=utcnow)
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class TagDictionary(SQLModel, table=True):
+    __tablename__ = "tag_dictionary"
+
+    tag: str = Field(primary_key=True)
+    description: str = Field(default="")
+    category: str = Field(default="")
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class SavedScreen(SQLModel, table=True):
+    __tablename__ = "saved_screens"
+    __table_args__ = (
+        Index("ix_saved_screens_workspace_updated", "workspace_id", "updated_at"),
+        Index("ux_saved_screens_workspace_name", "workspace_id", "name", unique=True),
+    )
+
+    id: str = Field(primary_key=True)
+    workspace_id: str = Field(index=True)
+    name: str = Field(index=True)
+    screen_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class ScreenRun(SQLModel, table=True):
+    __tablename__ = "screen_runs"
+    __table_args__ = (
+        Index("ix_screen_runs_saved_screen_run_at", "saved_screen_id", "run_at"),
+        Index("ix_screen_runs_as_of", "as_of_date"),
+        Index(
+            "ux_screen_runs_idempotent",
+            "saved_screen_id",
+            "as_of_date",
+            "screen_hash",
+            "universe_hash",
+            unique=True,
+        ),
+    )
+
+    id: str = Field(primary_key=True)
+    saved_screen_id: str | None = Field(default=None)
+    as_of_date: dt.date
+    run_at: dt.datetime = Field(default_factory=utcnow)
+    screen_hash: str
+    universe_hash: str
+    summary_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    diff_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class ScreenRunItem(SQLModel, table=True):
+    __tablename__ = "screen_run_items"
+    __table_args__ = (
+        Index("ix_screen_run_items_run_rank", "run_id", "rank"),
+        Index("ix_screen_run_items_symbol", "symbol"),
+        Index("ux_screen_run_items_run_symbol", "run_id", "symbol", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str
+    symbol: str
+    rank: int
+    score: float
+    explain_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class UserAnnotationV2(SQLModel, table=True):
+    __tablename__ = "user_annotations_v2"
+    __table_args__ = (
+        Index("ix_user_annotations_lookup", "workspace_id", "symbol", "timeframe", "version"),
+        Index("ix_user_annotations_window", "start_date", "end_date"),
+    )
+
+    id: str = Field(primary_key=True)
+    workspace_id: str = Field(index=True)
+    symbol: str = Field(index=True)
+    timeframe: str = Field(index=True)
+    start_date: dt.date
+    end_date: dt.date
+    version: int = Field(index=True)
+    shapes_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+    updated_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class AnnotationAudit(SQLModel, table=True):
+    __tablename__ = "annotation_audit"
+    __table_args__ = (Index("ix_annotation_audit_annotation_at", "annotation_id", "action_at"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    annotation_id: str = Field(index=True)
+    action: str = Field(index=True)
+    action_at: dt.datetime = Field(default_factory=utcnow, index=True)
+    actor: str = "system"
+    notes: str = ""
+
+
 class Portfolio(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -666,7 +800,9 @@ class ConformalResidual(SQLModel, table=True):
 
 class ConformalBucketSpec(SQLModel, table=True):
     __tablename__ = "conformal_bucket_spec"
-    __table_args__ = (Index("ux_conformal_bucket_spec", "model_id", "month_start", "bucket_id", unique=True),)
+    __table_args__ = (
+        Index("ux_conformal_bucket_spec", "model_id", "month_start", "bucket_id", unique=True),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     model_id: str = Field(index=True)
@@ -679,7 +815,9 @@ class ConformalBucketSpec(SQLModel, table=True):
 
 class ConformalCoverageDaily(SQLModel, table=True):
     __tablename__ = "conformal_coverage_daily"
-    __table_args__ = (Index("ux_conformal_coverage_daily", "model_id", "date", "bucket_id", unique=True),)
+    __table_args__ = (
+        Index("ux_conformal_coverage_daily", "model_id", "date", "bucket_id", unique=True),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     model_id: str = Field(index=True)
@@ -689,8 +827,6 @@ class ConformalCoverageDaily(SQLModel, table=True):
     interval_half_width: float
     count: int
     created_at: dt.datetime = Field(default_factory=utcnow)
-
-
 
 
 class MlLabel(SQLModel, table=True):
@@ -763,7 +899,9 @@ class BacktestRun(SQLModel, table=True):
 
 class BacktestMetric(SQLModel, table=True):
     __tablename__ = "backtest_metrics"
-    __table_args__ = (Index("ix_backtest_metrics_run_metric", "run_id", "metric_name", unique=True),)
+    __table_args__ = (
+        Index("ix_backtest_metrics_run_metric", "run_id", "metric_name", unique=True),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     run_id: int = Field(index=True)
@@ -890,7 +1028,9 @@ class ParquetManifest(SQLModel, table=True):
     __tablename__ = "parquet_manifest"
     __table_args__ = (
         Index("ix_parquet_manifest_dataset_day", "dataset", "year", "month", "day"),
-        Index("ux_parquet_manifest_dataset_partition", "dataset", "year", "month", "day", unique=True),
+        Index(
+            "ux_parquet_manifest_dataset_partition", "dataset", "year", "month", "day", unique=True
+        ),
     )
 
     id: int | None = Field(default=None, primary_key=True)

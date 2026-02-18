@@ -1,82 +1,154 @@
 from __future__ import annotations
 
-import datetime as dt
+import io
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
-from apps.dashboard_streamlit.lib.api import get
-from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
+from apps.dashboard_streamlit.lib.api import api_base, get_bytes
+from apps.dashboard_streamlit.ui.cache import cached_get_json, cached_post_json
 
-st.header("Heatmap: Sector / Top Movers / Breadth / Correlation")
-render_global_disclaimer()
+PAGE_ID = "watchlists"
+PAGE_TITLE = "Watchlists"
 
 
-@st.cache_data(ttl=3600)
 def _tickers_universe() -> list[dict]:
-    return get("/tickers", params={"limit": 2000, "offset": 0})
+    return cached_get_json("/tickers", params={"limit": 2000, "offset": 0}, ttl_s=1800)
 
 
-@st.cache_data(ttl=900)
-def _prices_last_365(symbol: str) -> list[dict]:
-    end = dt.date.today()
-    start = end - dt.timedelta(days=365)
-    return get(
-        "/prices",
-        params={
-            "symbol": symbol,
-            "timeframe": "1D",
-            "start": start.isoformat(),
-            "end": end.isoformat(),
-            "limit": 2000,
-            "offset": 0,
-        },
+def render() -> None:
+    st.subheader("Workspaces & Watchlists v2")
+
+    workspaces = cached_get_json("/workspaces", params={"user_id": ""}, ttl_s=300)
+    ws_col1, ws_col2 = st.columns([2, 1])
+    with ws_col1:
+        new_ws_name = st.text_input("New workspace name", value="Default")
+    with ws_col2:
+        if st.button("Create workspace"):
+            cached_post_json(
+                "/workspaces", payload={"user_id": None, "name": new_ws_name}, ttl_s=60
+            )
+            st.rerun()
+
+    if not workspaces:
+        st.info("No workspace yet. Create one to continue.")
+        return
+
+    ws_map = {f"{w['name']} ({w['id'][:8]})": w for w in workspaces}
+    selected_ws_label = st.selectbox("Workspace", options=list(ws_map.keys()))
+    selected_ws = ws_map[selected_ws_label]
+
+    watchlists = cached_get_json(
+        f"/workspaces/{selected_ws['id']}/watchlists", params=None, ttl_s=300
     )
+    wl_col1, wl_col2 = st.columns([2, 1])
+    with wl_col1:
+        new_wl_name = st.text_input("New watchlist name", value="Main Watchlist")
+    with wl_col2:
+        if st.button("Create watchlist"):
+            cached_post_json(
+                f"/workspaces/{selected_ws['id']}/watchlists",
+                payload={"name": new_wl_name},
+                ttl_s=60,
+            )
+            st.rerun()
 
+    if not watchlists:
+        st.info("No watchlist yet. Create one to continue.")
+        return
 
-tickers = _tickers_universe()
-df_t = pd.DataFrame(tickers)
-symbols = df_t["symbol"].tolist()
+    wl_map = {f"{w['name']} ({w['id'][:8]})": w for w in watchlists}
+    selected_wl_label = st.selectbox("Watchlist", options=list(wl_map.keys()))
+    selected_wl = wl_map[selected_wl_label]
 
-rows = []
-for sym in symbols:
-    try:
-        rows.extend(_prices_last_365(sym))
-    except Exception:
-        continue
+    tickers = _tickers_universe()
+    symbols = [t["symbol"] for t in tickers]
+    tag_dictionary = cached_get_json("/tag_dictionary", params=None, ttl_s=1800)
+    taxonomy = [t["tag"] for t in tag_dictionary]
 
-df_p = pd.DataFrame(rows)
-if df_p.empty:
-    st.warning("No price data.")
-    st.stop()
+    st.markdown("#### Add symbol")
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c1:
+        symbol = st.selectbox("Symbol", options=symbols, index=0)
+    with c2:
+        tags = st.multiselect("Tags", options=taxonomy, default=[])
+    with c3:
+        pinned = st.checkbox("Pinned", value=False)
+    note = st.text_area("Note", value="", max_chars=2000)
+    if st.button("Upsert item"):
+        res = cached_post_json(
+            f"/watchlists/{selected_wl['id']}/items",
+            payload={"symbol": symbol, "tags": tags, "note": note, "pinned": pinned},
+            ttl_s=60,
+        )
+        st.success(res["status"])
+        st.rerun()
 
-df_p["timestamp"] = pd.to_datetime(df_p["timestamp"])
-df_p["date"] = df_p["timestamp"].dt.date
+    st.markdown("#### Bulk paste symbols")
+    bulk_input = st.text_area("Paste symbols (comma/newline separated)", value="")
+    if st.button("Bulk upsert") and bulk_input.strip():
+        chunks = [x.strip().upper() for x in bulk_input.replace("\n", ",").split(",") if x.strip()]
+        for sym in chunks:
+            cached_post_json(
+                f"/watchlists/{selected_wl['id']}/items",
+                payload={"symbol": sym, "tags": [], "note": "", "pinned": False},
+                ttl_s=60,
+            )
+        st.success(f"Processed {len(chunks)} symbols")
+        st.rerun()
 
-panel = df_p.pivot(index="date", columns="symbol", values="close").sort_index()
-ret = panel.pct_change()
+    st.markdown("#### Import CSV")
+    uploaded = st.file_uploader("Upload CSV", type=["csv"])
+    if uploaded is not None and st.button("Import CSV"):
+        import httpx
 
-last = ret.iloc[-1].dropna()
-adv = int((last > 0).sum())
-dec = int((last < 0).sum())
-st.metric("Breadth (last day)", value=f"Adv {adv} / Dec {dec}")
+        files = {"file": (uploaded.name, uploaded.getvalue(), "text/csv")}
+        base = api_base()
+        with httpx.Client(timeout=60) as client:
+            r = client.post(
+                f"{base.rstrip('/')}/watchlists/{selected_wl['id']}/import", files=files
+            )
+            r.raise_for_status()
+            report = r.json()
+        st.json(report)
 
-last_5d = ret.tail(5).mean().dropna()
-df_map = df_t.set_index("symbol")[["sector"]].join(last_5d.rename("ret"), how="inner")
-sector_ret = df_map.groupby("sector")["ret"].mean().sort_values(ascending=False)
+    st.markdown("#### Items")
+    items = cached_get_json(f"/watchlists/{selected_wl['id']}/items", params=None, ttl_s=60)
+    if items:
+        df = pd.DataFrame(items)
+        if "tags" in df.columns:
+            df["tags"] = df["tags"].apply(lambda v: ",".join(v) if isinstance(v, list) else str(v))
 
-st.subheader("Sector performance (avg return ~5D)")
-fig1 = px.imshow(sector_ret.to_frame().T, aspect="auto")
-st.plotly_chart(fig1, use_container_width=True)
+        edited = st.data_editor(
+            df[["id", "symbol", "tags", "note", "pinned"]],
+            use_container_width=True,
+            num_rows="fixed",
+            disabled=["id", "symbol"],
+        )
+        if st.button("Save table edits"):
+            for row in edited.to_dict(orient="records"):
+                tags_list = [t.strip() for t in str(row["tags"]).split(",") if t.strip()]
+                import httpx
 
-st.subheader("Top movers (avg return ~5D)")
-movers = df_map.sort_values("ret", ascending=False).head(10)
-st.dataframe(movers.reset_index(), use_container_width=True)
+                base = api_base()
+                with httpx.Client(timeout=30) as client:
+                    r = client.patch(
+                        f"{base.rstrip('/')}/watchlists/{selected_wl['id']}/items/{row['id']}",
+                        json={
+                            "tags": tags_list,
+                            "note": row["note"],
+                            "pinned": bool(row["pinned"]),
+                        },
+                    )
+                    r.raise_for_status()
+            st.success("Updated items")
+            st.rerun()
 
-st.subheader("Correlation (returns, ~120D)")
-corr = ret.drop(columns=["VNINDEX"], errors="ignore").tail(120).corr()
-fig2 = px.imshow(corr, aspect="auto")
-st.plotly_chart(fig2, use_container_width=True)
-
-st.caption("Demo universe nhỏ => bulk load bằng loop (MVP). Khi production nên làm endpoint bulk.")
+    st.markdown("#### Export CSV")
+    csv_bytes = get_bytes(f"/watchlists/{selected_wl['id']}/export")
+    st.download_button(
+        "Download export",
+        data=io.BytesIO(csv_bytes),
+        file_name=f"watchlist_{selected_wl['id'][:8]}.csv",
+        mime="text/csv",
+    )

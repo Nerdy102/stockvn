@@ -17,6 +17,7 @@ from worker_scheduler.jobs import ensure_seeded
 
 from api_fastapi.routers import (
     alerts,
+    chart,
     fundamentals,
     health,
     ml,
@@ -26,6 +27,7 @@ from api_fastapi.routers import (
     signals,
     tickers,
     universe,
+    watchlists,
 )
 
 settings = get_settings()
@@ -41,6 +43,7 @@ async def _lifespan(_: FastAPI):
         if session.exec(select(Ticker)).first() is None:
             provider = get_provider(settings)
             ensure_seeded(session, provider, settings)
+        watchlists.seed_tag_dictionary(session)
     yield
 
 
@@ -87,8 +90,10 @@ def create_app() -> FastAPI:
     app.include_router(signals.router)
     app.include_router(portfolio.router)
     app.include_router(alerts.router)
+    app.include_router(chart.router)
     app.include_router(ml.router)
     app.include_router(universe.router)
+    app.include_router(watchlists.router)
 
     log.info("api_initialized", extra={"event": "api_startup"})
     return app
