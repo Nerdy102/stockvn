@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from apscheduler.schedulers.blocking import BlockingScheduler
+from core.monitoring.prometheus_metrics import start_metrics_http_server
 from core.db.models import Ticker
 from core.db.session import create_db_and_tables, get_engine
 from core.logging import get_logger, setup_logging
@@ -43,6 +44,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    start_metrics_http_server(9001)
+
     create_db_and_tables(settings.DATABASE_URL)
     engine = get_engine(settings.DATABASE_URL)
     provider = get_provider(settings)
@@ -64,13 +67,24 @@ def main() -> None:
             compute_factor_scores(session)
             compute_technical_setups(session)
             generate_alerts(session)
-            compute_data_quality_metrics_job(session)
             compute_daily_flow_features(session)
             compute_daily_orderbook_features(session)
             compute_daily_intraday_features(session)
-            compute_drift_metrics_job(session)
             job_build_labels_v3(session)
             job_build_ml_features_v3(session)
+        job_log.info("worker_job_completed", extra={"event": "worker_job"})
+
+
+    def job_compute_data_quality() -> None:
+        job_log = get_logger(__name__, job_id="compute_data_quality")
+        with Session(engine) as session:
+            compute_data_quality_metrics_job(session)
+        job_log.info("worker_job_completed", extra={"event": "worker_job"})
+
+    def job_compute_drift() -> None:
+        job_log = get_logger(__name__, job_id="compute_drift")
+        with Session(engine) as session:
+            compute_drift_metrics_job(session)
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
     def job_consume_stream() -> None:
@@ -102,6 +116,8 @@ def main() -> None:
     if args.once:
         job_ingest()
         job_compute()
+        job_compute_data_quality()
+        job_compute_drift()
         job_consume_stream()
         job_ensure_partitions()
         job_cleanup_dedup()
@@ -121,6 +137,23 @@ def main() -> None:
         "interval",
         minutes=args.interval_minutes,
         id="compute_all",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_compute_data_quality,
+        "cron",
+        hour=0,
+        minute=20,
+        id="compute_data_quality_daily",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_compute_drift,
+        "cron",
+        day_of_week="mon",
+        hour=0,
+        minute=30,
+        id="compute_drift_weekly",
         replace_existing=True,
     )
     scheduler.add_job(

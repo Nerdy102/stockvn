@@ -42,6 +42,8 @@ services:
       context: ..
       dockerfile: infra/Dockerfile
     command: ["bash", "-lc", "PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m worker_scheduler.main --interval-minutes 15"]
+    ports:
+      - "9001:9001"
     environment:
       PYTHONPATH: "packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps"
       DATABASE_URL: postgresql+psycopg2://vninv:vninv@postgres:5432/vninv

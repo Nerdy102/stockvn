@@ -139,9 +139,13 @@ def train_models(db: Session = Depends(get_db), settings: Settings = Depends(get
     if not settings.DEV_MODE:
         raise HTTPException(status_code=403, detail="DEV_MODE required")
 
-    feat = _v2_features(db).dropna(subset=["y_excess", "y_rank_z"])
+    feat = _v2_features(db)
+    required_cols = {"y_excess", "y_rank_z"}
+    if not required_cols.issubset(set(feat.columns)):
+        return {"status": "insufficient_data", "rows": 0, "models": MODEL_IDS}
+    feat = feat.dropna(subset=["y_excess", "y_rank_z"])
     if feat.empty:
-        return {"status": "insufficient_data"}
+        return {"status": "insufficient_data", "rows": 0, "models": MODEL_IDS}
 
     leakage_check = feat[["as_of_date"]].drop_duplicates().rename(columns={"as_of_date": "date"})
     leakage_check["label_date"] = pd.to_datetime(leakage_check["date"]) + pd.to_timedelta(21, unit="D")
@@ -237,7 +241,7 @@ def predict(
     else:
         s = dt.datetime.strptime(start, "%d-%m-%Y").date()
         e = dt.datetime.strptime(end, "%d-%m-%Y").date()
-        if (e - s).days > 365:
+        if offset == 0 and (e - s).days > 365:
             raise HTTPException(status_code=400, detail="max range 365 days without pagination")
         q = q.where(MlPrediction.as_of_date >= s).where(MlPrediction.as_of_date <= e)
 
@@ -268,7 +272,15 @@ def diagnostics(
     """Run and persist ALPHA v2 diagnostics in offline-safe mode."""
     if not settings.DEV_MODE:
         raise HTTPException(status_code=403, detail="DEV_MODE required")
-    feat = _v2_features(db).dropna(subset=["y_excess"])
+    feat = _v2_features(db)
+    if "y_excess" not in feat.columns:
+        run_id = str(uuid.uuid4())
+        cfg_hash = hashlib.sha256(json.dumps(payload or {}, sort_keys=True).encode()).hexdigest()
+        db.add(DiagnosticsRun(run_id=run_id, model_id="ensemble_v2", config_hash=cfg_hash))
+        db.add(DiagnosticsMetric(run_id=run_id, metric_name="insufficient_data", metric_value=1.0))
+        db.commit()
+        return {"run_id": run_id, "metrics": {"insufficient_data": 1.0}}
+    feat = feat.dropna(subset=["y_excess"])
     preds = pd.DataFrame(
         [
             p.model_dump()
@@ -278,7 +290,12 @@ def diagnostics(
         ]
     )
     if feat.empty or preds.empty:
-        return {"status": "insufficient_data"}
+        run_id = str(uuid.uuid4())
+        cfg_hash = hashlib.sha256(json.dumps(payload or {}, sort_keys=True).encode()).hexdigest()
+        db.add(DiagnosticsRun(run_id=run_id, model_id="ensemble_v2", config_hash=cfg_hash))
+        db.add(DiagnosticsMetric(run_id=run_id, metric_name="insufficient_data", metric_value=1.0))
+        db.commit()
+        return {"run_id": run_id, "metrics": {"insufficient_data": 1.0}}
 
     preds["score_final"] = preds["meta"].apply(
         lambda m: float((m or {}).get("score_final", 0.0)) if isinstance(m, dict) else 0.0
@@ -324,7 +341,11 @@ def backtest(
     if old:
         return {"cached": True, "run_hash": key, **old.summary_json}
 
-    feat = _v2_features(db).dropna(subset=["y_excess", "y_rank_z"])
+    feat = _v2_features(db)
+    if not {"y_excess", "y_rank_z"}.issubset(set(feat.columns)):
+        feat = pd.DataFrame()
+    else:
+        feat = feat.dropna(subset=["y_excess", "y_rank_z"])
     if feat.empty:
         out = {
             "walk_forward": {"metrics": build_metrics_table({"selected_names_v2": 0.0})},

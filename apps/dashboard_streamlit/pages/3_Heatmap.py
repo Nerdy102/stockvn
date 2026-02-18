@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import datetime as dt
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -10,14 +12,37 @@ from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
 st.header("Heatmap: Sector / Top Movers / Breadth / Correlation")
 render_global_disclaimer()
 
-tickers = get("/tickers")
+
+@st.cache_data(ttl=3600)
+def _tickers_universe() -> list[dict]:
+    return get("/tickers", params={"limit": 2000, "offset": 0})
+
+
+@st.cache_data(ttl=900)
+def _prices_last_365(symbol: str) -> list[dict]:
+    end = dt.date.today()
+    start = end - dt.timedelta(days=365)
+    return get(
+        "/prices",
+        params={
+            "symbol": symbol,
+            "timeframe": "1D",
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+            "limit": 2000,
+            "offset": 0,
+        },
+    )
+
+
+tickers = _tickers_universe()
 df_t = pd.DataFrame(tickers)
 symbols = df_t["symbol"].tolist()
 
 rows = []
 for sym in symbols:
     try:
-        rows.extend(get("/prices", params={"symbol": sym, "timeframe": "1D"}))
+        rows.extend(_prices_last_365(sym))
     except Exception:
         continue
 

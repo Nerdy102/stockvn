@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import datetime as dt
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -12,9 +14,32 @@ from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
 st.header("Charting & Signals")
 render_global_disclaimer()
 
+
+@st.cache_data(ttl=3600)
+def _tickers_universe() -> list[dict]:
+    return get("/tickers", params={"limit": 2000, "offset": 0})
+
+
+@st.cache_data(ttl=900)
+def _prices_last_365(symbol: str, timeframe: str) -> list[dict]:
+    end = dt.date.today()
+    start = end - dt.timedelta(days=365)
+    return get(
+        "/prices",
+        params={
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+            "limit": 2000,
+            "offset": 0,
+        },
+    )
+
+
 tickers = []
 try:
-    tickers = get("/tickers")
+    tickers = _tickers_universe()
 except Exception:
     tickers = []
 
@@ -28,11 +53,8 @@ show_zones = st.checkbox("Auto supply/demand zones (MVP)", value=True)
 show_trendline = st.checkbox("Auto trendline (MVP)", value=True)
 
 if st.button("Load chart"):
-    tf = timeframe
-    if tf == "1W":
-        tf = "1D"
-
-    prices = get("/prices", params={"symbol": symbol, "timeframe": tf})
+    tf = "1D" if timeframe == "1W" else timeframe
+    prices = _prices_last_365(symbol, tf)
     if not prices:
         st.warning("No price data.")
         st.stop()
@@ -40,16 +62,14 @@ if st.button("Load chart"):
     df = pd.DataFrame(prices)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.sort_values("timestamp")
-    ohlcv = df[["timestamp", "open", "high", "low", "close", "volume"]].copy()
-    ohlcv = ohlcv.set_index("timestamp")
+    ohlcv = df[["timestamp", "open", "high", "low", "close", "volume"]].copy().set_index("timestamp")
 
     if timeframe == "1W":
-        w = (
+        ohlcv = (
             ohlcv.resample("W-FRI")
             .agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"})
             .dropna()
         )
-        ohlcv = w
 
     ind = add_indicators(ohlcv)
 
@@ -66,7 +86,6 @@ if st.button("Load chart"):
         ]
     )
     fig.update_layout(height=600, xaxis_rangeslider_visible=False)
-
     fig.add_trace(go.Bar(x=ohlcv.index, y=ohlcv["volume"], name="Volume", yaxis="y2"))
     fig.update_layout(yaxis2=dict(overlaying="y", side="right", showgrid=False, title="Volume"))
 
@@ -99,10 +118,7 @@ if st.button("Load chart"):
 
     if show_trendline and len(ohlcv) >= 20:
         tl = auto_trendline(ohlcv, kind="support", lookback=min(120, len(ohlcv)))
-        slope = tl["slope"]
-        intercept = tl["intercept"]
-        x = list(range(len(ohlcv)))
-        y = [slope * i + intercept for i in x]
+        y = [tl["slope"] * i + tl["intercept"] for i in range(len(ohlcv))]
         fig.add_trace(go.Scatter(x=ohlcv.index, y=y, mode="lines", name="Trendline (support)"))
 
     st.plotly_chart(fig, use_container_width=True)

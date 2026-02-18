@@ -9,6 +9,12 @@ from apps.dashboard_streamlit.lib.disclaimer import render_global_disclaimer
 st.header("Screener & Discovery")
 render_global_disclaimer()
 
+
+@st.cache_data(ttl=3600)
+def _tickers_universe() -> list[dict]:
+    return get("/tickers", params={"limit": 2000, "offset": 0})
+
+
 col1, col2 = st.columns([2, 1])
 with col1:
     screen_path = st.text_input("Screen YAML path", value="configs/screens/demo_screen.yaml")
@@ -32,7 +38,6 @@ if st.button("Run screen"):
 
 st.markdown("#### Tickers (quick view)")
 try:
-    tickers = get("/tickers")
-    st.dataframe(pd.DataFrame(tickers), use_container_width=True)
+    st.dataframe(pd.DataFrame(_tickers_universe()), use_container_width=True)
 except Exception as exc:
     st.warning(f"Không tải được danh sách tickers: {exc}")

@@ -12,50 +12,20 @@ def compute_data_quality_metrics(
     if df.empty:
         return metrics
 
-    d = df.sort_values(["symbol", "timestamp"]).copy()
+    d = df.copy()
+    total = max(len(d), 1)
 
-    # monotonic timestamp per symbol
-    for sym, g in d.groupby("symbol"):
-        monotonic = bool(pd.Series(g["timestamp"]).is_monotonic_increasing)
-        metrics.append(
-            {
-                "provider": provider,
-                "symbol": sym,
-                "timeframe": timeframe,
-                "metric_name": "monotonic_ts",
-                "metric_value": 1.0 if monotonic else 0.0,
-            }
-        )
-
-    # OHLC sanity
-    ohlc_ok = (
-        (d["high"] >= d[["open", "close"]].max(axis=1))
-        & (d["low"] <= d[["open", "close"]].min(axis=1))
-        & (d["volume"] >= 0)
-    ).mean()
+    dup_rate = float(d.duplicated(subset=["symbol", "timestamp", "timeframe"]).mean())
     metrics.append(
         {
             "provider": provider,
             "symbol": None,
             "timeframe": timeframe,
-            "metric_name": "ohlc_sanity_ratio",
-            "metric_value": float(ohlc_ok),
+            "metric_name": "duplicate_rate",
+            "metric_value": dup_rate,
         }
     )
 
-    # duplicate ratio
-    dup_ratio = float(d.duplicated(subset=["symbol", "timestamp", "timeframe"]).mean())
-    metrics.append(
-        {
-            "provider": provider,
-            "symbol": None,
-            "timeframe": timeframe,
-            "metric_name": "duplicate_ratio",
-            "metric_value": dup_ratio,
-        }
-    )
-
-    # missing ratio by field
     for col in ["open", "high", "low", "close", "volume", "value_vnd"]:
         if col in d.columns:
             metrics.append(
@@ -63,8 +33,27 @@ def compute_data_quality_metrics(
                     "provider": provider,
                     "symbol": None,
                     "timeframe": timeframe,
-                    "metric_name": f"missing_ratio_{col}",
-                    "metric_value": float(d[col].isna().mean()),
+                    "metric_name": f"missing_rate_{col}",
+                    "metric_value": float(d[col].isna().sum() / total),
                 }
             )
+
+    required = {"open", "high", "low", "close", "volume"}
+    if required.issubset(set(d.columns)):
+        violate = (
+            (d["high"] < d[["open", "close"]].max(axis=1))
+            | (d["low"] > d[["open", "close"]].min(axis=1))
+            | (d["high"] < d["low"])
+            | (d["volume"] < 0)
+        )
+        metrics.append(
+            {
+                "provider": provider,
+                "symbol": None,
+                "timeframe": timeframe,
+                "metric_name": "ohlc_invariants_violation_rate",
+                "metric_value": float(violate.mean()),
+            }
+        )
+
     return metrics
