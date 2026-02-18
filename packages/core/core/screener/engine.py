@@ -12,6 +12,7 @@ from core.db.models import Fundamental, PriceOHLCV, Ticker
 from core.factors import compute_factors
 from core.regime import REGIME_RISK_OFF, classify_market_regime, regime_exposure_multiplier
 from core.technical import detect_breakout, detect_pullback, detect_trend, detect_volume_spike
+from core.universe.manager import UniverseManager
 
 
 @dataclass(frozen=True)
@@ -36,12 +37,19 @@ class ScreenDefinition:
         )
 
 
-def _apply_universe(tickers_df: pd.DataFrame, universe: dict[str, Any]) -> pd.DataFrame:
-    df = tickers_df.copy()
-    ex = universe.get("exchange")
-    if ex:
-        df = df[df["exchange"].isin(list(ex))]
-    return df
+def _resolve_universe_symbols(
+    session: Session,
+    px_df: pd.DataFrame,
+    universe: dict[str, Any],
+) -> set[str]:
+    as_of = px_df["date"].max()
+    if pd.isna(as_of):
+        return set()
+
+    preset = str((universe or {}).get("preset", "ALL")).upper()
+    manager = UniverseManager(session)
+    symbols, _ = manager.universe(date=as_of, name=preset)
+    return set(symbols)
 
 
 def run_screen(session: Session, screen: ScreenDefinition) -> list[dict[str, Any]]:
@@ -61,8 +69,12 @@ def run_screen(session: Session, screen: ScreenDefinition) -> list[dict[str, Any
     px_df = px_df.sort_values(["symbol", "date"])
     px_df["value_vnd"] = px_df["close"].astype(float) * px_df["volume"].astype(float)
 
-    # Universe selection
-    tickers_df = _apply_universe(tickers_df, screen.universe)
+    # Universe selection (PIT, centralized via UniverseManager)
+    allowed_symbols = _resolve_universe_symbols(session=session, px_df=px_df, universe=screen.universe)
+    if allowed_symbols:
+        tickers_df = tickers_df[tickers_df["symbol"].isin(allowed_symbols)]
+    else:
+        tickers_df = tickers_df.iloc[0:0]
 
     # Liquidity proxy: avg value 20D
     liq = px_df.groupby("symbol")["value_vnd"].rolling(20).mean().groupby(level=0).last()

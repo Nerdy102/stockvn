@@ -10,3 +10,6 @@ def test_initial_migration_excludes_future_tables() -> None:
     assert '"daily_orderbook_features"' in content
     assert '"daily_intraday_features"' in content
     assert '"feature_last_processed"' in content
+    assert '"ticker_lifecycle"' in content
+    assert '"index_membership"' in content
+    assert '"universe_audit"' in content

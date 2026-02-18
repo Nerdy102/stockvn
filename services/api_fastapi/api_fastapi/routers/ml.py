@@ -7,23 +7,22 @@ import uuid
 
 import numpy as np
 import pandas as pd
-from core.alpha_v3.features import enforce_no_leakage_guard
-from core.calendar_vn import get_trading_calendar_vn
 from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
 from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
+from core.alpha_v3.features import enforce_no_leakage_guard
 from core.alpha_v3.gates import evaluate_research_gates
 from core.alpha_v3.pbo import compute_pbo_cscv
+from core.calendar_vn import get_trading_calendar_vn
 from core.db.models import (
     BacktestRun,
-    DsrResult,
     DiagnosticsMetric,
     DiagnosticsRun,
+    DsrResult,
     ForeignRoom,
     MlPrediction,
     PboResult,
     PriceOHLCV,
     QuoteL2,
-    Ticker,
 )
 from core.market_rules import clamp_qty_to_board_lot
 from core.ml.backtest import run_sensitivity, run_stress, run_walk_forward
@@ -41,6 +40,7 @@ from core.ml.portfolio_v2 import (
 from core.ml.reports import build_metrics_table, disclaimer
 from core.ml.targets import compute_rank_z_label
 from core.settings import Settings, get_settings
+from core.universe.manager import UniverseManager
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
@@ -111,22 +111,6 @@ def _v2_features(db: Session) -> pd.DataFrame:
 
     return build_features_v2(base, regime, foreign, quotes, intraday)
 
-
-def _top30_universe_symbols(db: Session, universe: str) -> set[str]:
-    if universe == "VNINDEX":
-        return {"VNINDEX"}
-    tickers = list(db.exec(select(Ticker)).all())
-    if not tickers:
-        return set()
-    if universe == "VN30":
-        eligible = [
-            t for t in tickers if t.exchange in {"HOSE", "HNX", "UPCOM"} and t.symbol != "VNINDEX"
-        ]
-        eligible = sorted(
-            eligible, key=lambda t: float(getattr(t, "market_cap", 0.0) or 0.0), reverse=True
-        )
-        return {t.symbol for t in eligible[:30]}
-    return {t.symbol for t in tickers}
 
 
 @router.get("/models")
@@ -250,9 +234,11 @@ def predict(
         q = q.where(MlPrediction.as_of_date >= s).where(MlPrediction.as_of_date <= e)
 
     rows = list(db.exec(q.offset(offset).limit(limit)).all())
-    if universe != "ALL":
-        symbols = _top30_universe_symbols(db, universe)
-        rows = [r for r in rows if r.symbol in symbols]
+    manager = UniverseManager(db)
+    query_date = dt.datetime.strptime(date, "%d-%m-%Y").date() if date else e
+    symbols, _ = manager.universe(date=query_date, name=universe)
+    symbol_set = set(symbols)
+    rows = [r for r in rows if r.symbol in symbol_set]
 
     return [
         {
@@ -390,28 +376,10 @@ def backtest(
             latest["score_final"] = latest["score_final"].fillna(latest["y_rank_z"])
             latest["uncert"] = latest["uncert"].fillna(0.1)
 
-        latest = latest[latest["symbol"] != "VNINDEX"]
-        ticker_df = pd.DataFrame([t.model_dump() for t in db.exec(select(Ticker)).all()])
-        if not ticker_df.empty:
-            latest = latest.merge(
-                ticker_df[["symbol", "exchange", "sector"]],
-                on="symbol",
-                how="left",
-                suffixes=("", "_tk"),
-            )
-            if "exchange" not in latest.columns and "exchange_tk" in latest.columns:
-                latest["exchange"] = latest["exchange_tk"]
-            elif "exchange" in latest.columns and "exchange_tk" in latest.columns:
-                latest["exchange"] = latest["exchange"].fillna(latest["exchange_tk"])
-
-            if "sector" not in latest.columns and "sector_tk" in latest.columns:
-                latest["sector"] = latest["sector_tk"]
-            elif "sector" in latest.columns and "sector_tk" in latest.columns:
-                latest["sector"] = latest["sector"].fillna(latest["sector_tk"])
-
-            if "exchange" in latest.columns:
-                latest = latest[latest["exchange"].isin(["HOSE", "HNX", "UPCOM"])]
-        latest = latest[latest["adv20_value"] >= 1e9]
+        manager = UniverseManager(db)
+        as_of_latest = latest["as_of_date"].max()
+        vn30_symbols, _ = manager.universe(date=as_of_latest, name="VN30")
+        latest = latest[latest["symbol"].isin(set(vn30_symbols))]
         latest = latest.sort_values("score_final", ascending=False).head(30)
 
         weights = build_weights_ivp_uncertainty(latest)

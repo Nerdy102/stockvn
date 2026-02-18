@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from core.db.models import Ticker
 from core.db.session import create_db_and_tables, get_engine
 from core.logging import get_logger, request_id_context, setup_logging
+from core.monitoring.prometheus_metrics import metrics_payload
 from core.settings import get_settings
 from data.providers.factory import get_provider
 from fastapi import FastAPI, Request, Response
@@ -13,7 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlmodel import Session, select
 from worker_scheduler.jobs import ensure_seeded
-from core.monitoring.prometheus_metrics import metrics_payload
 
 from api_fastapi.routers import (
     alerts,
@@ -25,6 +25,7 @@ from api_fastapi.routers import (
     screeners,
     signals,
     tickers,
+    universe,
 )
 
 settings = get_settings()
@@ -87,6 +88,7 @@ def create_app() -> FastAPI:
     app.include_router(portfolio.router)
     app.include_router(alerts.router)
     app.include_router(ml.router)
+    app.include_router(universe.router)
 
     log.info("api_initialized", extra={"event": "api_startup"})
     return app
