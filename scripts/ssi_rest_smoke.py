@@ -21,14 +21,13 @@ async def _run() -> None:
 
     database_url = os.getenv("DATABASE_URL", "sqlite:///./vn_invest.db")
     create_db_and_tables(database_url)
-    provider = SsiRestProvider()
-
     end = dt.date.today()
     start = end - dt.timedelta(days=30)
     symbols = ["FPT", "VCB", "HPG"]
 
     with Session(get_engine(database_url)) as session:
         repo = SsiRestIngestRepository(session)
+        provider = SsiRestProvider(session=session)
 
         tickers = await provider.get_tickers()
         repo.upsert_tickers(tickers)

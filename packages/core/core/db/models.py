@@ -325,16 +325,27 @@ class DriftMetric(SQLModel, table=True):
 
 class BronzeFile(SQLModel, table=True):
     __tablename__ = "bronze_files"
-    __table_args__ = (Index("ix_bronze_files_provider_channel_date", "provider", "channel", "date"),)
+    __table_args__ = (
+        Index("ix_bronze_files_provider_channel_date", "provider", "channel", "date"),
+        Index(
+            "ux_bronze_files_provider_channel_date_hour",
+            "provider",
+            "channel",
+            "date",
+            "hour",
+            unique=True,
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     provider: str = Field(index=True)
     channel: str = Field(index=True)
     date: dt.date = Field(index=True)
+    hour: int = Field(index=True)
     filepath: str
     rows: int = 0
     sha256: str = Field(index=True)
-    created_at: dt.datetime = Field(default_factory=utcnow)
+    created_at_utc: dt.datetime = Field(default_factory=utcnow)
 
 
 class LastProcessed(SQLModel, table=True):
@@ -362,7 +373,9 @@ class LastProcessed(SQLModel, table=True):
 class StreamDedup(SQLModel, table=True):
     __tablename__ = "stream_dedup"
     __table_args__ = (
-        Index("ux_stream_dedup_provider_rtype_hash", "provider", "rtype", "payload_hash", unique=True),
+        Index(
+            "ux_stream_dedup_provider_rtype_hash", "provider", "rtype", "payload_hash", unique=True
+        ),
         Index("ix_stream_dedup_first_seen_at", "first_seen_at"),
     )
 
@@ -389,9 +402,7 @@ class MlFeature(SQLModel, table=True):
 
 class MlPrediction(SQLModel, table=True):
     __tablename__ = "ml_predictions"
-    __table_args__ = (
-        Index("ux_ml_predictions", "model_id", "symbol", "as_of_date", unique=True),
-    )
+    __table_args__ = (Index("ux_ml_predictions", "model_id", "symbol", "as_of_date", unique=True),)
 
     id: int | None = Field(default=None, primary_key=True)
     model_id: str = Field(index=True)

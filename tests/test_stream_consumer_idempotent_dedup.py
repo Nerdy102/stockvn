@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from core.db.models import BronzeRaw, PriceOHLCV, StreamDedup
+from core.db.models import BronzeFile, BronzeRaw, PriceOHLCV, StreamDedup
 from helpers_redis_fake import FakeRedisCompat
 from sqlmodel import Session, SQLModel, create_engine, select
 from worker_scheduler.jobs import consume_ssi_stream_to_bronze_silver
@@ -40,7 +40,9 @@ def test_stream_consumer_idempotent_dedup(monkeypatch) -> None:
 
         dedups = session.exec(select(StreamDedup)).all()
         bronze = session.exec(select(BronzeRaw)).all()
+        bronze_files = session.exec(select(BronzeFile)).all()
         bars = session.exec(select(PriceOHLCV)).all()
         assert len(dedups) == 1
         assert len(bronze) == 1
         assert len(bars) == 1
+        assert len(bronze_files) == 1

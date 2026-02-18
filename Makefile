@@ -1,4 +1,4 @@
-.PHONY: setup run-api run-worker run-ui run-stream-ingestor test lint format docker-up docker-down quality-gate
+.PHONY: setup run-api run-worker run-ui run-stream-ingestor test lint format docker-up docker-down quality-gate bronze-verify bronze-cleanup
 
 PYTHONPATH := packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
@@ -50,3 +50,9 @@ quality-gate:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m mypy .
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q
 	$(PY_RUNTIME) scripts/quality_gate.py
+
+bronze-verify:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.bronze_verify
+
+bronze-cleanup:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.bronze_cleanup
