@@ -56,6 +56,7 @@ def compute_factors(
     px = prices.copy()
     px["date"] = pd.to_datetime(px["date"]).dt.date
     px = px.sort_values(["symbol", "date"])
+    px = px.drop_duplicates(subset=["symbol", "date"], keep="last")
 
     panel = px.pivot(index="date", columns="symbol", values="close").sort_index()
     rets = panel.pct_change()

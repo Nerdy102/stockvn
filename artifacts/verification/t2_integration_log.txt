@@ -1,0 +1,719 @@
+DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+{"ts": 1771412717788, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Seeding database (idempotent)...", "module": "jobs"}
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+{"ts": 1771412747338, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Indicators computed (MVP).", "module": "jobs"}
+Traceback (most recent call last):
+  File "/workspace/stockvn/scripts/seed_demo_data.py", line 29, in <module>
+    main()
+  File "/workspace/stockvn/scripts/seed_demo_data.py", line 23, in main
+    ensure_seeded(session, provider, settings)
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/jobs.py", line 247, in ensure_seeded
+    compute_factor_scores(session)
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/jobs.py", line 374, in compute_factor_scores
+    out = compute_factors(
+  File "/workspace/stockvn/packages/core/core/factors.py", line 60, in compute_factors
+    panel = px.pivot(index="date", columns="symbol", values="close").sort_index()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/pandas/core/frame.py", line 9366, in pivot
+    return pivot(self, index=index, columns=columns, values=values)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/pandas/core/reshape/pivot.py", line 570, in pivot
+    result = indexed.unstack(columns_listlike)  # type: ignore[arg-type]
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/pandas/core/series.py", line 4634, in unstack
+    return unstack(self, level, fill_value, sort)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/pandas/core/reshape/reshape.py", line 517, in unstack
+    unstacker = _Unstacker(
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/pandas/core/reshape/reshape.py", line 154, in __init__
+    self._make_selectors()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/pandas/core/reshape/reshape.py", line 210, in _make_selectors
+    raise ValueError("Index contains duplicate entries, cannot reshape")
+ValueError: Index contains duplicate entries, cannot reshape
+DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+{"ts": 1771412799783, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Seeding database (idempotent)...", "module": "jobs"}
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+{"ts": 1771412828025, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Indicators computed (MVP).", "module": "jobs"}
+/workspace/stockvn/packages/core/core/factors.py:62: FutureWarning: The default fill_method='pad' in DataFrame.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  rets = panel.pct_change()
+{"ts": 1771412828460, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Factor scores computed (MVP).", "module": "jobs"}
+{"ts": 1771412828991, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Technical setups computed (MVP).", "module": "jobs"}
+{"ts": 1771412829222, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Alerts generated (MVP).", "module": "jobs"}
+{"ts": 1771412829232, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Seed done.", "module": "jobs"}
+{"ts": 1771412829232, "level": "INFO", "logger": "__main__", "message": "Seed completed.", "module": "seed_demo_data"}
+
+JOB_RESULTS
+[
+  {
+    "run": 1,
+    "job": "compute_indicators",
+    "seconds": 17.203,
+    "ok": true,
+    "result": {
+      "ok": 1
+    }
+  },
+  {
+    "run": 1,
+    "job": "compute_factor_scores",
+    "seconds": 0.436,
+    "ok": true,
+    "result": {
+      "ok": 1
+    }
+  },
+  {
+    "run": 1,
+    "job": "compute_technical_setups",
+    "seconds": 0.374,
+    "ok": true,
+    "result": {
+      "ok": 1
+    }
+  },
+  {
+    "run": 1,
+    "job": "generate_alerts",
+    "seconds": 0.288,
+    "ok": true,
+    "result": {
+      "ok": 1
+    }
+  },
+  {
+    "run": 1,
+    "job": "job_build_ml_features_v3",
+    "seconds": 0.567,
+    "ok": false,
+    "result": {
+      "error": "Merge keys contain null values on right side"
+    }
+  },
+  {
+    "run": 1,
+    "job": "job_build_labels_v3",
+    "seconds": 4.401,
+    "ok": true,
+    "result": 2519
+  },
+  {
+    "run": 1,
+    "job": "job_train_alpha_listnet_v2",
+    "seconds": 0.042,
+    "ok": true,
+    "result": {
+      "trained": 0,
+      "predictions": 0
+    }
+  },
+  {
+    "run": 1,
+    "job": "job_update_alpha_v3_cp",
+    "seconds": 0.003,
+    "ok": true,
+    "result": {
+      "updated_residuals": 0,
+      "predictions": 0
+    }
+  },
+  {
+    "run": 1,
+    "job": "job_train_alpha_v3",
+    "seconds": 0.143,
+    "ok": true,
+    "result": {
+      "trained": 0,
+      "predictions": 0
+    }
+  },
+  {
+    "run": 2,
+    "job": "compute_indicators",
+    "seconds": 16.979,
+    "ok": true,
+    "result": {
+      "ok": 1
+    }
+  },
+  {
+    "run": 2,
+    "job": "compute_factor_scores",
+    "seconds": 0.414,
+    "ok": true,
+    "result": {
+      "ok": 1
+    }
+  },
+  {
+    "run": 2,
+    "job": "compute_technical_setups",
+    "seconds": 0.367,
+    "ok": true,
+    "result": {
+      "ok": 1
+    }
+  },
+  {
+    "run": 2,
+    "job": "generate_alerts",
+    "seconds": 0.287,
+    "ok": true,
+    "result": {
+      "ok": 1
+    }
+  },
+  {
+    "run": 2,
+    "job": "job_build_ml_features_v3",
+    "seconds": 0.522,
+    "ok": false,
+    "result": {
+      "error": "Merge keys contain null values on right side"
+    }
+  },
+  {
+    "run": 2,
+    "job": "job_build_labels_v3",
+    "seconds": 3.354,
+    "ok": true,
+    "result": 2519
+  },
+  {
+    "run": 2,
+    "job": "job_train_alpha_listnet_v2",
+    "seconds": 0.032,
+    "ok": true,
+    "result": {
+      "trained": 0,
+      "predictions": 0
+    }
+  },
+  {
+    "run": 2,
+    "job": "job_update_alpha_v3_cp",
+    "seconds": 0.001,
+    "ok": true,
+    "result": {
+      "updated_residuals": 0,
+      "predictions": 0
+    }
+  },
+  {
+    "run": 2,
+    "job": "job_train_alpha_v3",
+    "seconds": 0.031,
+    "ok": true,
+    "result": {
+      "trained": 0,
+      "predictions": 0
+    }
+  }
+]
+ENDPOINT_CHECKS
+{
+  "health": {
+    "status_code": 200,
+    "ok": true,
+    "path": "/health",
+    "json": {
+      "status": "ok",
+      "db": "ok"
+    }
+  },
+  "tickers": {
+    "status_code": 200,
+    "ok": true,
+    "path": "/tickers",
+    "json": [
+      {
+        "sector": "Tech",
+        "symbol": "AAA",
+        "shares_outstanding": 0,
+        "is_bank": false,
+        "tags": {},
+        "updated_at": "2026-02-18T11:01:57.803899",
+        "name": "AAA",
+        "exchange": "HOSE",
+        "industry": "Software",
+        "market_cap": 0.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:01:57.803879"
+      },
+      {
+        "sector": "Tech",
+        "symbol": "FPT",
+        "shares_outstanding": 0,
+        "is_bank": false,
+        "tags": {},
+        "updated_at": "2026-02-18T11:02:27.442149",
+        "name": "FPT",
+        "exchange": "HOSE",
+        "industry": "Software",
+        "market_cap": 0.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:02:27.442127"
+      },
+      {
+        "sector": "Banks",
+        "symbol": "FVNA",
+        "shares_outstanding": 2400000000,
+        "is_bank": true,
+        "tags": {
+          "catalysts": [
+            "KQKD",
+            "policy"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.860182",
+        "name": "FVN Alpha Bank",
+        "exchange": "HOSE",
+        "industry": "Commercial Bank",
+        "market_cap": 93480000000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.860157"
+      },
+      {
+        "sector": "Securities",
+        "symbol": "FVNB",
+        "shares_outstanding": 1200000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "liquidity",
+            "cycle"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.868238",
+        "name": "FVN Beta Securities",
+        "exchange": "HOSE",
+        "industry": "Brokerage",
+        "market_cap": 25320000000000.0,
+        "is_broker": true,
+        "created_at": "2026-02-18T11:06:39.868216"
+      },
+      {
+        "sector": "Real Estate",
+        "symbol": "FVNC",
+        "shares_outstanding": 1800000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "cycle",
+            "policy"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.872325",
+        "name": "FVN Gamma Real Estate",
+        "exchange": "HOSE",
+        "industry": "Property Developer",
+        "market_cap": 54000000000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.872259"
+      },
+      {
+        "sector": "Industrials",
+        "symbol": "FVND",
+        "shares_outstanding": 900000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "capex",
+            "cycle"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.873711",
+        "name": "FVN Delta Industrials",
+        "exchange": "HOSE",
+        "industry": "Manufacturing",
+        "market_cap": 23715000000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.873690"
+      },
+      {
+        "sector": "Consumer",
+        "symbol": "FVNE",
+        "shares_outstanding": 650000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "KQKD",
+            "seasonal"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.875125",
+        "name": "FVN Epsilon Consumer",
+        "exchange": "HOSE",
+        "industry": "Retail",
+        "market_cap": 34970000000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.875105"
+      },
+      {
+        "sector": "Technology",
+        "symbol": "FVNF",
+        "shares_outstanding": 420000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "product",
+            "policy"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.876487",
+        "name": "FVN Zeta Technology",
+        "exchange": "HOSE",
+        "industry": "Software",
+        "market_cap": 21504000000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.876467"
+      },
+      {
+        "sector": "Utilities",
+        "symbol": "FVNG",
+        "shares_outstanding": 1050000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "regulation",
+            "dividend"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.877780",
+        "name": "FVN Eta Utilities",
+        "exchange": "HOSE",
+        "industry": "Power",
+        "market_cap": 9103500000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.877760"
+      },
+      {
+        "sector": "Materials",
+        "symbol": "FVNH",
+        "shares_outstanding": 1550000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "cycle",
+            "commodity"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.879015",
+        "name": "FVN Theta Materials",
+        "exchange": "HOSE",
+        "industry": "Steel",
+        "market_cap": 35030000000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.878995"
+      },
+      {
+        "sector": "Healthcare",
+        "symbol": "FVNI",
+        "shares_outstanding": 520000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "policy",
+            "defensive"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.880339",
+        "name": "FVN Iota Healthcare",
+        "exchange": "HOSE",
+        "industry": "Pharma",
+        "market_cap": 33384000000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.880316"
+      },
+      {
+        "sector": "Energy",
+        "symbol": "FVNJ",
+        "shares_outstanding": 760000000,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "commodity",
+            "cycle"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.881619",
+        "name": "FVN Kappa Energy",
+        "exchange": "HOSE",
+        "industry": "Oil & Gas Services",
+        "market_cap": 9614000000000.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.881570"
+      },
+      {
+        "sector": "Index",
+        "symbol": "VNINDEX",
+        "shares_outstanding": 0,
+        "is_bank": false,
+        "tags": {
+          "catalysts": [
+            "nan"
+          ]
+        },
+        "updated_at": "2026-02-18T11:06:39.882855",
+        "name": "VN-Index (Synthetic)",
+        "exchange": "HOSE",
+        "industry": "Benchmark",
+        "market_cap": 0.0,
+        "is_broker": false,
+        "created_at": "2026-02-18T11:06:39.882830"
+      }
+    ]
+  },
+  "prices_latest_date": {
+    "status_code": 404,
+    "ok": false,
+    "path": "/prices/latest_date",
+    "json": {
+      "detail": "Not Found"
+    }
+  },
+  "screeners_validate": {
+    "status_code": 422,
+    "ok": false,
+    "path": "/screeners/validate",
+    "json": {
+      "detail": [
+        {
+          "type": "missing",
+          "loc": [
+            "body",
+            "screen"
+          ],
+          "msg": "Field required",
+          "input": {
+            "name": "demo",
+            "filters": []
+          }
+        }
+      ]
+    }
+  },
+  "screeners_run": {
+    "status_code": 422,
+    "ok": false,
+    "path": "/screeners/run",
+    "json": {
+      "detail": [
+        {
+          "type": "missing",
+          "loc": [
+            "body",
+            "screen"
+          ],
+          "msg": "Field required",
+          "input": {
+            "name": "demo",
+            "filters": []
+          }
+        }
+      ]
+    }
+  },
+  "chart_daily_bounded": {
+    "status_code": 400,
+    "ok": false,
+    "path": "/chart/ohlcv",
+    "json": {
+      "detail": "invalid datetime: 01-01-2025"
+    }
+  },
+  "chart_daily_unbounded_reject": {
+    "status_code": 400,
+    "ok": false,
+    "path": "/chart/ohlcv",
+    "json": {
+      "detail": "invalid datetime: 01-01-2020"
+    }
+  },
+  "watchlists_list": {
+    "status_code": 404,
+    "ok": false,
+    "path": "/watchlists",
+    "json": {
+      "detail": "Not Found"
+    }
+  },
+  "watchlists_create": {
+    "status_code": 404,
+    "ok": false,
+    "path": "/watchlists",
+    "json": {
+      "detail": "Not Found"
+    }
+  },
+  "portfolio_dashboard": {
+    "status_code": 200,
+    "ok": true,
+    "path": "/portfolio/dashboard",
+    "json": {
+      "as_of_date": "",
+      "nav": 0.0,
+      "cash": 0.0,
+      "holdings": [],
+      "exposures": {
+        "sector": {},
+        "style": {}
+      },
+      "risk": {
+        "vol": 0.0,
+        "beta": 0.0,
+        "cvar": 0.0,
+        "mdd": 0.0,
+        "var_hist": 0.0
+      },
+      "risk_contrib": {
+        "names": [],
+        "sectors": [],
+        "clusters": []
+      },
+      "constraints": {
+        "active": [],
+        "violations_pre": [],
+        "violations_post": [],
+        "distance_metrics": {}
+      },
+      "capacity": {
+        "by_symbol": [],
+        "flags": []
+      }
+    }
+  },
+  "alerts_list": {
+    "status_code": 404,
+    "ok": false,
+    "path": "/alerts",
+    "json": {
+      "detail": "Not Found"
+    }
+  },
+  "reports_export": {
+    "status_code": 404,
+    "ok": false,
+    "path": "/reports/export",
+    "json": {
+      "detail": "Not Found"
+    }
+  }
+}docs_status=200

@@ -1,0 +1,2586 @@
+python -m ruff check .
+warning: The top-level linter settings are deprecated in favour of their counterparts in the `lint` section. Please update the following options in `pyproject.toml`:
+  - 'ignore' -> 'lint.ignore'
+  - 'select' -> 'lint.select'
+I001 [*] Import block is un-sorted or un-formatted
+ --> apps/dashboard_streamlit/pages/10_Uncertainty_Calibration.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | import pandas as pd
+6 | | import streamlit as st
+7 | |
+8 | | from apps.dashboard_streamlit.ui.cache import cached_get_json
+9 | | from apps.dashboard_streamlit.ui.perf import DAILY_MAX_DAYS_DEFAULT, enforce_bounded_range
+  | |__________________________________________________________________________________________^
+  |
+help: Organize imports
+
+F841 Local variable `default_a` is assigned to but never used
+  --> apps/dashboard_streamlit/pages/6_ML_Lab.py:61:5
+   |
+59 |         return
+60 |
+61 |     default_a = run_hashes[0]
+   |     ^^^^^^^^^
+62 |     default_b = run_hashes[1]
+63 |     c1, c2 = st.columns(2)
+   |
+help: Remove assignment to unused variable `default_a`
+
+F841 Local variable `default_b` is assigned to but never used
+  --> apps/dashboard_streamlit/pages/6_ML_Lab.py:62:5
+   |
+61 |     default_a = run_hashes[0]
+62 |     default_b = run_hashes[1]
+   |     ^^^^^^^^^
+63 |     c1, c2 = st.columns(2)
+64 |     run_a = c1.selectbox("Run A", options=run_hashes, index=0)
+   |
+help: Remove assignment to unused variable `default_b`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> migrations/versions/20260218_0005_event_log.py:8:1
+   |
+ 6 |   """
+ 7 |
+ 8 | / from __future__ import annotations
+ 9 | |
+10 | | from alembic import op
+11 | | import sqlalchemy as sa
+   | |_______________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> migrations/versions/20260218_0006_ml_features_v3_storage_and_coverage.py:8:1
+   |
+ 6 |   """
+ 7 |
+ 8 | / from __future__ import annotations
+ 9 | |
+10 | | import sqlalchemy as sa
+11 | | from alembic import op
+   | |______________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> migrations/versions/20260218_0007_alpha_v3_cp_conformal.py:8:1
+   |
+ 6 |   """
+ 7 |
+ 8 | / from __future__ import annotations
+ 9 | |
+10 | | import sqlalchemy as sa
+11 | | from alembic import op
+   | |______________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> migrations/versions/20260218_0008_rebalance_constraint_reports.py:8:1
+   |
+ 6 |   """
+ 7 |
+ 8 | / from __future__ import annotations
+ 9 | |
+10 | | import sqlalchemy as sa
+11 | | from alembic import op
+   | |______________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/alpha_v3/backtest.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | from dataclasses import dataclass
+ 4 | | from hashlib import sha1
+ 5 | | import json
+ 6 | | from math import sqrt
+ 7 | | from typing import Any
+ 8 | |
+ 9 | | import numpy as np
+10 | | import pandas as pd
+11 | |
+12 | | from core.cost_model import SlippageConfig
+13 | | from core.fees_taxes import FeesTaxes
+14 | | from core.market_rules import MarketRules
+15 | | from core.portfolio.accounting import PositionAccounting
+   | |________________________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/alpha_v3/gates.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from pathlib import Path
+4 | | from typing import Any
+5 | |
+6 | | import yaml
+  | |___________^
+  |
+help: Organize imports
+
+SIM108 Use ternary operator `alloc_left = 0.5 if var_total <= 1e-12 else 1.0 - var_left / var_total` instead of `if`-`else`-block
+  --> packages/core/core/alpha_v3/hrp.py:69:13
+   |
+67 |               var_right = _cluster_variance(cov, right)
+68 |               var_total = var_left + var_right
+69 | /             if var_total <= 1e-12:
+70 | |                 alloc_left = 0.5
+71 | |             else:
+72 | |                 alloc_left = 1.0 - (var_left / var_total)
+   | |_________________________________________________________^
+73 |               alloc_left = float(np.clip(alloc_left, 0.0, 1.0))
+74 |               alloc_right = 1.0 - alloc_left
+   |
+help: Replace `if`-`else`-block with `alloc_left = 0.5 if var_total <= 1e-12 else 1.0 - var_left / var_total`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/alpha_v3/models.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import hashlib
+ 4 | | import importlib.util
+ 5 | | import json
+ 6 | | from dataclasses import dataclass
+ 7 | | from pathlib import Path
+ 8 | | from typing import Any
+ 9 | |
+10 | | import numpy as np
+11 | | import pandas as pd
+12 | | from core.alpha_v3.features import FEATURE_VERSION
+13 | | from core.alpha_v3.targets import LABEL_VERSION
+   | |_______________________________________________^
+14 |
+15 |   _HAS_SK = importlib.util.find_spec("sklearn") is not None
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/alpha_v3/portfolio.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | from typing import Any
+ 5 | |
+ 6 | | import numpy as np
+ 7 | | from scipy.optimize import linprog
+ 8 | |
+ 9 | | from core.market_rules import clamp_qty_to_board_lot, round_price
+10 | |
+11 | | from core.alpha_v3.costs import apply_cost_penalty_to_weights
+12 | | from core.alpha_v3.hrp import compute_hrp_weights
+   | |_________________________________________________^
+   |
+help: Organize imports
+
+E402 Module level import not at top of file
+  --> packages/core/core/cost_model.py:61:1
+   |
+61 | from core import market_rules as mr
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/data_lake/feature_source.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | | from pathlib import Path
+5 | | from typing import Any
+6 | |
+7 | | import pandas as pd
+8 | | from core.settings import Settings
+9 | | from sqlmodel import Session, select
+  | |____________________________________^
+  |
+help: Organize imports
+
+B009 [*] Do not call `getattr` with a constant attribute value. It is not any safer than normal property access.
+  --> packages/core/core/data_lake/feature_source.py:83:21
+   |
+81 |         q = q.where(col <= end_date)
+82 |     if symbols and hasattr(model, "symbol"):
+83 |         q = q.where(getattr(model, "symbol").in_(symbols))
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^
+84 |     rows = session.exec(q).all()
+85 |     return pd.DataFrame([r.model_dump() for r in rows]) if rows else pd.DataFrame()
+   |
+help: Replace `getattr` with attribute access
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/data_lake/parquet_export.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import hashlib
+ 5 | | import json
+ 6 | | from pathlib import Path
+ 7 | |
+ 8 | | import pandas as pd
+ 9 | | from core.db.models import (
+10 | |     AlphaPrediction,
+11 | |     DailyFlowFeature,
+12 | |     DailyIntradayFeature,
+13 | |     DailyOrderbookFeature,
+14 | |     ParquetManifest,
+15 | |     PriceOHLCV,
+16 | |     QuoteL2,
+17 | |     TradeTape,
+18 | | )
+19 | | from core.settings import Settings
+20 | | from sqlalchemy import func
+21 | | from sqlmodel import Session, select
+   | |____________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/db/event_log.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import hashlib
+ 5 | | import json
+ 6 | | from typing import Any
+ 7 | |
+ 8 | | from sqlmodel import Session
+ 9 | |
+10 | | from core.db.models import EventLog
+   | |___________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/execution_v4.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from dataclasses import dataclass
+4 | | from typing import Any
+5 | |
+6 | | import numpy as np
+7 | | import pandas as pd
+  | |___________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/features/daily_flow.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | |
+ 5 | | import numpy as np
+ 6 | | import pandas as pd
+ 7 | | import sqlalchemy as sa
+ 8 | | from core.db.models import DailyFlowFeature, FeatureLastProcessed, MarketDailyMeta, PriceOHLCV
+ 9 | | from sqlmodel import Session, select
+   | |____________________________________^
+10 |
+11 |   FEATURE_NAME = "daily_flow_features"
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/features/daily_intraday.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import math
+ 5 | |
+ 6 | | import sqlalchemy as sa
+ 7 | | from core.db.models import DailyIntradayFeature, FeatureLastProcessed, PriceOHLCV
+ 8 | | from sqlmodel import Session, select
+   | |____________________________________^
+ 9 |
+10 |   FEATURE_NAME = "daily_intraday_features"
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/features/daily_orderbook.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | import sqlalchemy as sa
+6 | | from core.db.models import DailyOrderbookFeature, FeatureLastProcessed, QuoteL2
+7 | | from sqlmodel import Session, select
+  | |____________________________________^
+8 |
+9 |   FEATURE_NAME = "daily_orderbook_features"
+  |
+help: Organize imports
+
+SIM108 Use ternary operator `current = current[int(part)] if part.isdigit() else current[part]` instead of `if`-`else`-block
+  --> packages/core/core/features/daily_orderbook.py:41:13
+   |
+39 |           current = expr
+40 |           for part in [p for p in parts if p]:
+41 | /             if part.isdigit():
+42 | |                 current = current[int(part)]
+43 | |             else:
+44 | |                 current = current[part]
+   | |_______________________________________^
+45 |           return sa.cast(current.astext, sa.Float)
+46 |       return sa.cast(sa.func.json_extract(expr, path), sa.Float)
+   |
+help: Replace `if`-`else`-block with `current = current[int(part)] if part.isdigit() else current[part]`
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/logging.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import json
+4 | | import logging
+5 | | import time
+6 | | from contextvars import ContextVar
+7 | | from contextlib import contextmanager
+8 | | from typing import Any
+  | |______________________^
+  |
+help: Organize imports
+
+UP034 [*] Avoid extraneous parentheses
+   --> packages/core/core/market_rules.py:115:37
+    |
+113 |                 tick_rules_by_exchange[ex_u] = {
+114 |                     "stock_rules": stock_rules,
+115 |                     "etf_tick": int(((tcfg.get("etf", {}) or {}).get("tick", 10))),
+    |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+116 |                     "cw_tick": int(((tcfg.get("cw", {}) or {}).get("tick", 10))),
+117 |                     "put_through_tick": int(((tcfg.get("put_through", {}) or {}).get("tick", 1)),
+    |
+help: Remove extraneous parentheses
+
+UP034 [*] Avoid extraneous parentheses
+   --> packages/core/core/market_rules.py:116:36
+    |
+114 |                     "stock_rules": stock_rules,
+115 |                     "etf_tick": int(((tcfg.get("etf", {}) or {}).get("tick", 10))),
+116 |                     "cw_tick": int(((tcfg.get("cw", {}) or {}).get("tick", 10))),
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+117 |                     "put_through_tick": int(((tcfg.get("put_through", {}) or {}).get("tick", 1)),
+118 |                     ),
+    |
+help: Remove extraneous parentheses
+
+SIM108 Use ternary operator `direction = "nearest" if side is None else "up" if str(side).upper() == "BUY" else "down"` instead of `if`-`else`-block
+   --> packages/core/core/market_rules.py:344:9
+    |
+342 |       pt = put_through if put_through is not None else is_put_through
+343 |       if direction is None:
+344 | /         if side is None:
+345 | |             direction = "nearest"
+346 | |         else:
+347 | |             direction = "up" if str(side).upper() == "BUY" else "down"
+    | |______________________________________________________________________^
+348 |       return load_market_rules(path).round_price(
+349 |           price,
+    |
+help: Replace `if`-`else`-block with `direction = "nearest" if side is None else "up" if str(side).upper() == "BUY" else "down"`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/ml/__init__.py:1:1
+   |
+ 1 | / from core.ml.cv import purged_kfold_with_embargo
+ 2 | | from core.ml.features import build_ml_features
+ 3 | | from core.ml.models import MlModelBundle
+ 4 | | from core.ml.meta_allocator_v3 import (
+ 5 | |     EG_ETA,
+ 6 | |     WEIGHT_CAP_MAX,
+ 7 | |     WEIGHT_CAP_MIN,
+ 8 | |     MetaAllocatorV3Config,
+ 9 | |     compute_expert_utility_v3,
+10 | |     meta_allocate_v3,
+11 | | )
+12 | | from core.ml.regime_v4 import (
+13 | |     REGIME_LABELS,
+14 | |     RegimeKMeansV4Model,
+15 | |     monitor_regime_feature_drift,
+16 | |     monthly_pit_retrain_schedule,
+17 | |     predict_regime_kmeans_v4,
+18 | |     train_regime_kmeans_v4_pit,
+19 | | )
+   | |_^
+20 |
+21 |   __all__ = [
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/ml/backtest.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import math
+ 4 | |
+ 5 | | import numpy as np
+ 6 | | import pandas as pd
+ 7 | |
+ 8 | | from core.calendar_vn import get_trading_calendar_vn
+ 9 | | from core.cost_model import calc_fill_ratio, calc_slippage_bps
+10 | | from core.fees_taxes import compute_commission, compute_sell_tax
+11 | | from core.ml.models import MlModelBundle
+12 | | from core.ml.portfolio import form_portfolio
+   | |____________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/ml/listnet.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | | from dataclasses import asdict, dataclass
+ 6 | | from pathlib import Path
+ 7 | | from typing import Any
+ 8 | |
+ 9 | | import numpy as np
+10 | | import pandas as pd
+11 | | from core.ml.prob_calibration import CalibratedProbabilityModel, fit_calibrated_probability_model
+12 | | from core.ml.ranking_metrics import daily_ranking_metrics
+13 | | from core.ml.splitters.purged_kfold import PurgedKFoldEmbargo
+   | |_____________________________________________________________^
+   |
+help: Organize imports
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> packages/core/core/ml/listnet.py:214:31
+    |
+212 |                 "score": float(sc),
+213 |             }
+214 |             for yg, ye, sc in zip(g["y_gain"].to_numpy(dtype=float), g["y_excess"].to_numpy(dtype=float), score)
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+215 |         )
+216 |     return daily_ranking_metrics(pd.DataFrame(rows), k=30)
+    |
+help: Add explicit value for parameter `strict=`
+
+SIM108 Use ternary operator `room = upper - w if delta > 0 else w - lower` instead of `if`-`else`-block
+  --> packages/core/core/ml/meta_allocator_v3.py:45:9
+   |
+43 |           if abs(delta) <= 1e-12:
+44 |               break
+45 | /         if delta > 0:
+46 | |             room = upper - w
+47 | |         else:
+48 | |             room = w - lower
+   | |____________________________^
+49 |           active = room > 1e-12
+50 |           if not np.any(active):
+   |
+help: Replace `if`-`else`-block with `room = upper - w if delta > 0 else w - lower`
+
+B007 Loop control variable `dte` not used within loop body
+  --> packages/core/core/ml/portfolio.py:45:9
+   |
+43 |     d["w_raw"] = d.groupby("as_of_date")["w_raw"].transform(lambda s: s / max(1e-12, s.sum()))
+44 |     out = []
+45 |     for dte, grp in d.groupby("as_of_date"):
+   |         ^^^
+46 |         out.append(apply_constraints(grp, nav=nav))
+47 |     return pd.concat(out, ignore_index=True) if out else d.iloc[0:0]
+   |
+help: Rename unused `dte` to `_dte`
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/ml/prob_calibration.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from dataclasses import dataclass
+4 | |
+5 | | import numpy as np
+6 | | from core.alpha_v3.calibration import compute_probability_calibration_metrics
+  | |_____________________________________________________________________________^
+7 |
+8 |   _HAS_SK = True
+  |
+help: Organize imports
+
+UP035 [*] Import from `collections.abc` instead: `Iterable`
+ --> packages/core/core/ml/regime_v4.py:4:1
+  |
+3 | from dataclasses import dataclass
+4 | from typing import Iterable
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 |
+6 | import numpy as np
+  |
+help: Import from `collections.abc`
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/ml/targets.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.calendar_vn import get_trading_calendar_vn
+  | |____________________________________________________^
+  |
+help: Organize imports
+
+SIM108 Use ternary operator `c = created if isinstance(created, dt.datetime) else dt.datetime.fromisoformat(str(created))` instead of `if`-`else`-block
+  --> packages/core/core/monitoring/data_health.py:38:9
+   |
+36 |       for r in open_rows:
+37 |           created = r.get("created_at")
+38 | /         if isinstance(created, dt.datetime):
+39 | |             c = created
+40 | |         else:
+41 | |             c = dt.datetime.fromisoformat(str(created))
+   | |_______________________________________________________^
+42 |           ages_h.append((now - c).total_seconds() / 3600.0)
+   |
+help: Replace `if`-`else`-block with `c = created if isinstance(created, dt.datetime) else dt.datetime.fromisoformat(str(created))`
+
+UP037 [*] Remove quotes from type annotation
+  --> packages/core/core/monitoring/prometheus_metrics.py:59:40
+   |
+57 |         self._labels = labels or {}
+58 |
+59 |     def labels(self, **labels: str) -> "_CounterHandle":
+   |                                        ^^^^^^^^^^^^^^^^
+60 |         merged = dict(self._labels)
+61 |         merged.update(labels)
+   |
+help: Remove quotes
+
+UP037 [*] Remove quotes from type annotation
+  --> packages/core/core/monitoring/prometheus_metrics.py:73:40
+   |
+71 |         self._labels = labels or {}
+72 |
+73 |     def labels(self, **labels: str) -> "_GaugeHandle":
+   |                                        ^^^^^^^^^^^^^^
+74 |         merged = dict(self._labels)
+75 |         merged.update(labels)
+   |
+help: Remove quotes
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/prices/service.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | import pandas as pd
+6 | |
+7 | | from core.corporate_actions import adjust_prices
+8 | | from data.providers.base import BaseMarketDataProvider
+  | |______________________________________________________^
+  |
+help: Organize imports
+
+UP035 [*] Import from `collections.abc` instead: `Callable`
+ --> packages/core/core/replay/pipeline.py:6:1
+  |
+4 | from collections import defaultdict
+5 | from dataclasses import dataclass
+6 | from typing import Any, Callable
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+7 |
+8 | from core.fees_taxes import FeesTaxes
+  |
+help: Import from `collections.abc`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/core/core/report_pack_v3.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import argparse
+ 4 | | import datetime as dt
+ 5 | | import hashlib
+ 6 | | import json
+ 7 | | from dataclasses import dataclass
+ 8 | | from pathlib import Path
+ 9 | | from typing import Any
+10 | |
+11 | | from core.db.models import (
+12 | |     AlphaModel,
+13 | |     BacktestEquityCurve,
+14 | |     BacktestMetric,
+15 | |     BacktestRun,
+16 | |     DataHealthIncident,
+17 | |     DiagnosticsMetric,
+18 | |     DiagnosticsRun,
+19 | |     DsrResult,
+20 | |     GateResult,
+21 | |     MinTrlResult,
+22 | |     PboResult,
+23 | |     PsrResult,
+24 | |     RealityCheckResult,
+25 | |     SpaResult,
+26 | | )
+27 | | from core.db.session import create_db_and_tables, get_engine
+28 | | from core.settings import get_settings
+29 | | from sqlmodel import Session, select
+   | |____________________________________^
+30 |
+31 |   SECTION_ORDER = [
+   |
+help: Organize imports
+
+F841 Local variable `bt_summary` is assigned to but never used
+   --> packages/core/core/report_pack_v3.py:165:17
+    |
+163 |             if bt_run is not None:
+164 |                 bt_config = bt_run.config_json or {}
+165 |                 bt_summary = bt_run.summary_json or {}
+    |                 ^^^^^^^^^^
+166 |
+167 |         diagnostics = _as_rows(session.exec(select(DiagnosticsMetric).where(DiagnosticsMetric.run_id == run_id)).all())
+    |
+help: Remove assignment to unused variable `bt_summary`
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> packages/core/core/settings.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import logging
+4 | |
+5 | | from pydantic import Field
+6 | | from pydantic import model_validator
+7 | | from pydantic_settings import BaseSettings, SettingsConfigDict
+  | |______________________________________________________________^
+8 |
+9 |   log = logging.getLogger(__name__)
+  |
+help: Organize imports
+
+B904 Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+  --> packages/data/data/providers/ssi_fastconnect/client.py:49:21
+   |
+47 |                 self.token_manager.invalidate()
+48 |                 if idx >= len(_RETRY_DELAYS):
+49 |                     raise RuntimeError(f"SSI request unauthorized after refresh: {endpoint_path}")
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+50 |                 continue
+51 |             except (httpx.TimeoutException, _RetryableStatusError):
+   |
+
+SIM108 Use ternary operator `day = dt.datetime.strptime(d, "%d/%m/%Y").date() if "/" in d else dt.date.fromisoformat(d)` instead of `if`-`else`-block
+  --> packages/data/data/providers/ssi_fastconnect/mapper_rest.py:44:5
+   |
+42 |       d = str(raw_date).strip()
+43 |       day: dt.date
+44 | /     if "/" in d:
+45 | |         day = dt.datetime.strptime(d, "%d/%m/%Y").date()
+46 | |     else:
+47 | |         day = dt.date.fromisoformat(d)
+   | |______________________________________^
+48 |
+49 |       if raw_time in (None, ""):
+   |
+help: Replace `if`-`else`-block with `day = dt.datetime.strptime(d, "%d/%m/%Y").date() if "/" in d else dt.date.fromisoformat(d)`
+
+B905 `zip()` without an explicit `strict=` parameter
+   --> packages/data/data/providers/ssi_fastconnect/mapper_rest.py:145:21
+    |
+143 |     bars = map_ohlcv_rows(payload, timeframe="1D", source=source)
+144 |     meta: list[dict[str, Any]] = []
+145 |     for row, bar in zip(payload, bars):
+    |                     ^^^^^^^^^^^^^^^^^^
+146 |         meta.append(
+147 |             {
+    |
+help: Add explicit value for parameter `strict=`
+
+SIM112 Use capitalized environment variable `CONSUMERID` instead of `consumerID`
+  --> packages/data/data/providers/ssi_fastconnect/provider.py:16:67
+   |
+14 |     def __init__(self) -> None:
+15 |         self.base_url = os.getenv("SSI_FCDATA_BASE_URL", "https://fc-data.ssi.com.vn/api/v2")
+16 |         self.consumer_id = os.getenv("SSI_CONSUMER_ID", os.getenv("consumerID", ""))
+   |                                                                   ^^^^^^^^^^^^
+17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+18 |         self.private_key_path = os.getenv("SSI_PRIVATE_KEY_PATH", os.getenv("privateKeyPath", ""))
+   |
+help: Replace `consumerID` with `CONSUMERID`
+
+SIM112 Use capitalized environment variable `CONSUMERSECRET` instead of `consumerSecret`
+  --> packages/data/data/providers/ssi_fastconnect/provider.py:17:75
+   |
+15 |         self.base_url = os.getenv("SSI_FCDATA_BASE_URL", "https://fc-data.ssi.com.vn/api/v2")
+16 |         self.consumer_id = os.getenv("SSI_CONSUMER_ID", os.getenv("consumerID", ""))
+17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+   |                                                                           ^^^^^^^^^^^^^^^^
+18 |         self.private_key_path = os.getenv("SSI_PRIVATE_KEY_PATH", os.getenv("privateKeyPath", ""))
+19 |         self.access_token = os.getenv("SSI_ACCESS_TOKEN", "")
+   |
+help: Replace `consumerSecret` with `CONSUMERSECRET`
+
+SIM112 Use capitalized environment variable `PRIVATEKEYPATH` instead of `privateKeyPath`
+  --> packages/data/data/providers/ssi_fastconnect/provider.py:18:77
+   |
+16 |         self.consumer_id = os.getenv("SSI_CONSUMER_ID", os.getenv("consumerID", ""))
+17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+18 |         self.private_key_path = os.getenv("SSI_PRIVATE_KEY_PATH", os.getenv("privateKeyPath", ""))
+   |                                                                             ^^^^^^^^^^^^^^^^
+19 |         self.access_token = os.getenv("SSI_ACCESS_TOKEN", "")
+20 |         self.token_cache_file = os.getenv("SSI_TOKEN_CACHE_FILE", "")
+   |
+help: Replace `privateKeyPath` with `PRIVATEKEYPATH`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/data/data/providers/ssi_fastconnect/provider_rest.py:14:1
+   |
+12 |       orjson = None
+13 |
+14 | / from core.db.session import create_db_and_tables, get_engine
+15 | | from core.db.event_log import append_event_log
+16 | | from sqlmodel import Session
+17 | |
+18 | | from data.bronze.writer import BronzeWriter
+19 | |
+20 | | from .client import SsiRestClient, fmt_date
+21 | | from .mapper_rest import map_daily_index, map_daily_stock_price, map_ohlcv_rows, map_tickers
+22 | | from .token import SsiTokenManager
+   | |__________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> packages/data/data/repository/ssi_stream_ingest.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import hashlib
+ 5 | | from typing import Any
+ 6 | |
+ 7 | | from core.db.models import (
+ 8 | |     BronzeRaw,
+ 9 | |     ForeignRoom,
+10 | |     IndexOHLCV,
+11 | |     MarketDailyMeta,
+12 | |     PriceOHLCV,
+13 | |     QuoteL2,
+14 | |     StreamDedup,
+15 | |     TradeTape,
+16 | | )
+17 | | from core.db.event_log import append_event_log
+18 | | from sqlmodel import Session, delete, select
+   | |____________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> scripts/export_report_v3.py:1:1
+  |
+1 | from core.report_pack_v3 import main
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> scripts/ml_sensitivity.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from core.ml.backtest import run_sensitivity
+  | |____________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> scripts/ml_stress.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from core.ml.backtest import run_stress
+  | |_______________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts/replay_events.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import argparse
+ 4 | | import datetime as dt
+ 5 | | import json
+ 6 | | import os
+ 7 | | import time
+ 8 | | from collections.abc import Iterable
+ 9 | | from collections import defaultdict
+10 | |
+11 | | from sqlmodel import Session, select
+12 | |
+13 | | from core.db.models import EventLog
+14 | | from core.db.session import create_db_and_tables, get_engine
+   | |____________________________________________________________^
+15 |
+16 |   try:
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts/replay_smoke.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | | from pathlib import Path
+ 6 | |
+ 7 | | from sqlmodel import Session, select
+ 8 | |
+ 9 | | from core.calendar_vn import get_trading_calendar_vn
+10 | | from core.db.models import EventLog
+11 | | from core.db.session import create_db_and_tables, get_engine
+12 | | from core.fees_taxes import FeesTaxes
+13 | | from core.market_rules import load_market_rules
+14 | | from core.replay.pipeline import UnifiedTradingPipeline
+15 | | from scripts.replay_events import replay_into_redis
+16 | | from tests.helpers_redis_fake import FakeRedisCompat
+   | |____________________________________________________^
+17 |
+18 |   FIXTURE = Path("tests/fixtures/replay/event_log_fixture.jsonl")
+   |
+help: Organize imports
+
+E402 Module level import not at top of file
+  --> services/api_fastapi/api_fastapi/deps.py:17:1
+   |
+17 | import datetime as dt
+   | ^^^^^^^^^^^^^^^^^^^^^
+18 |
+19 | from fastapi import HTTPException
+   |
+
+E402 Module level import not at top of file
+  --> services/api_fastapi/api_fastapi/deps.py:19:1
+   |
+17 | import datetime as dt
+18 |
+19 | from fastapi import HTTPException
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> services/api_fastapi/api_fastapi/main.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import uuid
+ 4 | | from contextlib import asynccontextmanager
+ 5 | |
+ 6 | | from core.db.models import Ticker
+ 7 | | from core.db.session import create_db_and_tables, get_engine
+ 8 | | from core.logging import get_logger, request_id_context, setup_logging
+ 9 | | from core.monitoring.prometheus_metrics import metrics_payload
+10 | | from core.settings import get_settings
+11 | | from data.providers.factory import get_provider
+12 | | from fastapi import FastAPI, Request, Response
+13 | | from fastapi.middleware.cors import CORSMiddleware
+14 | | from fastapi.middleware.gzip import GZipMiddleware
+15 | | from sqlmodel import Session, select
+16 | | from worker_scheduler.jobs import ensure_seeded
+17 | |
+18 | | from api_fastapi.routers import (
+19 | |     alerts,
+20 | |     data_health,
+21 | |     chart,
+22 | |     fundamentals,
+23 | |     health,
+24 | |     ml,
+25 | |     portfolio,
+26 | |     prices,
+27 | |     screeners,
+28 | |     signals,
+29 | |     tickers,
+30 | |     universe,
+31 | |     watchlists,
+32 | | )
+   | |_^
+33 |
+34 |   settings = get_settings()
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> services/api_fastapi/api_fastapi/routers/ml.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import hashlib
+ 5 | | import json
+ 6 | | import uuid
+ 7 | |
+ 8 | | import numpy as np
+ 9 | | import pandas as pd
+10 | | from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
+11 | | from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
+12 | | from core.alpha_v3.features import enforce_no_leakage_guard
+13 | | from core.alpha_v3.gates import evaluate_research_gates
+14 | | from core.alpha_v3.pbo import compute_pbo_cscv
+15 | | from core.calendar_vn import get_trading_calendar_vn
+16 | | from core.db.models import (
+17 | |     AlphaPrediction,
+18 | |     BacktestRun,
+19 | |     DiagnosticsMetric,
+20 | |     DiagnosticsRun,
+21 | |     ConformalCoverageDaily,
+22 | |     EventLog,
+23 | |     MlFeature,
+24 | |     MlLabel,
+25 | |     DsrResult,
+26 | |     ForeignRoom,
+27 | |     GateResult,
+28 | |     MinTrlResult,
+29 | |     MlPrediction,
+30 | |     PboResult,
+31 | |     PsrResult,
+32 | |     PriceOHLCV,
+33 | |     QuoteL2,
+34 | |     RealityCheckResult,
+35 | |     SpaResult,
+36 | | )
+37 | | from core.market_rules import clamp_qty_to_board_lot
+38 | | from core.ml.backtest import run_sensitivity, run_stress, run_walk_forward
+39 | | from core.ml.diagnostics import run_diagnostics
+40 | | from core.ml.features import build_ml_features, feature_columns
+41 | | from core.ml.features_v2 import build_features_v2
+42 | | from core.ml.models import MlModelBundle
+43 | | from core.ml.models_v2 import MlModelV2Bundle
+44 | | from core.ml.portfolio_v2 import (
+45 | |     apply_constraints_ordered,
+46 | |     apply_exposure_overlay,
+47 | |     apply_no_trade_band,
+48 | |     build_weights_ivp_uncertainty,
+49 | | )
+50 | | from core.ml.reports import build_metrics_table, disclaimer
+51 | | from core.ml.targets import compute_rank_z_label
+52 | | from core.alpha_v3.calibration import (
+53 | |     build_interval_dataset,
+54 | |     compute_interval_calibration_metrics,
+55 | |     compute_probability_calibration_metrics,
+56 | |     summarize_reset_events,
+57 | | )
+58 | | from core.settings import Settings, get_settings
+59 | | from core.universe.manager import UniverseManager
+60 | | from research.stats.psr_mintrl import compute_mintrl, compute_psr
+61 | | from research.stats.reality_check import white_reality_check
+62 | | from research.stats.spa_test import hansen_spa_test
+63 | | from fastapi import APIRouter, Depends, HTTPException, Query
+64 | | from sqlmodel import Session, select
+65 | |
+66 | | from api_fastapi.deps import get_db
+   | |___________________________________^
+67 |
+68 |   router = APIRouter(prefix="/ml", tags=["ml"])
+   |
+help: Organize imports
+
+UP034 [*] Avoid extraneous parentheses
+   --> services/api_fastapi/api_fastapi/routers/ml.py:895:139
+    |
+893 | …BO={m.get('PBO', 1.0):.4f}"},
+894 | …(m.get("SPA", 1.0)) < 0.10, "reason": f"RC={m.get('RC', 1.0):.4f}, SPA={m.get('SPA', 1.0):.4f}"},
+895 | …).get("delta_Sharpe", -1.0)) > -0.5, "reason": str((stress.get("cost_x2") or {}))},
+    |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+896 | … > -1.0, "reason": f"robustness={float(sens.get('robustness_score', 0.0)):.4f}"},
+897 | …
+    |
+help: Remove extraneous parentheses
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> services/api_fastapi/api_fastapi/routers/portfolio.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import hashlib
+ 4 | | from typing import Any
+ 5 | |
+ 6 | | import pandas as pd
+ 7 | | from core.corporate_actions import adjust_prices
+ 8 | | from core.db.models import CorporateAction, Portfolio, PriceOHLCV, Ticker, Trade
+ 9 | | from core.execution_model import load_execution_assumptions, slippage_bps
+10 | | from core.fees_taxes import FeesTaxes
+11 | | from core.portfolio.analytics import (
+12 | |     brinson_attribution_mvp,
+13 | |     compute_portfolio_value_series,
+14 | |     compute_positions_avg_cost,
+15 | |     concentration_metrics,
+16 | |     correlation_of_holdings,
+17 | |     exposure_by_sector,
+18 | |     infer_start_cash,
+19 | |     portfolio_risk_summary,
+20 | |     realized_pnl_breakdown,
+21 | |     suggest_rebalance,
+22 | |     time_weighted_return,
+23 | | )
+24 | | from core.regime import classify_market_regime
+25 | | from core.portfolio.dashboard import (
+26 | |     apply_scenario_shocks,
+27 | |     build_portfolio_dashboard,
+28 | |     build_rebalance_preview,
+29 | |     resolve_portfolio_id,
+30 | | )
+31 | | from core.settings import get_settings
+32 | | from fastapi import APIRouter, Depends
+33 | | from pydantic import BaseModel
+34 | | from sqlmodel import Session, select
+35 | |
+36 | | from api_fastapi.deps import get_db
+   | |___________________________________^
+37 |
+38 |   router = APIRouter(prefix="/portfolio", tags=["portfolio"])
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> services/worker_scheduler/worker_scheduler/jobs.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | | import math
+ 6 | | import os
+ 7 | | from zoneinfo import ZoneInfo
+ 8 | | from pathlib import Path
+ 9 | | from typing import Any
+10 | |
+11 | | import numpy as np
+12 | | import pandas as pd
+13 | | import yaml
+14 | | from core.db.models import (
+15 | |     AlphaPrediction,
+16 | |     AlertEvent,
+17 | |     AlertRule,
+18 | |     AlertV5,
+19 | |     AlertAction,
+20 | |     NotificationLog,
+21 | |     DataHealthIncident,
+22 | |     BronzeFile,
+23 | |     DataQualityMetric,
+24 | |     DriftAlert,
+25 | |     DriftMetric,
+26 | |     FactorScore,
+27 | |     Fundamental,
+28 | |     IndicatorState,
+29 | |     IndicatorValue,
+30 | |     JobRun,
+31 | |     MlFeature,
+32 | |     MlLabel,
+33 | |     DsrResult,
+34 | |     GateResult,
+35 | |     MinTrlResult,
+36 | |     PboResult,
+37 | |     ParquetManifest,
+38 | |     PsrResult,
+39 | |     PriceOHLCV,
+40 | |     QuoteL2,
+41 | |     Signal,
+42 | |     Ticker,
+43 | |     DailyFlowFeature,
+44 | |     DailyIntradayFeature,
+45 | |     DailyOrderbookFeature,
+46 | |     CorporateAction,
+47 | |     FeatureCoverage,
+48 | |     FeatureLastProcessed,
+49 | |     RealityCheckResult,
+50 | |     SpaResult,
+51 | | )
+52 | | from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
+53 | | from core.corporate_actions import adjust_prices
+54 | | from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
+55 | | from core.alpha_v3.gates import evaluate_research_gates
+56 | | from core.alpha_v3.pbo import compute_pbo_cscv
+57 | | from core.calendar_vn import get_trading_calendar_vn
+58 | | from core.ml.backtest import run_sensitivity
+59 | | from core.data_lake.feature_source import load_table_df
+60 | | from core.data_lake.parquet_export import export_partitioned_parquet_for_day
+61 | | from research.stats.psr_mintrl import compute_mintrl, compute_psr
+62 | | from research.stats.reality_check import white_reality_check
+63 | | from research.stats.spa_test import hansen_spa_test
+64 | | from core.db.partitioning import ensure_partitions_monthly as ensure_partitions_monthly_impl
+65 | | from core.features.daily_flow import compute_daily_flow_features as compute_daily_flow_features_impl
+66 | | from core.features.daily_intraday import (
+67 | |     compute_daily_intraday_features as compute_daily_intraday_features_impl,
+68 | | )
+69 | | from core.features.daily_orderbook import (
+70 | |     compute_daily_orderbook_features as compute_daily_orderbook_features_impl,
+71 | | )
+72 | | from core.factors import compute_factors
+73 | | from core.indicators import RSIState, add_indicators, ema_incremental, rsi_incremental
+74 | | from core.logging import get_logger
+75 | | from core.monitoring.data_quality import compute_data_quality_metrics
+76 | | from core.monitoring.data_health import compute_schema_diff, redact_payload
+77 | | from core.monitoring.drift import compute_weekly_drift_metrics
+78 | | from core.monitoring.prometheus_metrics import (
+79 | |     INGEST_ERRORS_TOTAL,
+80 | |     INGEST_ROWS_TOTAL,
+81 | |     LAST_FEATURE_TS,
+82 | |     LAST_INGEST_TS,
+83 | |     LAST_TRAIN_TS,
+84 | |     REDIS_STREAM_LAG,
+85 | |     UPSERT_ROWS_TOTAL,
+86 | |     mark_now,
+87 | | )
+88 | | from core.settings import Settings
+89 | | from core.signals.dsl import evaluate
+90 | | from core.technical import detect_breakout, detect_pullback, detect_trend, detect_volume_spike
+91 | | from data.bronze.writer import BronzeWriter
+92 | | from data.etl.ingest import ingest_fundamentals, ingest_prices, ingest_tickers
+93 | | from data.etl.pipeline import ingest_from_fixtures
+94 | | from data.providers.base import BaseMarketDataProvider
+95 | | from data.providers.ssi_fastconnect.mapper_stream import map_stream_payload
+96 | | from data.repository.ssi_stream_ingest import SsiStreamIngestRepository
+97 | | from sqlmodel import Session, select
+   | |____________________________________^
+98 |
+99 |   log = get_logger(__name__)
+   |
+help: Organize imports
+
+SIM108 Use ternary operator `dropped = float(df[critical].isna().any(axis=1).mean()) if critical else 0.0` instead of `if`-`else`-block
+   --> services/worker_scheduler/worker_scheduler/jobs.py:187:5
+    |
+185 |       miss = {c: float(df[c].isna().mean()) if c in df.columns else 1.0 for c in feature_cols}
+186 |       critical = [c for c in ["ret_21d", "vol_20d", "adv20_value", "rsi14"] if c in feature_cols]
+187 | /     if critical:
+188 | |         dropped = float(df[critical].isna().any(axis=1).mean())
+189 | |     else:
+190 | |         dropped = 0.0
+    | |_____________________^
+191 |       coverage = float(max(0.0, min(1.0, 1.0 - (sum(miss.values()) / max(1, len(miss))))))
+192 |       metrics = {
+    |
+help: Replace `if`-`else`-block with `dropped = float(df[critical].isna().any(axis=1).mean()) if critical else 0.0`
+
+SIM105 Use `contextlib.suppress(Exception)` instead of `try`-`except`-`pass`
+   --> services/worker_scheduler/worker_scheduler/jobs.py:697:5
+    |
+695 |       INGEST_ROWS_TOTAL.labels(channel="ssi_stream").inc(processed)
+696 |       UPSERT_ROWS_TOTAL.labels(table="stream_silver").inc(processed)
+697 | /     try:
+698 | |         REDIS_STREAM_LAG.set(float(sum(len(messages) for _, messages in rows) - acked))
+699 | |     except Exception:
+700 | |         pass
+    | |____________^
+701 |       if processed > 0:
+702 |           mark_now(LAST_INGEST_TS)
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception): ...`
+
+F821 Undefined name `schema_incidents`
+   --> services/worker_scheduler/worker_scheduler/jobs.py:956:39
+    |
+954 |     run.end_ts = dt.datetime.utcnow()
+955 |     run.rows_in = len(df)
+956 |     run.rows_out = len(metrics) + int(schema_incidents)
+    |                                       ^^^^^^^^^^^^^^^^
+957 |     session.add(run)
+958 |     session.commit()
+    |
+
+F811 [*] Redefinition of unused `QuoteL2` from line 40
+    --> services/worker_scheduler/worker_scheduler/jobs.py:1178:59
+     |
+1176 | def train_models_v2(session: Session) -> int:
+1177 |     from core.alpha_v3.features import enforce_no_leakage_guard
+1178 |     from core.db.models import ForeignRoom, MlPrediction, QuoteL2
+     |                                                           ^^^^^^^ `QuoteL2` redefined here
+1179 |     from core.ml.features import build_ml_features, feature_columns
+1180 |     from core.ml.features_v2 import build_features_v2
+     |
+    ::: services/worker_scheduler/worker_scheduler/jobs.py:40:5
+     |
+  38 |     PsrResult,
+  39 |     PriceOHLCV,
+  40 |     QuoteL2,
+     |     ------- previous definition of `QuoteL2` here
+  41 |     Signal,
+  42 |     Ticker,
+     |
+help: Remove definition: `QuoteL2`
+
+F811 [*] Redefinition of unused `QuoteL2` from line 40
+    --> services/worker_scheduler/worker_scheduler/jobs.py:1268:94
+     |
+1267 | def run_diagnostics_v2(session: Session) -> int:
+1268 |     from core.db.models import DiagnosticsMetric, DiagnosticsRun, ForeignRoom, MlPrediction, QuoteL2
+     |                                                                                              ^^^^^^^ `QuoteL2` redefined here
+1269 |     from core.ml.diagnostics import run_diagnostics
+1270 |     from core.ml.features import build_ml_features
+     |
+    ::: services/worker_scheduler/worker_scheduler/jobs.py:40:5
+     |
+  38 |     PsrResult,
+  39 |     PriceOHLCV,
+  40 |     QuoteL2,
+     |     ------- previous definition of `QuoteL2` here
+  41 |     Signal,
+  42 |     Ticker,
+     |
+help: Remove definition: `QuoteL2`
+
+I001 [*] Import block is un-sorted or un-formatted
+    --> services/worker_scheduler/worker_scheduler/jobs.py:1728:5
+     |
+1726 |       artifact_root: str = "artifacts/models/alpha_listnet_v2",
+1727 |   ) -> dict[str, Any] | None:
+1728 | /     from core.db.models import AlphaModel, DiagnosticsMetric, DiagnosticsRun
+1729 | |     from core.ml.listnet import ListNetConfig, cross_validate_listnet, prepare_listnet_training_frame, train_listnet_linear
+1730 | |     from core.ml.prob_calibration import calibration_metrics
+     | |____________________________________________________________^
+1731 |
+1732 |       data = _alpha_v3_training_frame(session)
+     |
+help: Organize imports
+
+E741 Ambiguous variable name: `l`
+    --> services/worker_scheduler/worker_scheduler/jobs.py:2019:17
+     |
+2017 |         [
+2018 |             {"symbol": l.symbol, "as_of_date": l.date, "y_rank_z": l.y_rank_z}
+2019 |             for l in session.exec(select(MlLabel).where(MlLabel.label_version == "v3")).all()
+     |                 ^
+2020 |         ]
+2021 |     )
+     |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> services/worker_scheduler/worker_scheduler/main.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import argparse
+ 4 | |
+ 5 | | from apscheduler.schedulers.blocking import BlockingScheduler
+ 6 | | from core.monitoring.prometheus_metrics import start_metrics_http_server
+ 7 | | from core.db.models import Ticker
+ 8 | | from core.db.session import create_db_and_tables, get_engine
+ 9 | | from core.logging import get_logger, setup_logging
+10 | | from core.settings import get_settings
+11 | | from data.providers.factory import get_provider
+12 | | from sqlmodel import Session, select
+13 | |
+14 | | from worker_scheduler.jobs import (
+15 | |     bronze_retention_cleanup,
+16 | |     cleanup_stream_dedup_job,
+17 | |     compute_data_quality_metrics_job,
+18 | |     compute_daily_flow_features,
+19 | |     compute_daily_orderbook_features,
+20 | |     compute_drift_metrics_job,
+21 | |     job_build_labels_v3,
+22 | |     job_build_ml_features_v3,
+23 | |     nightly_parquet_export_job,
+24 | |     compute_factor_scores,
+25 | |     compute_indicators,
+26 | |     compute_daily_intraday_features,
+27 | |     compute_technical_setups,
+28 | |     consume_ssi_stream_to_bronze_silver,
+29 | |     ensure_partitions_monthly,
+30 | |     ensure_seeded,
+31 | |     generate_alerts,
+32 | |     ingest_prices_job,
+33 | |     job_alert_sla_escalation_daily,
+34 | |     job_alert_digest_daily,
+35 | | )
+   | |_^
+36 |
+37 |   settings = get_settings()
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_aci_cusum_resets.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | | from pathlib import Path
+ 6 | |
+ 7 | | from sqlmodel import SQLModel, Session, create_engine, select
+ 8 | |
+ 9 | | from core.alpha_v3.conformal import (
+10 | |     MODEL_ID_CP,
+11 | |     _maybe_cusum_reset_bucket,
+12 | |     cusum_detect_index,
+13 | |     update_delayed_residuals,
+14 | | )
+15 | | from core.db.models import AlphaPrediction, ConformalResidual, EventLog, MlFeature, MlLabel
+   | |___________________________________________________________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_alert_incident_created_for_stale_high.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from core.db.models import AlertV5, DataHealthIncident
+6 | | from sqlmodel import Session, SQLModel, create_engine, select
+7 | | import worker_scheduler.jobs as jobs
+8 | | from worker_scheduler.jobs import job_alert_sla_escalation_daily
+  | |________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_alert_sla_escalation_uses_trading_days.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from core.db.models import AlertV5
+6 | | from sqlmodel import Session, SQLModel, create_engine, select
+7 | | import worker_scheduler.jobs as jobs
+8 | | from worker_scheduler.jobs import job_alert_sla_escalation_daily
+  | |________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_alpha_v3_conformal_cp.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | |
+ 5 | | import numpy as np
+ 6 | | from sqlmodel import SQLModel, Session, create_engine, select
+ 7 | |
+ 8 | | from core.alpha_v3.conformal import (
+ 9 | |     MODEL_ID_CP,
+10 | |     _update_alpha,
+11 | |     apply_cp_predictions,
+12 | |     cp_interval_half_width,
+13 | |     recompute_bucket_spec_monthly,
+14 | |     update_delayed_residuals,
+15 | | )
+16 | | from core.db.models import (
+17 | |     AlphaPrediction,
+18 | |     ConformalCoverageDaily,
+19 | |     ConformalResidual,
+20 | |     ConformalState,
+21 | |     MlFeature,
+22 | |     MlLabel,
+23 | | )
+   | |_^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_alpha_v3_score_composition.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.models import compose_alpha_v3_score
+  | |_______________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_alpha_v3_train_job_end_to_end.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | from pathlib import Path
+ 5 | |
+ 6 | | import numpy as np
+ 7 | | from sqlmodel import SQLModel, Session, create_engine, select
+ 8 | |
+ 9 | | from core.db.models import AlphaModel, AlphaPrediction, MlFeature, MlLabel
+10 | | from worker_scheduler import jobs
+   | |_________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_alpha_v3_worker_jobs.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from sqlmodel import SQLModel, Session, create_engine, select
+6 | |
+7 | | from core.db.models import FeatureCoverage, MlFeature, MlLabel, PriceOHLCV, Ticker
+8 | | from worker_scheduler.jobs import job_build_labels_v3, job_build_ml_features_v3
+  | |_______________________________________________________________________________^
+  |
+help: Organize imports
+
+E741 Ambiguous variable name: `l`
+  --> tests/test_alpha_v3_worker_jobs.py:55:49
+   |
+53 |         assert len(coverage) > 0
+54 |         assert len(labels) == n_labels
+55 |         assert all(l.y_rank_z == l.y_rank_z for l in labels)  # no NaN
+   |                                                 ^
+56 |         assert all(0.0 <= f.data_coverage_score <= 1.0 for f in features)
+57 |         assert any(f.ret_21d is not None for f in features)
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_backtest_outputs_metrics_and_equity_curve.py:1:1
+  |
+1 | / import numpy as np
+2 | | import pandas as pd
+3 | |
+4 | | from core.alpha_v3.backtest import BacktestV3Config, run_backtest_v3
+5 | | from core.market_rules import load_market_rules
+  | |_______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_block_bootstrap_ci_shapes.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | | import pandas as pd
+5 | |
+6 | | from core.ml.diagnostics import block_bootstrap_ci
+  | |__________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_bootstrap_ci_has_bounds_and_order.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | | import pandas as pd
+5 | |
+6 | | from core.alpha_v3.bootstrap import block_bootstrap_ci
+  | |______________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_capacity_flagging.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.portfolio.analytics import Position
+6 | | from core.portfolio.dashboard import _capacity
+  | |______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_cash_reconciliation_invariant.py:1:1
+  |
+1 | / import numpy as np
+2 | | import pandas as pd
+3 | |
+4 | | from core.alpha_v3.backtest import BacktestV3Config, run_backtest_v3
+5 | | from core.market_rules import load_market_rules
+  | |_______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_constraints_order_is_respected.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.portfolio import apply_constraints_strict_order
+  | |__________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_corporate_actions_pipeline.py:1:1
+   |
+ 1 | / import datetime as dt
+ 2 | |
+ 3 | | import pytest
+ 4 | | import pandas as pd
+ 5 | |
+ 6 | | from core.corporate_actions import (
+ 7 | |     WITHHOLDING_TAX_RATE,
+ 8 | |     CorporateActionEvent,
+ 9 | |     adjust_prices,
+10 | |     apply_ca_to_position,
+11 | | )
+   | |_^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_cost_penalty_reduces_weight_for_high_cost.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.costs import apply_cost_penalty_to_weights
+  | |_____________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_daily_feature_jobs_from_fixtures.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | from sqlmodel import Session, SQLModel, create_engine, select
+ 4 | |
+ 5 | | from core.db.models import DailyFlowFeature, DailyIntradayFeature, DailyOrderbookFeature
+ 6 | | from data.etl.pipeline import ingest_from_fixtures
+ 7 | | from worker_scheduler.jobs import (
+ 8 | |     compute_daily_flow_features,
+ 9 | |     compute_daily_orderbook_features,
+10 | |     compute_intraday_daily_features,
+11 | | )
+   | |_^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_daily_flow_latest_snapshot_selection.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from sqlmodel import Session, SQLModel, create_engine, select
+6 | |
+7 | | from core.db.models import DailyFlowFeature, MarketDailyMeta, PriceOHLCV
+8 | | from core.features.daily_flow import compute_daily_flow_features
+  | |________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_daily_flow_rollups.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from sqlmodel import Session, SQLModel, create_engine, select
+6 | |
+7 | | from core.db.models import DailyFlowFeature, MarketDailyMeta, PriceOHLCV
+8 | | from core.features.daily_flow import compute_daily_flow_features
+  | |________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_detect_trend_definition.py:1:1
+  |
+1 | / import pandas as pd
+2 | |
+3 | | from core.technical import detect_trend
+  | |_______________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_drift_psi_calculation.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.monitoring.drift import compute_psi, compute_weekly_drift_metrics
+  | |___________________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_dsr_formula_known_case.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | | import pandas as pd
+5 | |
+6 | | from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
+  | |___________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_execution_schedule_v3.py:1:1
+  |
+1 | / import numpy as np
+2 | | import pandas as pd
+3 | |
+4 | | from core.alpha_v3.backtest import BacktestV3Config, _ac_weights, _allocate_board_lot, run_backtest_v3
+5 | | from core.market_rules import load_market_rules
+  | |_______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_execution_slippage_tick_rounding.py:1:1
+  |
+1 | / import pandas as pd
+2 | |
+3 | | from core.alpha_v3.backtest import BacktestV3Config, run_backtest_v3
+4 | | from core.cost_model import calc_slippage_bps
+5 | | from core.market_rules import load_market_rules
+  | |_______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_execution_v4.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import json
+ 4 | | from pathlib import Path
+ 5 | |
+ 6 | | import pandas as pd
+ 7 | |
+ 8 | | from core.execution_v4 import (
+ 9 | |     ExecutionV4Assumptions,
+10 | |     compute_session_vwap,
+11 | |     simulate_execution_v4,
+12 | | )
+   | |_^
+   |
+help: Organize imports
+
+B905 `zip()` without an explicit `strict=` parameter
+  --> tests/test_execution_v4.py:37:21
+   |
+36 |     assert len(got_rows) == len(golden["rows"])
+37 |     for got, exp in zip(got_rows, golden["rows"]):
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+38 |         assert got["session"] == exp["session"]
+39 |         assert abs(float(got["session_vwap"]) - float(exp["session_vwap"])) < 1e-9
+   |
+help: Add explicit value for parameter `strict=`
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_feature_coverage_score.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | import pandas as pd
+6 | |
+7 | | from worker_scheduler.jobs import _coverage_metrics_for_date
+  | |____________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_fill_penalty_reduces_filled_qty.py:1:1
+  |
+1 | / import pandas as pd
+2 | |
+3 | | from core.alpha_v3.backtest import BacktestV3Config, run_backtest_v3
+4 | | from core.market_rules import load_market_rules
+  | |_______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_foreign_flow_rollups.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.ml.features_v2 import compute_foreign_flow_features
+  | |_____________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_governance_v3.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import numpy as np
+ 4 | | from sqlmodel import Session, SQLModel, create_engine, select
+ 5 | |
+ 6 | | from core.db.models import DataHealthIncident
+ 7 | | from core.governance_v3 import (
+ 8 | |     RUNBOOK_SECTION_GOVERNANCE,
+ 9 | |     apply_governance_fail_safe_v3,
+10 | |     create_governance_incident_v3,
+11 | |     evaluate_pause_triggers_v3,
+12 | |     evaluate_promotion_v3,
+13 | | )
+   | |_^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_groupby_bucket_regime_counts.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | import pandas as pd
+6 | |
+7 | | from core.alpha_v3.calibration import build_interval_dataset, compute_interval_calibration_metrics
+  | |__________________________________________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_hrp_handles_singular_cov_with_ledoitwolf.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.hrp import compute_hrp_weights
+  | |_________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_hrp_properties_nonneg_sum1_order_invariance.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.hrp import compute_hrp_weights
+  | |_________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_incremental_only_new_dates.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from sqlmodel import Session, SQLModel, create_engine, select
+6 | |
+7 | | from core.db.models import DailyFlowFeature, FeatureLastProcessed, MarketDailyMeta, PriceOHLCV
+8 | | from core.features.daily_flow import FEATURE_NAME, compute_daily_flow_features
+  | |______________________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_integration_ml_pipeline.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from api_fastapi.main import create_app
+4 | | from data.etl.pipeline import ingest_from_fixtures
+5 | | from fastapi.testclient import TestClient
+6 | | from sqlmodel import Session
+7 | |
+8 | | from core.db.session import get_engine
+9 | | from worker_scheduler.jobs import compute_indicators_incremental
+  | |________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_interval_calibration_hand_example.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | | import json
+5 | | from pathlib import Path
+6 | |
+7 | | import pandas as pd
+8 | |
+9 | | from core.alpha_v3.calibration import build_interval_dataset, compute_interval_calibration_metrics
+  | |__________________________________________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_intraday_daily_rv_and_first_hour.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | | import math
+5 | |
+6 | | from sqlmodel import Session, SQLModel, create_engine, select
+7 | |
+8 | | from core.db.models import DailyIntradayFeature, PriceOHLCV
+9 | | from core.features.daily_intraday import compute_daily_intraday_features
+  | |________________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_label_horizon_uses_trading_days_not_bdays.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | import pandas as pd
+6 | |
+7 | | from core.calendar_vn import get_trading_calendar_vn
+8 | | from core.ml.targets import compute_y_excess
+  | |____________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_leakage_guard_raises.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | import pandas as pd
+6 | | import pytest
+7 | |
+8 | | from core.alpha_v3.features import assert_no_leakage, enforce_no_leakage_guard
+  | |______________________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_listnet_v2.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | | from pathlib import Path
+ 6 | |
+ 7 | | import numpy as np
+ 8 | | import pandas as pd
+ 9 | | from sqlmodel import SQLModel, Session, create_engine, select
+10 | |
+11 | | from core.alpha_v3.backtest import BacktestV3Config, run_backtest_v3
+12 | | from core.db.models import AlphaPrediction, MlFeature, MlLabel
+13 | | from core.market_rules import load_market_rules
+14 | | from core.ml.listnet import (
+15 | |     ListNetConfig,
+16 | |     cross_validate_listnet,
+17 | |     listnet_loss_and_grad,
+18 | |     percentile_gain,
+19 | |     prepare_listnet_training_frame,
+20 | |     train_listnet_linear,
+21 | | )
+22 | | from worker_scheduler.jobs import job_train_alpha_listnet_v2
+   | |____________________________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_meta_allocator_v3.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import json
+4 | | from pathlib import Path
+5 | |
+6 | | import pandas as pd
+7 | |
+8 | | from core.ml.meta_allocator_v3 import meta_allocate_v3
+  | |______________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_metamorphic_quant_system_v4_08.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | | from pathlib import Path
+ 6 | |
+ 7 | | import numpy as np
+ 8 | | import pandas as pd
+ 9 | |
+10 | | from core.alpha_v3.portfolio import construct_portfolio_v3_with_report
+11 | | from core.corporate_actions import adjust_prices
+   | |________________________________________________^
+   |
+help: Organize imports
+
+B905 `zip()` without an explicit `strict=` parameter
+  --> tests/test_metamorphic_quant_system_v4_08.py:46:42
+   |
+44 | def _weights_by_symbol(weights: np.ndarray, report: dict[str, object]) -> dict[str, float]:
+45 |     syms = list(report["universe"]["symbols"])
+46 |     return {str(s): float(w) for s, w in zip(syms, np.asarray(weights, dtype=float))}
+   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+help: Add explicit value for parameter `strict=`
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_ml_features_v3_incremental.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from sqlmodel import SQLModel, Session, create_engine, select
+6 | |
+7 | | from core.db.models import FeatureCoverage, MlFeature, PriceOHLCV, Ticker
+8 | | from worker_scheduler.jobs import job_build_ml_features_v3
+  | |__________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_ml_features_v3_perf_smoke.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | | import os
+5 | | import time
+6 | |
+7 | | import pandas as pd
+8 | |
+9 | | from core.alpha_v3.features import build_ml_features_v3
+  | |_______________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_model_registry_writes_metadata_and_artifacts.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | | from pathlib import Path
+ 6 | |
+ 7 | | import numpy as np
+ 8 | | from sqlmodel import SQLModel, Session, create_engine, select
+ 9 | |
+10 | | from core.db.models import AlphaModel, MlFeature, MlLabel
+11 | | from worker_scheduler.jobs import train_alpha_v3
+   | |________________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_no_cheating_spy.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | |
+ 6 | | from core.calendar_vn import TradingCalendarVN
+ 7 | | from core.db.models import EventLog
+ 8 | | from core.fees_taxes import FeesTaxes
+ 9 | | from core.market_rules import load_market_rules
+10 | | from core.replay.pipeline import UnifiedTradingPipeline
+11 | | from scripts.replay_events import replay_into_redis
+12 | | from tests.helpers_redis_fake import FakeRedisCompat
+   | |____________________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_no_trade_band_and_min_notional.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.portfolio import apply_no_trade_band
+  | |_______________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_no_trade_band_skips_small_trades.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.ml.portfolio_v2 import apply_no_trade_band
+  | |____________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_orderbook_daily_aggregation_sql.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from sqlmodel import Session, SQLModel, create_engine, select
+6 | |
+7 | | from core.db.models import DailyOrderbookFeature, QuoteL2
+8 | | from core.features.daily_orderbook import compute_daily_orderbook_features
+  | |__________________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_orderbook_imbalance_daily.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.ml.features_v2 import compute_orderbook_daily_features
+  | |________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_parquet_export_and_duckdb_fastpath.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | from pathlib import Path
+ 5 | |
+ 6 | | import pandas as pd
+ 7 | | import pytest
+ 8 | | from core.data_lake.feature_source import load_table_df
+ 9 | | from core.data_lake.parquet_export import export_partitioned_parquet_for_day
+10 | | from core.db.models import AlphaPrediction, ParquetManifest, PriceOHLCV, QuoteL2, Ticker
+11 | | from core.db.session import get_engine
+12 | | from core.settings import Settings
+13 | | from sqlmodel import SQLModel, Session, select
+   | |______________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_parquet_query_perf_smoke.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import os
+ 5 | | import time
+ 6 | | import tracemalloc
+ 7 | | from pathlib import Path
+ 8 | |
+ 9 | | from core.data_lake.feature_source import load_table_df
+10 | | from core.data_lake.parquet_export import export_partitioned_parquet_for_day
+11 | | from core.db.models import PriceOHLCV, Ticker
+12 | | from core.db.session import get_engine
+13 | | from core.settings import Settings
+14 | | from sqlmodel import SQLModel, Session
+   | |______________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_pbo_phi_informationless~0_5.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | | import pandas as pd
+5 | |
+6 | | from core.alpha_v3.pbo import compute_pbo_cscv
+  | |______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_pbo_phi_small_when_true_variant_best_oos.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | | import pandas as pd
+5 | |
+6 | | from core.alpha_v3.pbo import compute_pbo_cscv
+  | |______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_performance_smoke.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | | import time
+5 | |
+6 | | import pandas as pd
+7 | |
+8 | | from core.ml.features import build_ml_features
+  | |______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_point_in_time_fundamentals_public_date.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.alpha_v3.features import build_ml_features_v3
+  | |_______________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_portfolio_build_v5.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import json
+ 4 | | from pathlib import Path
+ 5 | |
+ 6 | | import numpy as np
+ 7 | |
+ 8 | | from core.alpha_v3.portfolio_v5 import (
+ 9 | |     MAX_CLUSTER_CAP,
+10 | |     MAX_SINGLE_CAP,
+11 | |     RISK_BUDGET_CAPS,
+12 | |     build_portfolio_v5,
+13 | |     strict_project_portfolio_v5,
+14 | | )
+   | |_^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_portfolio_v3_cash_after_no_trade.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.portfolio import construct_portfolio_v3
+  | |__________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_portfolio_v3_constraints_pipeline.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | |
+ 5 | | import numpy as np
+ 6 | | from sqlmodel import Session, SQLModel, create_engine, select
+ 7 | |
+ 8 | | from core.alpha_v3.portfolio import (
+ 9 | |     apply_cvar_overlay,
+10 | |     construct_portfolio_v3_with_report,
+11 | |     dykstra_project_weights,
+12 | |     persist_constraint_report,
+13 | | )
+14 | | from core.db.models import RebalanceConstraintReport
+   | |____________________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_portfolio_v3_end_to_end_sane_intents.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.portfolio import construct_portfolio_v3
+  | |__________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_portfolio_v3_input_validation.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | | import pytest
+5 | |
+6 | | from core.alpha_v3.portfolio import construct_portfolio_v3, generate_trade_intents
+  | |__________________________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_predictions_upsert_idempotent.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | import numpy as np
+6 | | from sqlmodel import SQLModel, Session, create_engine, select
+7 | |
+8 | | from core.db.models import AlphaPrediction, MlFeature, MlLabel
+9 | | from worker_scheduler.jobs import predict_alpha_v3, train_alpha_v3
+  | |__________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_prob_calibration_listnet_v2.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | | import json
+ 5 | | from pathlib import Path
+ 6 | |
+ 7 | | import numpy as np
+ 8 | | from sqlmodel import SQLModel, Session, create_engine, select
+ 9 | |
+10 | | from core.alpha_v3.calibration import compute_probability_calibration_metrics
+11 | | from core.db.models import AlphaPrediction, DataHealthIncident, MlLabel
+12 | | from core.ml.prob_calibration import fit_calibrated_probability_model
+13 | | from worker_scheduler.jobs import job_prob_calibration_governance_listnet_v2
+   | |____________________________________________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_psr_mintrl_sanity.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | | import pandas as pd
+5 | |
+6 | | from research.stats.psr_mintrl import compute_mintrl, compute_psr
+  | |_________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_quantile_models_monotonic.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.ml.models_v2 import MlModelV2Bundle
+  | |_____________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_quantile_monotonicity_q10_q50_q90.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.models import AlphaV3ModelBundle
+  | |___________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_rank_pairwise.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import datetime as dt
+ 4 | |
+ 5 | | import numpy as np
+ 6 | | import pandas as pd
+ 7 | | from sqlmodel import SQLModel, Session, create_engine, select
+ 8 | |
+ 9 | | from core.db.models import AlphaPrediction, MlFeature, MlLabel
+10 | | from core.ml.rank_pairwise import (
+11 | |     PairwiseRankConfig,
+12 | |     predict_rank_score,
+13 | |     purged_kfold_embargo_date_splits,
+14 | |     sample_pairs_for_date,
+15 | |     train_pairwise_ranker,
+16 | |     validate_purged_cv_no_leakage,
+17 | | )
+18 | | from worker_scheduler.jobs import job_train_alpha_rankpair_v1
+   | |_____________________________________________________________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_rank_z_label_distribution.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.alpha_v3.targets import build_labels_v3
+  | |_________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_rank_z_label_no_leakage.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.ml.targets import compute_rank_z_label, compute_y_excess
+  | |__________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_reality_check_and_spa.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | | import pandas as pd
+5 | |
+6 | | from research.stats.reality_check import white_reality_check
+7 | | from research.stats.spa_test import hansen_spa_test
+  | |___________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_regime_v4.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import json
+ 4 | | from pathlib import Path
+ 5 | |
+ 6 | | import pandas as pd
+ 7 | |
+ 8 | | from core.ml.regime_v4 import (
+ 9 | |     monthly_pit_retrain_schedule,
+10 | |     monitor_regime_feature_drift,
+11 | |     predict_regime_kmeans_v4,
+12 | |     train_regime_kmeans_v4_pit,
+13 | | )
+   | |_^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_replay_preserves_order_and_counts.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import datetime as dt
+4 | |
+5 | | from core.db.models import EventLog
+6 | | from scripts.replay_events import replay_into_redis
+7 | | from tests.helpers_redis_fake import FakeRedisCompat
+  | |____________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_research_v4_compare_contains_all_metrics.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from api_fastapi.main import create_app
+4 | | from fastapi.testclient import TestClient
+  | |_________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_research_v4_stress_outputs_all_cases.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from api_fastapi.main import create_app
+4 | | from fastapi.testclient import TestClient
+  | |_________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_reset_events_sorted.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.alpha_v3.calibration import summarize_reset_events
+  | |____________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_sell_clamp_bug_fee_tax.py:1:1
+  |
+1 | / import pandas as pd
+2 | |
+3 | | from core.fees_taxes import FeesTaxes
+4 | | from core.portfolio.analytics import compute_positions_avg_cost
+  | |_______________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_sell_clamp_bug_fee_tax_regression.py:1:1
+  |
+1 | / import pandas as pd
+2 | |
+3 | | from core.alpha_v3.backtest import BacktestV3Config, run_backtest_v3
+4 | | from core.market_rules import load_market_rules
+  | |_______________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_ssi_rest_ingest_idempotent.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from core.db.models import IndexOHLCV, MarketDailyMeta, PriceOHLCV, Ticker as DbTicker
+4 | | from data.providers.ssi_fastconnect.mapper_rest import map_daily_index, map_daily_stock_price
+5 | | from data.schemas.canonical_models import Ticker
+6 | | from data.repository.ssi_rest_ingest import SsiRestIngestRepository
+7 | | from sqlmodel import SQLModel, Session, create_engine, select
+  | |_____________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_ssi_retry_on_429_and_5xx.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import asyncio
+4 | |
+5 | | import httpx
+6 | | import pytest
+7 | |
+8 | | from data.providers.ssi_fastconnect.client import SsiRestClient
+9 | | from data.providers.ssi_fastconnect.token import SsiTokenManager
+  | |________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_ssi_token_refresh_on_401.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import asyncio
+4 | |
+5 | | import httpx
+6 | |
+7 | | from data.providers.ssi_fastconnect.client import SsiRestClient
+8 | | from data.providers.ssi_fastconnect.token import SsiTokenManager
+  | |________________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_trade_explain_reason_keys_fixed.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import pandas as pd
+4 | |
+5 | | from core.portfolio import dashboard as dmod
+  | |____________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_training_reproducible_fixed_seed.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.models import AlphaV3ModelBundle
+  | |___________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_turnover_cap_scaling.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import numpy as np
+4 | |
+5 | | from core.alpha_v3.portfolio import cap_turnover
+  | |________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_worker_ca_adjustment_defaults.py:1:1
+  |
+1 | / import datetime as dt
+2 | |
+3 | | import pandas as pd
+4 | | from sqlmodel import Session, SQLModel, create_engine
+5 | |
+6 | | from core.db.models import CorporateAction
+7 | | from worker_scheduler.jobs import _adjust_daily_prices_with_ca
+  | |______________________________________________________________^
+  |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_worker_v2_jobs.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from sqlmodel import Session, select
+4 | |
+5 | | from core.db.models import DiagnosticsMetric, DiagnosticsRun
+6 | | from core.db.session import get_engine
+7 | | from data.etl.pipeline import ingest_from_fixtures
+8 | | from worker_scheduler.jobs import run_diagnostics_v2, train_models_v2
+  | |_____________________________________________________________________^
+  |
+help: Organize imports
+
+Found 157 errors.
+[*] 131 fixable with the `--fix` option (16 hidden fixes can be enabled with the `--unsafe-fixes` option).
+make: *** [Makefile:48: quality-gate] Error 1

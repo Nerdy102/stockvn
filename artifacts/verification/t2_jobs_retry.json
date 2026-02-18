@@ -1,0 +1,36 @@
+[
+  {
+    "run": 1,
+    "job": "job_build_ml_features_v3",
+    "ok": true,
+    "seconds": 13.455,
+    "result": 3751
+  },
+  {
+    "run": 1,
+    "job": "job_train_alpha_listnet_v2",
+    "ok": true,
+    "seconds": 19.832,
+    "result": {
+      "trained": 1,
+      "predictions": 1
+    }
+  },
+  {
+    "run": 2,
+    "job": "job_build_ml_features_v3",
+    "ok": true,
+    "seconds": 0.38,
+    "result": 0
+  },
+  {
+    "run": 2,
+    "job": "job_train_alpha_listnet_v2",
+    "ok": true,
+    "seconds": 20.245,
+    "result": {
+      "trained": 1,
+      "predictions": 1
+    }
+  }
+]

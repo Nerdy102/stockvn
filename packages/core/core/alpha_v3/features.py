@@ -114,7 +114,9 @@ def _prepare_fundamentals_pti(fundamentals: pd.DataFrame | None) -> pd.DataFrame
     for c in cols:
         if c not in f.columns:
             f[c] = np.nan
-    return f[cols].sort_values(["symbol", "effective_public_date"])
+    out = f[cols].copy()
+    out = out.dropna(subset=["symbol", "effective_public_date"]).reset_index(drop=True)
+    return out.sort_values(["symbol", "effective_public_date"])
 
 
 def _asof_merge_pti(base: pd.DataFrame, pit: pd.DataFrame) -> pd.DataFrame:

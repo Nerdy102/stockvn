@@ -1,0 +1,42 @@
+Reviewed .env.example for placeholders and no concrete secrets.
+# ======================
+# VN Invest Toolkit (.env)
+# ======================
+APP_ENV=local
+DEV_MODE=true
+LOG_LEVEL=INFO
+
+# Data provider: csv | ssi_fastconnect | vietstock_datafeed
+DATA_PROVIDER=csv
+DEMO_DATA_DIR=data_demo
+
+# Local default: SQLite file
+DATABASE_URL=sqlite:///./vn_invest.db
+REDIS_URL=redis://localhost:6379/0
+
+# Config paths
+MARKET_RULES_PATH=configs/market_rules_vn.yaml
+FEES_TAXES_PATH=configs/fees_taxes.yaml
+BROKER_NAME=demo_broker
+
+# UI -> API
+API_BASE_URL=http://localhost:8000
+
+# PYTHONPATH for monorepo (Makefile & docker-compose also set)
+PYTHONPATH=packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
+
+# ===== Stub credentials (KHÔNG hardcode secrets) =====
+SSI_USERNAME=
+SSI_PASSWORD=
+SSI_API_KEY=
+
+VIETSTOCK_API_KEY=
+
+SSI_FCDATA_BASE_URL=https://fc-data.ssi.com.vn/api/v2
+SSI_STREAM_URL=wss://iboard-stream.ssi.com.vn
+SSI_CONSUMER_ID=
+SSI_CONSUMER_SECRET=
+SSI_PRIVATE_KEY_PATH=
+
+SSI_STREAM_SUBSCRIBE_UNIVERSE=VN30,VNINDEX
+SSI_STREAM_MOCK_MESSAGES_PATH=

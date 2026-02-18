@@ -335,13 +335,34 @@ def diagnostics(
     if not settings.DEV_MODE:
         raise HTTPException(status_code=403, detail="DEV_MODE required")
     feat = _v2_features(db)
+    empty_metrics = run_diagnostics(
+        pd.DataFrame(
+            columns=[
+                "as_of_date",
+                "symbol",
+                "score_final",
+                "y_excess",
+                "net_ret",
+                "order_notional",
+                "adv20_value",
+                "liq_bound",
+                "turnover",
+                "commission",
+                "sell_tax",
+                "slippage_cost",
+                "regime",
+            ]
+        )
+    )
     if "y_excess" not in feat.columns:
         run_id = str(uuid.uuid4())
         cfg_hash = hashlib.sha256(json.dumps(payload or {}, sort_keys=True).encode()).hexdigest()
         db.add(DiagnosticsRun(run_id=run_id, model_id="ensemble_v2", config_hash=cfg_hash))
         db.add(DiagnosticsMetric(run_id=run_id, metric_name="insufficient_data", metric_value=1.0))
+        for k, v in empty_metrics.items():
+            db.add(DiagnosticsMetric(run_id=run_id, metric_name=k, metric_value=float(v)))
         db.commit()
-        return {"run_id": run_id, "metrics": {"insufficient_data": 1.0}}
+        return {"run_id": run_id, "metrics": {"insufficient_data": 1.0, **empty_metrics}}
     feat = feat.dropna(subset=["y_excess"])
     preds = pd.DataFrame(
         [
@@ -356,8 +377,10 @@ def diagnostics(
         cfg_hash = hashlib.sha256(json.dumps(payload or {}, sort_keys=True).encode()).hexdigest()
         db.add(DiagnosticsRun(run_id=run_id, model_id="ensemble_v2", config_hash=cfg_hash))
         db.add(DiagnosticsMetric(run_id=run_id, metric_name="insufficient_data", metric_value=1.0))
+        for k, v in empty_metrics.items():
+            db.add(DiagnosticsMetric(run_id=run_id, metric_name=k, metric_value=float(v)))
         db.commit()
-        return {"run_id": run_id, "metrics": {"insufficient_data": 1.0}}
+        return {"run_id": run_id, "metrics": {"insufficient_data": 1.0, **empty_metrics}}
 
     preds["score_final"] = preds["meta"].apply(
         lambda m: float((m or {}).get("score_final", 0.0)) if isinstance(m, dict) else 0.0
@@ -378,6 +401,7 @@ def diagnostics(
         np.where(merged.get("regime_trend_up", 0.0) > 0.5, "trend_up", "sideways"),
     )
     metrics = run_diagnostics(merged)
+    metrics = {k: float(v) if np.isfinite(float(v)) else 0.0 for k, v in metrics.items()}
 
     run_id = str(uuid.uuid4())
     cfg_hash = hashlib.sha256(json.dumps(payload or {}, sort_keys=True).encode()).hexdigest()
