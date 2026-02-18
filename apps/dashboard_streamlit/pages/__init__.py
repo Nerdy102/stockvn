@@ -14,6 +14,7 @@ _PAGE_FILES = [
     "7_Alpha_v2_Lab.py",
     "8_Data_Health.py",
     "9_Settings.py",
+    "10_New_Orders.py",
 ]
 
 

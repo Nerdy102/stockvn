@@ -1,0 +1,53 @@
+{
+  "first": {
+    "idempotent": false,
+    "order": {
+      "symbol": "AAA",
+      "id": 2,
+      "quantity": 100.0,
+      "order_type": "LIMIT",
+      "state": "SUBMITTED",
+      "idempotent_key": "332f6ba6432ddb352f7e4e832051cda0abc28ab3",
+      "updated_at": "2026-02-18T14:12:42.580441",
+      "side": "BUY",
+      "portfolio_id": 1,
+      "client_order_id": "audit-idem-1",
+      "price": 10000.0,
+      "adapter": "paper",
+      "reject_reason": "",
+      "created_at": "2026-02-18T14:12:42.500419"
+    },
+    "checks": {
+      "ok": true,
+      "reasons": [],
+      "metrics": {
+        "nav": 1000000000.0,
+        "cash_after": 998998500.0,
+        "position_value": 1000000.0,
+        "sector_value": 1000000.0,
+        "adtv": 0.0,
+        "liquidity_cap": 0.0,
+        "session": "continuous_matching_2"
+      }
+    }
+  },
+  "second": {
+    "idempotent": true,
+    "order": {
+      "symbol": "AAA",
+      "id": 2,
+      "quantity": 100.0,
+      "order_type": "LIMIT",
+      "state": "SUBMITTED",
+      "idempotent_key": "332f6ba6432ddb352f7e4e832051cda0abc28ab3",
+      "updated_at": "2026-02-18T14:12:42.580441",
+      "side": "BUY",
+      "portfolio_id": 1,
+      "client_order_id": "audit-idem-1",
+      "price": 10000.0,
+      "adapter": "paper",
+      "reject_reason": "",
+      "created_at": "2026-02-18T14:12:42.500419"
+    }
+  }
+}

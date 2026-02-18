@@ -1,0 +1,7 @@
+configs/market_rules_vn.yaml: OK
+configs/fees_taxes.yaml: OK
+configs/providers/ssi_template.yaml: OK
+configs/providers/lakehouse_mapping_template.yaml: OK
+.env.example: OK
+# flag defaults
+packages/core/core/settings.py:26:    REALTIME_ENABLED: bool = Field(default=False)

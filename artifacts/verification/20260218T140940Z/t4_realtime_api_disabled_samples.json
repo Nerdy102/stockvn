@@ -1,0 +1,18 @@
+{
+  "summary": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  },
+  "bars": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  },
+  "signals": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  },
+  "top_movers": {
+    "realtime_disabled": true,
+    "message": "Realtime is disabled or unavailable."
+  }
+}

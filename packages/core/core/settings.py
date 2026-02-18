@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = Field(default="sqlite:///./vn_invest.db")
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
+    REALTIME_ENABLED: bool = Field(default=False)
 
     SSI_FCDATA_BASE_URL: str = Field(default="https://fc-data.ssi.com.vn/api/v2")
     SSI_STREAM_URL: str = Field(default="wss://iboard-stream.ssi.com.vn")

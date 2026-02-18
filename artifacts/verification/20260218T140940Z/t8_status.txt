@@ -1,0 +1,3 @@
+small_load_exit=0
+small_chaos_exit=0
+full_load_exit=0

@@ -22,8 +22,10 @@ from api_fastapi.routers import (
     fundamentals,
     health,
     ml,
+    orders,
     portfolio,
     prices,
+    realtime,
     screeners,
     signals,
     tickers,
@@ -86,6 +88,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(tickers.router)
     app.include_router(prices.router)
+    app.include_router(realtime.router)
+    app.include_router(orders.router)
     app.include_router(fundamentals.router)
     app.include_router(screeners.router)
     app.include_router(signals.router)

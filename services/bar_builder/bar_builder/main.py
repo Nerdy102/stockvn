@@ -4,6 +4,7 @@ import datetime as dt
 from typing import Any
 
 from core.monitoring.prometheus_metrics import REGISTRY
+from core.observability.slo import RollingSLO, build_slo_snapshot, snapshot_to_metrics_json
 
 from .bar_builder import SessionAwareBarBuilder
 from .consumer import read_market_events
@@ -16,6 +17,7 @@ class BarBuilderService:
         self.redis = redis_client
         self.storage = storage
         self.builder = SessionAwareBarBuilder(exchange=exchange)
+        self._bar_latency_s = RollingSLO()
 
     def run_once(self) -> dict[str, int]:
         metrics = {
@@ -61,6 +63,12 @@ class BarBuilderService:
                     metrics["corrections_emitted_total"] += 1
                 for row in finalized:
                     metrics["bars_built_total"] += 1
+                    try:
+                        end_ts = dt.datetime.fromisoformat(str(row["end_ts"]).replace("Z", "+00:00"))
+                        lag_s = max(0.0, (dt.datetime.utcnow().replace(tzinfo=end_ts.tzinfo) - end_ts).total_seconds())
+                        self._bar_latency_s.add(lag_s)
+                    except Exception:
+                        pass
                     if self.storage.append_bar(row):
                         metrics["bars_finalized_total"] += 1
                     self.storage.cache_bar(row)
@@ -69,3 +77,18 @@ class BarBuilderService:
         for k, v in metrics.items():
             REGISTRY.inc(k, value=float(v))
         return metrics
+
+
+    def metrics_view(self) -> dict[str, Any]:
+        pending = 0.0
+        try:
+            if hasattr(self.redis, "xpending"):
+                raw = self.redis.xpending("stream:market_events", "bar_builder")
+                if isinstance(raw, dict):
+                    pending = float(raw.get("pending", 0.0))
+                elif isinstance(raw, (list, tuple)) and raw:
+                    pending = float(raw[0])
+        except Exception:
+            pending = 0.0
+        snap = build_slo_snapshot(service="bar_builder", bar_latency=self._bar_latency_s.snapshot(), redis_stream_pending=pending)
+        return snapshot_to_metrics_json(snap)

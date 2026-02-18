@@ -1,0 +1,5 @@
+{
+  "service": "gateway",
+  "from": "harness",
+  "ingest_lag_s_p95": 8.0
+}

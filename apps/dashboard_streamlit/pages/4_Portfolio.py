@@ -37,6 +37,12 @@ def render() -> None:
     scenarios = cached_get_json(f"/portfolio/{pid}/scenario-lab", params=None, ttl_s=60)
 
     st.title("Portfolio Command Center v4")
+    gov = cached_get_json("/governance/status", params=None, ttl_s=5)
+    g1, g2, g3 = st.columns(3)
+    g1.metric("Governance", str(gov.get("status", "RUNNING")))
+    g2.metric("Pause reason", str(gov.get("pause_reason", "") or "-"))
+    last_recon = gov.get("last_reconciliation") or {}
+    g3.metric("Last reconcile", str(last_recon.get("status", "n/a")))
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("NAV", f"{dashboard.get('nav', 0):,.0f}")
     c2.metric("Cash", f"{dashboard.get('cash', 0):,.0f}")

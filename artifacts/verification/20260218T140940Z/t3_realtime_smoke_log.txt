@@ -1,0 +1,4 @@
+bash: command not found: docker
+PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m tools.realtime_harness.run_load --symbols 500 --days 2 --seed 42 --out artifacts/verification/RT_LOAD_REPORT.json
+PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m tools.realtime_harness.run_chaos --seed 42 --out artifacts/verification/RT_CHAOS_REPORT.json
+PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m tools.realtime_harness.verify_invariants --events artifacts/verification/RT_LOAD_EVENTS.jsonl --out artifacts/verification/RT_VERIFY_REPORT.json

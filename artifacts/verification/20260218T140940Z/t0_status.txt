@@ -1,0 +1,2 @@
+quality_gate_exit=2
+ui_guardrail_exit=0

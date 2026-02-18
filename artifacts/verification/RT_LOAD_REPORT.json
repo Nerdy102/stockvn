@@ -1,0 +1,34 @@
+{
+  "scenario": "baseline_load",
+  "seed": 42,
+  "symbols": 500,
+  "days": 2,
+  "event_count": 9000,
+  "perf": {
+    "signal_update_500_symbols_one_bar_s": 0.0414,
+    "signal_update_budget_s": 3.0,
+    "signal_update_budget_ok": true,
+    "peak_memory_mb": 35.82,
+    "peak_memory_budget_mb": 1536.0,
+    "peak_memory_budget_ok": true
+  },
+  "invariants": {
+    "no_duplicate_bars": true,
+    "bars_hash_deterministic": true,
+    "signals_idempotent": true,
+    "no_negative_qty": true,
+    "no_negative_cash": true,
+    "lag_recovered": true,
+    "duplicate_event_count": 0,
+    "duplicate_bar_count": 0,
+    "duplicate_signal_count": 0,
+    "bars_hash": "c92628b2675183d0ea8070e07ea22c82e117c226bf4fe39d4f5035a1005a9966",
+    "lag_tail": [
+      8.0,
+      7.0,
+      6.0,
+      4.0,
+      2.0
+    ]
+  }
+}

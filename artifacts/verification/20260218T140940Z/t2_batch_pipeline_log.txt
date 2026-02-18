@@ -1,0 +1,116 @@
+DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+{"ts": 1771423822689, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Seeding database (idempotent)...", "module": "jobs"}
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+{"ts": 1771423844576, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Indicators computed (MVP).", "module": "jobs"}
+{"ts": 1771423844960, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Factor scores computed (MVP).", "module": "jobs"}
+{"ts": 1771423845248, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Technical setups computed (MVP).", "module": "jobs"}
+{"ts": 1771423845494, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Alerts generated (MVP).", "module": "jobs"}
+{"ts": 1771423845499, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Seed done.", "module": "jobs"}
+{"ts": 1771423845499, "level": "INFO", "logger": "__main__", "message": "Seed completed.", "module": "seed_demo_data"}
+DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+ROW_COUNTS_JSON={"before": {"tickers": 11, "prices_daily": 2750, "fundamentals": 10, "signals": 3, "alerts": 0}, "after_once": {"tickers": 11, "prices_daily": 2750, "fundamentals": 10, "signals": 3, "alerts": 0}, "after_twice": {"tickers": 11, "prices_daily": 2750, "fundamentals": 10, "signals": 3, "alerts": 0}}

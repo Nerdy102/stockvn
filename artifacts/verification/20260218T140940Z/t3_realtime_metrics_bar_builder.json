@@ -1,0 +1,5 @@
+{
+  "service": "bar_builder",
+  "from": "harness",
+  "bars_hash": "b71af41bb1570363dd9ce461d548bc064424dee73b5b8e80132378a0c964a386"
+}

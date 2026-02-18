@@ -1,0 +1,20 @@
+{
+  "status": "RUNNING",
+  "pause_reason": "",
+  "updated_at": null,
+  "last_reconciliation": null,
+  "realtime_ops": {
+    "gauges": {
+      "ingest_lag_s_p95": 0.0,
+      "bar_build_latency_s_p95": 0.0,
+      "signal_latency_s_p95": 0.0,
+      "redis_stream_pending": 0.0
+    },
+    "runbooks": {
+      "REALTIME_LAG_HIGH": "runbook:realtime_lag",
+      "BAR_BUILD_SLOW": "runbook:bar_perf",
+      "SIGNAL_SLOW": "runbook:signal_perf",
+      "STREAM_BACKLOG": "runbook:redis_backlog"
+    }
+  }
+}

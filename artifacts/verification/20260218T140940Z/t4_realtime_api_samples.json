@@ -1,0 +1,4 @@
+{
+  "enabled_error": "Error 111 connecting to localhost:6379. Connection refused.",
+  "enabled_trace": "connection_error"
+}

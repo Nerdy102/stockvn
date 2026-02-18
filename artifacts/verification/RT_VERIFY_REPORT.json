@@ -1,0 +1,19 @@
+{
+  "no_duplicate_bars": true,
+  "bars_hash_deterministic": true,
+  "signals_idempotent": true,
+  "no_negative_qty": true,
+  "no_negative_cash": true,
+  "lag_recovered": true,
+  "duplicate_event_count": 0,
+  "duplicate_bar_count": 0,
+  "duplicate_signal_count": 0,
+  "bars_hash": "c92628b2675183d0ea8070e07ea22c82e117c226bf4fe39d4f5035a1005a9966",
+  "lag_tail": [
+    8.0,
+    7.0,
+    6.0,
+    4.0,
+    2.0
+  ]
+}
