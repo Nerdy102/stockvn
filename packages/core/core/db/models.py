@@ -545,6 +545,16 @@ class BacktestRun(SQLModel, table=True):
     created_at: dt.datetime = Field(default_factory=utcnow)
 
 
+class BacktestMetric(SQLModel, table=True):
+    __tablename__ = "backtest_metrics"
+    __table_args__ = (Index("ix_backtest_metrics_run_metric", "run_id", "metric_name", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: int = Field(index=True)
+    metric_name: str = Field(index=True)
+    metric_value: float
+
+
 class BacktestEquityCurve(SQLModel, table=True):
     __tablename__ = "backtest_equity_curve"
     __table_args__ = (Index("ix_backtest_equity_run_date", "run_id", "date", unique=True),)
