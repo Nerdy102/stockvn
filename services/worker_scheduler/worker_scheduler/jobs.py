@@ -26,6 +26,13 @@ from core.db.models import (
     Ticker,
 )
 from core.db.partitioning import ensure_partitions_monthly as ensure_partitions_monthly_impl
+from core.features.daily_flow import compute_daily_flow_features as compute_daily_flow_features_impl
+from core.features.daily_intraday import (
+    compute_daily_intraday_features as compute_daily_intraday_features_impl,
+)
+from core.features.daily_orderbook import (
+    compute_daily_orderbook_features as compute_daily_orderbook_features_impl,
+)
 from core.factors import compute_factors
 from core.indicators import RSIState, add_indicators, ema_incremental, rsi_incremental
 from core.logging import get_logger
@@ -744,140 +751,20 @@ def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
 
 
 def compute_daily_flow_features(session: Session) -> int:
-    from core.db.models import ForeignRoom, MlFeature
-    from core.ml.features_v2 import compute_foreign_flow_features
-
-    rows = session.exec(select(ForeignRoom)).all()
-    if not rows:
-        return 0
-    df = pd.DataFrame([r.model_dump() for r in rows])
-    df["as_of_date"] = pd.to_datetime(df["timestamp"]).dt.date
-    daily = (
-        df.sort_values(["symbol", "timestamp"])
-        .groupby(["symbol", "as_of_date"], as_index=False)
-        .last()
-    )
-    daily["net_foreign_val"] = daily["fbuy_val"].fillna(0.0) - daily["fsell_val"].fillna(0.0)
-    adv = pd.DataFrame(
-        [
-            r.model_dump()
-            for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
-        ]
-    )
-    if adv.empty:
-        return 0
-    adv["as_of_date"] = pd.to_datetime(adv["timestamp"]).dt.date
-    adv = adv[["symbol", "as_of_date", "value_vnd"]].rename(columns={"value_vnd": "adv20_value"})
-    ff = compute_foreign_flow_features(
-        daily[["symbol", "as_of_date", "net_foreign_val", "current_room", "total_room"]],
-        adv,
-    )
-    up = 0
-    for _, r in ff.iterrows():
-        obj = session.exec(
-            select(MlFeature)
-            .where(MlFeature.symbol == str(r["symbol"]))
-            .where(MlFeature.as_of_date == r["as_of_date"])
-            .where(MlFeature.feature_version == "v2")
-        ).first()
-        payload = {
-            "net_foreign_val_5d": float(r.get("net_foreign_val_5d") or 0.0),
-            "net_foreign_val_20d": float(r.get("net_foreign_val_20d") or 0.0),
-            "foreign_flow_intensity": float(r.get("foreign_flow_intensity") or 0.0),
-            "foreign_room_util": float(r.get("foreign_room_util") or 0.0),
-        }
-        if obj:
-            obj.features_json.update(payload)
-            session.add(obj)
-        else:
-            session.add(
-                MlFeature(
-                    symbol=str(r["symbol"]),
-                    as_of_date=r["as_of_date"],
-                    feature_version="v2",
-                    features_json=payload,
-                )
-            )
-        up += 1
-    session.commit()
-    return up
+    return compute_daily_flow_features_impl(session)
 
 
 def compute_daily_orderbook_features(session: Session) -> int:
-    from core.db.models import MlFeature, QuoteL2
-    from core.ml.features_v2 import compute_orderbook_daily_features
+    return compute_daily_orderbook_features_impl(session)
 
-    rows = session.exec(select(QuoteL2)).all()
-    if not rows:
-        return 0
-    df = pd.DataFrame([r.model_dump() for r in rows])
-    ob = compute_orderbook_daily_features(df)
-    up = 0
-    for _, r in ob.iterrows():
-        obj = session.exec(
-            select(MlFeature)
-            .where(MlFeature.symbol == str(r["symbol"]))
-            .where(MlFeature.as_of_date == r["as_of_date"])
-            .where(MlFeature.feature_version == "v2")
-        ).first()
-        payload = {
-            "imb_1_day": float(r.get("imb_1_day") or 0.0),
-            "imb_3_day": float(r.get("imb_3_day") or 0.0),
-            "spread_day": float(r.get("spread_day") or 0.0),
-        }
-        if obj:
-            obj.features_json.update(payload)
-            session.add(obj)
-        else:
-            session.add(
-                MlFeature(
-                    symbol=str(r["symbol"]),
-                    as_of_date=r["as_of_date"],
-                    feature_version="v2",
-                    features_json=payload,
-                )
-            )
-        up += 1
-    session.commit()
-    return up
+
+def compute_daily_intraday_features(session: Session) -> int:
+    return compute_daily_intraday_features_impl(session)
 
 
 def compute_intraday_daily_features(session: Session) -> int:
-    from core.db.models import MlFeature
-    from core.ml.features_v2 import compute_intraday_daily_features as _compute
-
-    bars = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1m")).all()
-    if not bars:
-        return 0
-    df = pd.DataFrame([r.model_dump() for r in bars])
-    intr = _compute(df)
-    up = 0
-    for _, r in intr.iterrows():
-        obj = session.exec(
-            select(MlFeature)
-            .where(MlFeature.symbol == str(r["symbol"]))
-            .where(MlFeature.as_of_date == r["as_of_date"])
-            .where(MlFeature.feature_version == "v2")
-        ).first()
-        payload = {
-            "rv_day": float(r.get("rv_day") or 0.0),
-            "vol_first_hour_ratio": float(r.get("vol_first_hour_ratio") or 0.0),
-        }
-        if obj:
-            obj.features_json.update(payload)
-            session.add(obj)
-        else:
-            session.add(
-                MlFeature(
-                    symbol=str(r["symbol"]),
-                    as_of_date=r["as_of_date"],
-                    feature_version="v2",
-                    features_json=payload,
-                )
-            )
-        up += 1
-    session.commit()
-    return up
+    """Backward-compatible alias."""
+    return compute_daily_intraday_features(session)
 
 
 def compute_ml_labels_rank_z(session: Session) -> int:
