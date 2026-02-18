@@ -1,0 +1,6 @@
+MEGA03 gateway smoke
+consumed=3
+published=2
+duplicates=1
+late=0
+event_log_ok=True

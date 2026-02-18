@@ -1,0 +1,16 @@
+[
+  {
+    "symbol": "AAA",
+    "timeframe": "15m",
+    "end_ts": "2025-01-02T03:15:00Z",
+    "alert_key": "close > EMA20",
+    "severity": 1
+  },
+  {
+    "symbol": "AAA",
+    "timeframe": "60m",
+    "end_ts": "2025-01-02T03:15:00Z",
+    "alert_key": "close > EMA20",
+    "severity": 1
+  }
+]

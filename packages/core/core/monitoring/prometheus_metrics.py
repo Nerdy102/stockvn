@@ -88,6 +88,11 @@ LAST_INGEST_TS = _GaugeHandle("last_ingest_ts")
 LAST_FEATURE_TS = _GaugeHandle("last_feature_ts")
 LAST_TRAIN_TS = _GaugeHandle("last_train_ts")
 
+BARS_BUILT_TOTAL = _CounterHandle("bars_built_total")
+BARS_FINALIZED_TOTAL = _CounterHandle("bars_finalized_total")
+LATE_EVENTS_TOTAL = _CounterHandle("late_events_total")
+CORRECTIONS_EMITTED_TOTAL = _CounterHandle("corrections_emitted_total")
+
 
 def mark_now(gauge: _GaugeHandle) -> None:
     gauge.set(time.time())
@@ -95,7 +100,6 @@ def mark_now(gauge: _GaugeHandle) -> None:
 
 def metrics_payload() -> tuple[bytes, str]:
     return REGISTRY.render().encode("utf-8"), "text/plain; version=0.0.4"
-
 
 
 # initialize metric names for discoverability
@@ -106,6 +110,11 @@ REGISTRY.set("redis_stream_lag", 0.0)
 REGISTRY.set("last_ingest_ts", 0.0)
 REGISTRY.set("last_feature_ts", 0.0)
 REGISTRY.set("last_train_ts", 0.0)
+REGISTRY.inc("bars_built_total", 0.0)
+REGISTRY.inc("bars_finalized_total", 0.0)
+REGISTRY.inc("late_events_total", 0.0)
+REGISTRY.inc("corrections_emitted_total", 0.0)
+
 
 def start_metrics_http_server(port: int = 9001) -> None:
     class Handler(BaseHTTPRequestHandler):

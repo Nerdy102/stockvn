@@ -1,0 +1,122 @@
+[
+  {
+    "symbol": "AAA",
+    "timeframe": "15m",
+    "end_ts": "2025-01-02T02:15:00Z",
+    "setups": {
+      "trend": false,
+      "breakout": false,
+      "volume_spike": false
+    },
+    "indicators": {
+      "EMA20": 11.0,
+      "EMA50": 11.0,
+      "RSI14": 0.0,
+      "MACD": 0.0,
+      "MACD_SIGNAL": 0.0,
+      "MACD_HIST": 0.0,
+      "ATR14": 0.0,
+      "VWAP": 10.666666666666666
+    }
+  },
+  {
+    "symbol": "AAA",
+    "timeframe": "15m",
+    "end_ts": "2025-01-02T03:15:00Z",
+    "setups": {
+      "trend": true,
+      "breakout": false,
+      "volume_spike": false
+    },
+    "indicators": {
+      "EMA20": 11.095238095238095,
+      "EMA50": 11.03921568627451,
+      "RSI14": 0.0,
+      "MACD": 0.07977207977208067,
+      "MACD_SIGNAL": 0.015954415954416136,
+      "MACD_HIST": 0.06381766381766454,
+      "ATR14": 0.0,
+      "VWAP": 10.857142857142858
+    }
+  },
+  {
+    "symbol": "AAA",
+    "timeframe": "15m",
+    "end_ts": "2025-01-02T06:15:00Z",
+    "setups": {
+      "trend": true,
+      "breakout": false,
+      "volume_spike": false
+    },
+    "indicators": {
+      "EMA20": 11.276643990929706,
+      "EMA50": 11.11610918877355,
+      "RSI14": 0.0,
+      "MACD": 0.22113456871291604,
+      "MACD_SIGNAL": 0.05699044650611612,
+      "MACD_HIST": 0.16414412220679991,
+      "ATR14": 0.0,
+      "VWAP": 11.214285714285714
+    }
+  },
+  {
+    "symbol": "AAA",
+    "timeframe": "60m",
+    "end_ts": "2025-01-02T02:15:00Z",
+    "setups": {
+      "trend": false,
+      "breakout": false,
+      "volume_spike": false
+    },
+    "indicators": {
+      "EMA20": 11.0,
+      "EMA50": 11.0,
+      "RSI14": 0.0,
+      "MACD": 0.0,
+      "MACD_SIGNAL": 0.0,
+      "MACD_HIST": 0.0,
+      "ATR14": 0.0,
+      "VWAP": 10.666666666666666
+    }
+  },
+  {
+    "symbol": "AAA",
+    "timeframe": "60m",
+    "end_ts": "2025-01-02T03:15:00Z",
+    "setups": {
+      "trend": true,
+      "breakout": false,
+      "volume_spike": false
+    },
+    "indicators": {
+      "EMA20": 11.095238095238095,
+      "EMA50": 11.03921568627451,
+      "RSI14": 0.0,
+      "MACD": 0.07977207977208067,
+      "MACD_SIGNAL": 0.015954415954416136,
+      "MACD_HIST": 0.06381766381766454,
+      "ATR14": 0.0,
+      "VWAP": 10.857142857142858
+    }
+  },
+  {
+    "symbol": "AAA",
+    "timeframe": "60m",
+    "end_ts": "2025-01-02T07:00:00Z",
+    "setups": {
+      "trend": true,
+      "breakout": false,
+      "volume_spike": false
+    },
+    "indicators": {
+      "EMA20": 11.276643990929706,
+      "EMA50": 11.11610918877355,
+      "RSI14": 0.0,
+      "MACD": 0.22113456871291604,
+      "MACD_SIGNAL": 0.05699044650611612,
+      "MACD_HIST": 0.16414412220679991,
+      "ATR14": 0.0,
+      "VWAP": 11.214285714285714
+    }
+  }
+]

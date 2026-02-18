@@ -1,0 +1,21 @@
+provider: example_provider
+schema_version: v1
+channels:
+  trades:
+    source_field: source
+    ts_field: ts_utc
+    symbol_field: symbol
+    price_field: price
+    qty_field: qty
+    exchange_field: exchange
+    instrument_field: instrument
+  quotes:
+    source_field: source
+    ts_field: ts_utc
+    symbol_field: symbol
+    bid_px_field: bid_px
+    bid_qty_field: bid_qty
+    ask_px_field: ask_px
+    ask_qty_field: ask_qty
+notes:
+  - "Template only; no secrets and no endpoint URLs"

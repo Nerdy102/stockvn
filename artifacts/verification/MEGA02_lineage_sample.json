@@ -1,0 +1,26 @@
+{
+  "bars_intraday": [
+    {
+      "symbol": "AAA",
+      "timeframe": "15m",
+      "bar_hash": "b53914a6653f5fdd317e3bf6fc7211242e671403bd401c30e54df8d33ba71c11",
+      "lineage_payload_hashes_json": {
+        "payload_hashes": [
+          "07277e7c4d5da6e9c14669deda8f0f3197a6e87777b5159c423b56c941d2b319",
+          "6691c3afce06442dc0f767e5bca2e6591464efb42864b943dedcefc71dd4527b"
+        ]
+      }
+    }
+  ],
+  "feature_snapshots": [
+    {
+      "symbol": "AAA",
+      "timeframe": "15m",
+      "feature_hash": "0c2376c8bc8eb8515adc2dbc9e02a985851d7420c65058031c6334b287ee42d2",
+      "lineage_json": {
+        "bar_hash": "b53914a6653f5fdd317e3bf6fc7211242e671403bd401c30e54df8d33ba71c11",
+        "lineage_payload_hashes_json": "[\"07277e7c4d5da6e9c14669deda8f0f3197a6e87777b5159c423b56c941d2b319\",\"6691c3afce06442dc0f767e5bca2e6591464efb42864b943dedcefc71dd4527b\"]"
+      }
+    }
+  ]
+}

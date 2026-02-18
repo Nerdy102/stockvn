@@ -1,0 +1,5 @@
+{"event_type":"TRADE","event_id":"e1","symbol":"AAA","provider_ts":"2025-01-02T02:05:00Z","price":10.0,"qty":100,"payload_hash":"h1"}
+{"event_type":"TRADE","event_id":"e2","symbol":"AAA","provider_ts":"2025-01-02T02:12:00Z","price":11.0,"qty":200,"payload_hash":"h2"}
+{"event_type":"TRADE","event_id":"e3","symbol":"AAA","provider_ts":"2025-01-02T03:01:00Z","price":12.0,"qty":50,"payload_hash":"h3"}
+{"event_type":"TRADE","event_id":"e4","symbol":"AAA","provider_ts":"2025-01-02T06:02:00Z","price":13.0,"qty":70,"payload_hash":"h4"}
+{"event_type":"TRADE","event_id":"e5","symbol":"AAA","provider_ts":"2025-01-02T07:35:00Z","price":14.0,"qty":30,"payload_hash":"h5"}

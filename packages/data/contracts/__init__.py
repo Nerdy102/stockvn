@@ -1,12 +1,16 @@
-from .canonical import canonical_json, payload_hash
-from .schemas import CanonicalBar, MarketEventV1, QuoteSnapshot, TickerSnapshot, TradePrint
+from .canonical import canonical_json, derive_event_id, hash_payload, payload_hash
+from .models import CanonicalBar, CanonicalBarV1, MarketEventV1, ProviderSnapshot
+from .registry import SchemaRegistry, build_default_registry
 
 __all__ = [
     "canonical_json",
+    "hash_payload",
     "payload_hash",
+    "derive_event_id",
     "MarketEventV1",
     "CanonicalBar",
-    "TickerSnapshot",
-    "QuoteSnapshot",
-    "TradePrint",
+    "CanonicalBarV1",
+    "ProviderSnapshot",
+    "SchemaRegistry",
+    "build_default_registry",
 ]
