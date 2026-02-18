@@ -1,4 +1,4 @@
-.PHONY: setup run-api run-worker run-ui run-stream-ingestor test lint format docker-up docker-down quality-gate bronze-verify bronze-cleanup
+.PHONY: setup run-api run-worker run-ui run-stream-ingestor test lint format docker-up docker-down quality-gate bronze-verify bronze-cleanup replay-smoke
 
 PYTHONPATH := packages/core:packages/data:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
@@ -56,3 +56,6 @@ bronze-verify:
 
 bronze-cleanup:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.bronze_cleanup
+
+replay-smoke:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.replay_smoke
