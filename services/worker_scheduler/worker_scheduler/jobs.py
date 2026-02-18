@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from core.db.models import (
+    AlphaPrediction,
     AlertEvent,
     AlertRule,
     BronzeFile,
@@ -23,6 +24,8 @@ from core.db.models import (
     JobRun,
     MlFeature,
     MlLabel,
+    DsrResult,
+    PboResult,
     PriceOHLCV,
     QuoteL2,
     Signal,
@@ -31,6 +34,10 @@ from core.db.models import (
     DailyIntradayFeature,
     DailyOrderbookFeature,
 )
+from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
+from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
+from core.alpha_v3.pbo import compute_pbo_cscv
+from core.ml.backtest import run_sensitivity
 from core.db.partitioning import ensure_partitions_monthly as ensure_partitions_monthly_impl
 from core.features.daily_flow import compute_daily_flow_features as compute_daily_flow_features_impl
 from core.features.daily_intraday import (
@@ -1252,3 +1259,68 @@ def job_train_alpha_v3(session: Session, as_of_date: dt.date | None = None) -> d
 
     preds = predict_alpha_v3(session, as_of_date=pred_date, version=trained["version"])
     return {"trained": 1, "predictions": preds}
+
+
+def run_overfit_controls_alpha_v3(session: Session, run_id: str) -> dict[str, Any]:
+    """Persist DSR/PBO/Bootstrap controls from available alpha_v3 prediction-label panel."""
+    preds = pd.DataFrame(
+        [
+            p.model_dump()
+            for p in session.exec(select(AlphaPrediction).where(AlphaPrediction.model_id == "alpha_v3")).all()
+        ]
+    )
+    labels = pd.DataFrame(
+        [
+            {"symbol": l.symbol, "as_of_date": l.date, "y_rank_z": l.y_rank_z}
+            for l in session.exec(select(MlLabel).where(MlLabel.label_version == "v3")).all()
+        ]
+    )
+    if preds.empty or labels.empty:
+        return {"status": "insufficient_data"}
+
+    merged = preds.merge(labels, on=["symbol", "as_of_date"], how="inner")
+    if merged.empty:
+        return {"status": "insufficient_data"}
+
+    daily = (
+        merged.groupby("as_of_date", as_index=False)
+        .apply(lambda g: pd.Series({"net_ret": float(g.nlargest(5, "score")["y_rank_z"].mean())}))
+        .reset_index(drop=True)
+    )
+    returns = pd.Series(daily["net_ret"], dtype=float)
+
+    sensitivity = run_sensitivity(base_metrics={}, base_returns=returns)
+    variants_df = pd.DataFrame(
+        {k: pd.Series(v, dtype=float) for k, v in (sensitivity.get("variant_returns", {}) or {}).items()}
+    )
+    if variants_df.empty:
+        variants_df = pd.DataFrame({"base": returns, "base_cost": returns - 0.0001})
+
+    dsr = compute_deflated_sharpe_ratio(returns, n_trials=len(variants_df.columns))
+    phi, logits_summary = compute_pbo_cscv(variants_df, slices=10)
+    ci = alpha_v3_block_bootstrap_ci(returns, block=20, n_resamples=1000)
+
+    dsr_row = session.exec(select(DsrResult).where(DsrResult.run_id == run_id)).first()
+    if dsr_row is None:
+        dsr_row = DsrResult(run_id=run_id, dsr_value=dsr.dsr_value, components=dsr.components)
+    else:
+        dsr_row.dsr_value = dsr.dsr_value
+        dsr_row.components = dsr.components
+    session.add(dsr_row)
+
+    pbo_row = session.exec(select(PboResult).where(PboResult.run_id == run_id)).first()
+    if pbo_row is None:
+        pbo_row = PboResult(run_id=run_id, phi=phi, logits_summary=logits_summary)
+    else:
+        pbo_row.phi = phi
+        pbo_row.logits_summary = logits_summary
+    session.add(pbo_row)
+    session.commit()
+
+    return {
+        "status": "ok",
+        "run_id": run_id,
+        "dsr": dsr.dsr_value,
+        "pbo": phi,
+        "ci": ci,
+    }

@@ -8,12 +8,18 @@ import uuid
 import numpy as np
 import pandas as pd
 from core.alpha_v3.features import enforce_no_leakage_guard
+from core.alpha_v3.bootstrap import block_bootstrap_ci as alpha_v3_block_bootstrap_ci
+from core.alpha_v3.dsr import compute_deflated_sharpe_ratio
+from core.alpha_v3.gates import evaluate_research_gates
+from core.alpha_v3.pbo import compute_pbo_cscv
 from core.db.models import (
     BacktestRun,
+    DsrResult,
     DiagnosticsMetric,
     DiagnosticsRun,
     ForeignRoom,
     MlPrediction,
+    PboResult,
     PriceOHLCV,
     QuoteL2,
     Ticker,
@@ -316,7 +322,7 @@ def backtest(
     key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
     old = db.exec(select(BacktestRun).where(BacktestRun.run_hash == key)).first()
     if old:
-        return {"cached": True, **old.summary_json}
+        return {"cached": True, "run_hash": key, **old.summary_json}
 
     feat = _v2_features(db).dropna(subset=["y_excess", "y_rank_z"])
     if feat.empty:
@@ -412,11 +418,69 @@ def backtest(
                 "equity_curve": curve.to_dict(orient="records"),
                 "metrics": build_metrics_table(metrics),
             },
-            "sensitivity": run_sensitivity(metrics),
+            "sensitivity": run_sensitivity(metrics, base_returns=curve.get("net_ret", pd.Series(dtype=float))),
             "stress": run_stress(metrics),
             "disclaimer": disclaimer(),
         }
 
+    wf_curve = pd.DataFrame(out.get("walk_forward", {}).get("equity_curve", []))
+    sensitivity = out.get("sensitivity", {})
+    sensitivity_variants = sensitivity.get("variants", [])
+    n_trials = max(1, len(sensitivity_variants))
+    ret = wf_curve.get("net_ret", pd.Series(dtype=float)) if not wf_curve.empty else pd.Series(dtype=float)
+
+    dsr = compute_deflated_sharpe_ratio(pd.Series(ret, dtype=float), n_trials=n_trials)
+    variant_returns_raw = sensitivity.get("variant_returns", {})
+    variant_returns = pd.DataFrame({k: pd.Series(v, dtype=float) for k, v in variant_returns_raw.items()})
+    if variant_returns.empty:
+        variant_returns = pd.DataFrame({"base": pd.Series(ret, dtype=float), "base_cost": pd.Series(ret, dtype=float) - 0.0001})
+    phi, logits_summary = compute_pbo_cscv(variant_returns, slices=10)
+    ci = alpha_v3_block_bootstrap_ci(pd.Series(ret, dtype=float), block=20, n_resamples=1000)
+
+    turnover = 0.0
+    metrics_rows = out.get("walk_forward", {}).get("metrics", [])
+    if metrics_rows:
+        for row in metrics_rows:
+            if row.get("metric") == "turnover":
+                turnover = float(row.get("value", 0.0))
+                break
+    gates = evaluate_research_gates(
+        dsr_value=dsr.dsr_value,
+        pbo_phi=phi,
+        turnover=turnover,
+        capacity_avg_order_notional_over_adtv=0.0,
+    )
+
+    out["overfit_controls"] = {
+        "dsr": dsr.dsr_value,
+        "pbo": phi,
+        "bootstrap_ci": ci,
+        "gate": gates,
+        "components": {
+            "dsr": dsr.components,
+            "pbo": logits_summary,
+            "n_trials": n_trials,
+        },
+    }
+
     db.add(BacktestRun(run_hash=key, config_json=payload, summary_json=out))
+    db.flush()
+
+    dsr_row = db.exec(select(DsrResult).where(DsrResult.run_id == key)).first()
+    if dsr_row is None:
+        db.add(DsrResult(run_id=key, dsr_value=dsr.dsr_value, components=dsr.components))
+    else:
+        dsr_row.dsr_value = dsr.dsr_value
+        dsr_row.components = dsr.components
+        db.add(dsr_row)
+
+    pbo_row = db.exec(select(PboResult).where(PboResult.run_id == key)).first()
+    if pbo_row is None:
+        db.add(PboResult(run_id=key, phi=phi, logits_summary=logits_summary))
+    else:
+        pbo_row.phi = phi
+        pbo_row.logits_summary = logits_summary
+        db.add(pbo_row)
+
     db.commit()
-    return {"cached": False, **out}
+    return {"cached": False, "run_hash": key, **out}

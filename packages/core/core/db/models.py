@@ -584,3 +584,25 @@ class DiagnosticsMetric(SQLModel, table=True):
     metric_name: str = Field(index=True)
     metric_value: float
     metric_json: JsonDict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+
+
+class DsrResult(SQLModel, table=True):
+    __tablename__ = "dsr_results"
+    __table_args__ = (Index("ux_dsr_results_run_id", "run_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    dsr_value: float
+    components: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class PboResult(SQLModel, table=True):
+    __tablename__ = "pbo_results"
+    __table_args__ = (Index("ux_pbo_results_run_id", "run_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    phi: float
+    logits_summary: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
