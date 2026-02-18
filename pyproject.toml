@@ -24,3 +24,6 @@ ignore_errors = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "postgres: tests that require PostgreSQL service"
+]

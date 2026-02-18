@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, Column, Index, String
+from sqlalchemy import JSON, BigInteger, Column, DateTime, Index, String
 from sqlmodel import Field, SQLModel
 
 
@@ -32,13 +32,16 @@ class Ticker(SQLModel, table=True):
 
 class PriceOHLCV(SQLModel, table=True):
     __table_args__ = (
-        Index("ix_prices_timeframe_timestamp", "timeframe", "timestamp"),
-        Index("ix_prices_timestamp", "timestamp"),
+        Index("ix_prices_timeframe_timestamp", "timeframe", "ts_utc"),
+        Index("ix_prices_timestamp", "ts_utc"),
+        Index("ix_prices_ohlcv_symbol_timeframe_ts_utc", "symbol", "timeframe", "ts_utc"),
     )
 
     symbol: str = Field(primary_key=True, index=True)
     timeframe: str = Field(primary_key=True, index=True)
-    timestamp: dt.datetime = Field(primary_key=True)
+    timestamp: dt.datetime = Field(
+        sa_column=Column("ts_utc", DateTime(timezone=False), primary_key=True, nullable=False)
+    )
 
     open: float
     high: float
@@ -85,22 +88,34 @@ class IngestState(SQLModel, table=True):
 
 
 class QuoteL2(SQLModel, table=True):
-    __table_args__ = (Index("ix_quotes_symbol_ts", "symbol", "timestamp"),)
+    __table_args__ = (
+        Index("ix_quotes_symbol_ts", "symbol", "ts_utc"),
+        Index("ix_quotes_l2_symbol_ts_utc", "symbol", "ts_utc"),
+        Index("ux_quotes_l2_symbol_ts_source", "symbol", "ts_utc", "source", unique=True),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     symbol: str = Field(index=True)
-    timestamp: dt.datetime = Field(index=True)
+    timestamp: dt.datetime = Field(
+        sa_column=Column("ts_utc", DateTime(timezone=False), nullable=False, index=True)
+    )
     bids: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
     asks: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
     source: str = Field(default="ssi_fcdata")
 
 
 class TradeTape(SQLModel, table=True):
-    __table_args__ = (Index("ix_trades_symbol_ts", "symbol", "timestamp"),)
+    __table_args__ = (
+        Index("ix_trades_symbol_ts", "symbol", "ts_utc"),
+        Index("ix_trades_tape_symbol_ts_utc", "symbol", "ts_utc"),
+        Index("ux_trades_tape_symbol_ts_source", "symbol", "ts_utc", "source", unique=True),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     symbol: str = Field(index=True)
-    timestamp: dt.datetime = Field(index=True)
+    timestamp: dt.datetime = Field(
+        sa_column=Column("ts_utc", DateTime(timezone=False), nullable=False, index=True)
+    )
     last_price: float
     last_vol: float
     side: str | None = None

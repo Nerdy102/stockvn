@@ -19,6 +19,7 @@ from worker_scheduler.jobs import (
     compute_indicators,
     compute_technical_setups,
     consume_ssi_stream_to_bronze_silver,
+    ensure_partitions_monthly,
     ensure_seeded,
     generate_alerts,
     ingest_prices_job,
@@ -74,6 +75,14 @@ def main() -> None:
             bronze_retention_cleanup(session)
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
+    def job_ensure_partitions() -> None:
+        job_log = get_logger(__name__, job_id="ensure_partitions_monthly")
+        with Session(engine) as session:
+            created = ensure_partitions_monthly(session)
+        job_log.info(
+            "worker_job_completed", extra={"event": "worker_job", "created_partitions": created}
+        )
+
     def job_cleanup_dedup() -> None:
         job_log = get_logger(__name__, job_id="cleanup_stream_dedup")
         with Session(engine) as session:
@@ -84,6 +93,7 @@ def main() -> None:
         job_ingest()
         job_compute()
         job_consume_stream()
+        job_ensure_partitions()
         job_cleanup_dedup()
         job_bronze_cleanup()
         return
@@ -108,6 +118,15 @@ def main() -> None:
         "interval",
         seconds=5,
         id="consume_ssi_stream",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_ensure_partitions,
+        "cron",
+        day=1,
+        hour=0,
+        minute=1,
+        id="ensure_partitions_monthly",
         replace_existing=True,
     )
     scheduler.add_job(

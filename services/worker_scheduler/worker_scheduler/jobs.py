@@ -25,6 +25,7 @@ from core.db.models import (
     Signal,
     Ticker,
 )
+from core.db.partitioning import ensure_partitions_monthly as ensure_partitions_monthly_impl
 from core.factors import compute_factors
 from core.indicators import RSIState, add_indicators, ema_incremental, rsi_incremental
 from core.logging import get_logger
@@ -1055,3 +1056,8 @@ def run_diagnostics_v2(session: Session) -> int:
         session.add(DiagnosticsMetric(run_id=run_id, metric_name=k, metric_value=float(v)))
     session.commit()
     return len(metrics)
+
+
+def ensure_partitions_monthly(session: Session) -> int:
+    """Ensure +3 monthly partitions for high-volume postgres tables."""
+    return ensure_partitions_monthly_impl(session, months_ahead=3)
