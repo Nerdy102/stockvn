@@ -824,6 +824,86 @@ class PboResult(SQLModel, table=True):
     created_at: dt.datetime = Field(default_factory=utcnow)
 
 
+class PsrResult(SQLModel, table=True):
+    __tablename__ = "psr_results"
+    __table_args__ = (Index("ux_psr_results_run_id", "run_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    psr_value: float
+    sr_hat: float
+    sr_threshold: float
+    t: int
+    skew: float
+    kurt: float
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class MinTrlResult(SQLModel, table=True):
+    __tablename__ = "mintrl_results"
+    __table_args__ = (Index("ux_mintrl_results_run_id", "run_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    mintrl: int
+    sr_hat: float
+    sr_threshold: float
+    alpha: float
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class RealityCheckResult(SQLModel, table=True):
+    __tablename__ = "reality_check_results"
+    __table_args__ = (Index("ux_reality_check_results_run_id", "run_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    p_value: float
+    components: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class SpaResult(SQLModel, table=True):
+    __tablename__ = "spa_results"
+    __table_args__ = (Index("ux_spa_results_run_id", "run_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    p_value: float
+    components: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class GateResult(SQLModel, table=True):
+    __tablename__ = "gate_results"
+    __table_args__ = (Index("ux_gate_results_run_id", "run_id", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)
+    status: str = Field(index=True)
+    reasons: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    details: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
+class ParquetManifest(SQLModel, table=True):
+    __tablename__ = "parquet_manifest"
+    __table_args__ = (
+        Index("ix_parquet_manifest_dataset_day", "dataset", "year", "month", "day"),
+        Index("ux_parquet_manifest_dataset_partition", "dataset", "year", "month", "day", unique=True),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    dataset: str = Field(index=True)
+    year: int = Field(index=True)
+    month: int = Field(index=True)
+    day: int = Field(index=True)
+    file_path: str
+    row_count: int
+    schema_hash: str = Field(index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow)
+
+
 class RebalanceConstraintReport(SQLModel, table=True):
     __tablename__ = "rebalance_constraint_reports"
     __table_args__ = (Index("ix_rebalance_constraint_reports_date_tag", "as_of_date", "run_tag"),)

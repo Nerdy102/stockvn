@@ -28,14 +28,16 @@ def append_event_log(
     symbol: str | None = None,
     run_id: str | None = None,
 ) -> bool:
-    p_hash = payload_hash(payload_json)
+    # Ensure JSON-serializable payload (convert date/datetime and other non-JSON types to strings).
+    payload_safe = json.loads(json.dumps(payload_json, ensure_ascii=False, default=str))
+    p_hash = payload_hash(payload_safe)
     session.add(
         EventLog(
             ts_utc=ts_utc.replace(tzinfo=None),
             source=source,
             event_type=event_type,
             symbol=symbol,
-            payload_json=payload_json,
+            payload_json=payload_safe,
             payload_hash=p_hash,
             run_id=run_id,
         )

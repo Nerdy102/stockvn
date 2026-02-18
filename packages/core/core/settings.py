@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     API_MAX_LIMIT: int = Field(default=2000)
     API_DEFAULT_DAYS: int = Field(default=365)
 
+    PARQUET_LAKE_ROOT: str = Field(default="artifacts/parquet_lake")
+    DUCKDB_PATH: str = Field(default="artifacts/duckdb/cache.duckdb")
+    ENABLE_DUCKDB_FAST_PATH: bool = Field(default=True)
+
     @model_validator(mode="after")
     def validate_runtime_requirements(self) -> Settings:
         required_urls = {

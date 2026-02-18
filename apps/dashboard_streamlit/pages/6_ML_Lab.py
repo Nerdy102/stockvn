@@ -66,7 +66,17 @@ with t2:
             gate = ofc.get("gate", {})
             status = gate.get("status", "N/A")
             st.subheader(f"Research Gate: {status}")
-            st.write({"DSR": ofc.get("dsr"), "PBO": ofc.get("pbo"), "CI": ofc.get("bootstrap_ci")})
+            st.write(
+                {
+                    "DSR": ofc.get("dsr"),
+                    "PBO": ofc.get("pbo"),
+                    "PSR": ofc.get("psr"),
+                    "MinTRL": ofc.get("mintrl"),
+                    "RC_p": ofc.get("rc_p"),
+                    "SPA_p": ofc.get("spa_p"),
+                    "CI": ofc.get("bootstrap_ci"),
+                }
+            )
             reasons = gate.get("reasons", [])
             if reasons:
                 st.warning("; ".join(reasons))

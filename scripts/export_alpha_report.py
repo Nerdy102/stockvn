@@ -11,7 +11,12 @@ from core.db.models import (
     DiagnosticsMetric,
     DiagnosticsRun,
     DsrResult,
+    GateResult,
+    MinTrlResult,
     PboResult,
+    PsrResult,
+    RealityCheckResult,
+    SpaResult,
 )
 from core.db.session import create_db_and_tables, get_engine
 from core.settings import get_settings
@@ -56,6 +61,11 @@ def main() -> None:
         ).all()
         dsr = session.exec(select(DsrResult).where(DsrResult.run_id == args.run_id)).first()
         pbo = session.exec(select(PboResult).where(PboResult.run_id == args.run_id)).first()
+        psr = session.exec(select(PsrResult).where(PsrResult.run_id == args.run_id)).first()
+        mintrl = session.exec(select(MinTrlResult).where(MinTrlResult.run_id == args.run_id)).first()
+        rc = session.exec(select(RealityCheckResult).where(RealityCheckResult.run_id == args.run_id)).first()
+        spa = session.exec(select(SpaResult).where(SpaResult.run_id == args.run_id)).first()
+        gate = session.exec(select(GateResult).where(GateResult.run_id == args.run_id)).first()
 
         bt_run_id = _resolve_backtest_run_id(session, args.run_id)
         metrics_rows: list[BacktestMetric] = []
@@ -80,8 +90,12 @@ def main() -> None:
         "backtest_run_id": bt_run_id,
         "dsr": float(dsr.dsr_value) if dsr else None,
         "pbo": float(pbo.phi) if pbo else None,
-        "gate_pass_dsr": None if dsr is None else bool(dsr.dsr_value >= 0.0),
-        "gate_pass_pbo": None if pbo is None else bool(pbo.phi <= 0.5),
+        "psr": float(psr.psr_value) if psr else None,
+        "mintrl": float(mintrl.mintrl) if mintrl else None,
+        "rc_p": float(rc.p_value) if rc else None,
+        "spa_p": float(spa.p_value) if spa else None,
+        "gate_status": None if gate is None else gate.status,
+        "gate_reasons": None if gate is None else gate.reasons,
     }
     gates_df = pd.DataFrame([gates])
 

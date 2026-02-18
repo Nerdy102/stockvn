@@ -7,7 +7,7 @@ from core.settings import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
-from api_fastapi.deps import get_db
+from api_fastapi.deps import enforce_time_series_bounds, get_db
 
 router = APIRouter(tags=["prices"])
 
@@ -26,7 +26,7 @@ def get_prices(
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
     limit: int = Query(default=1000, ge=1, le=2000),
-    offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None, description="pagination cursor (integer offset token)"),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> list[PriceOHLCV]:
@@ -35,19 +35,9 @@ def get_prices(
             status_code=400, detail=f"limit exceeds API_MAX_LIMIT={settings.API_MAX_LIMIT}"
         )
 
-    if not start and not end:
-        end_dt = dt.datetime.utcnow()
-        start_dt = end_dt - dt.timedelta(days=settings.API_DEFAULT_DAYS)
-    else:
-        start_dt = _parse_dt(start) if start else None
-        end_dt = _parse_dt(end) if end else None
-
-    if start_dt and end_dt and end_dt < start_dt:
-        raise HTTPException(status_code=400, detail="end must be >= start")
-
-    # Without pagination (offset=0), hard cap query window to 365 days.
-    if start_dt and end_dt and offset == 0 and (end_dt - start_dt).days > 365:
-        raise HTTPException(status_code=400, detail="max range 365 days without pagination")
+    start_dt = _parse_dt(start) if start else None
+    end_dt = _parse_dt(end) if end else None
+    offset = enforce_time_series_bounds(start=start_dt, end=end_dt, cursor=cursor, max_days=365)
 
     q = (
         select(PriceOHLCV)

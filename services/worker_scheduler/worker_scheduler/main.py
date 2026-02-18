@@ -20,6 +20,7 @@ from worker_scheduler.jobs import (
     compute_drift_metrics_job,
     job_build_labels_v3,
     job_build_ml_features_v3,
+    nightly_parquet_export_job,
     compute_factor_scores,
     compute_indicators,
     compute_daily_intraday_features,
@@ -113,6 +114,12 @@ def main() -> None:
             cleanup_stream_dedup_job(session)
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
+    def job_nightly_parquet_export() -> None:
+        job_log = get_logger(__name__, job_id="nightly_parquet_export")
+        with Session(engine) as session:
+            out = nightly_parquet_export_job(session)
+        job_log.info("worker_job_completed", extra={"event": "worker_job", **out})
+
     if args.once:
         job_ingest()
         job_compute()
@@ -121,6 +128,7 @@ def main() -> None:
         job_consume_stream()
         job_ensure_partitions()
         job_cleanup_dedup()
+        job_nightly_parquet_export()
         job_bronze_cleanup()
         return
 
@@ -178,6 +186,14 @@ def main() -> None:
         hour=0,
         minute=5,
         id="cleanup_stream_dedup",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_nightly_parquet_export,
+        "cron",
+        hour=1,
+        minute=10,
+        id="nightly_parquet_export",
         replace_existing=True,
     )
     scheduler.add_job(

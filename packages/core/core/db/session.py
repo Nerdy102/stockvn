@@ -19,7 +19,7 @@ def get_database_url(default: str = "sqlite:///./vn_invest.db") -> str:
 def get_engine(database_url: str):
     connect_args = {}
     if database_url.startswith("sqlite"):
-        connect_args = {"check_same_thread": False}
+        connect_args = {"check_same_thread": False, "timeout": 30}
     return create_engine(database_url, echo=False, connect_args=connect_args, pool_pre_ping=True)
 
 
