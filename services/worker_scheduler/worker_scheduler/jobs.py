@@ -1356,7 +1356,7 @@ def _alpha_v3_training_frame(session: Session) -> pd.DataFrame:
     )
     feat_df = feat_df.drop(columns=["y_rank_z", "y_excess"], errors="ignore")
     lbl_df = pd.DataFrame(
-        [{"symbol": r.symbol, "date": r.date, "y_rank_z": r.y_rank_z} for r in label_rows]
+        [{"symbol": r.symbol, "date": r.date, "y_rank_z": r.y_rank_z, "y_excess": r.y_excess} for r in label_rows]
     )
     merged = feat_df.merge(
         lbl_df,
@@ -1364,7 +1364,7 @@ def _alpha_v3_training_frame(session: Session) -> pd.DataFrame:
         right_on=["symbol", "date"],
         how="inner",
     )
-    merged = merged.dropna(subset=["y_rank_z"]).reset_index(drop=True)
+    merged = merged.dropna(subset=["y_rank_z", "y_excess"]).reset_index(drop=True)
     return merged
 
 
@@ -1718,6 +1718,254 @@ def job_train_alpha_rankpair_v1(session: Session, as_of_date: dt.date | None = N
 
     preds = predict_alpha_rankpair_v1(session, as_of_date=pred_date, version=trained["version"])
     return {"trained": 1, "predictions": preds}
+
+
+
+def train_alpha_listnet_v2(
+    session: Session,
+    artifact_root: str = "artifacts/models/alpha_listnet_v2",
+) -> dict[str, Any] | None:
+    from core.db.models import AlphaModel, DiagnosticsMetric, DiagnosticsRun
+    from core.ml.listnet import ListNetConfig, cross_validate_listnet, prepare_listnet_training_frame, train_listnet_linear
+    from core.ml.prob_calibration import calibration_metrics
+
+    data = _alpha_v3_training_frame(session)
+    if data.empty:
+        return None
+
+    prep, feature_cols = prepare_listnet_training_frame(data)
+    if prep.empty or not feature_cols:
+        return None
+
+    cfg = ListNetConfig()
+    cv_df = cross_validate_listnet(prep, feature_columns=feature_cols, config=cfg)
+    model = train_listnet_linear(prep, feature_columns=feature_cols, config=cfg)
+
+    pred_full = model.predict_frame(prep[["symbol", "as_of_date", *[c for c in feature_cols if c != "missing_count"]]])
+    eval_full = prep[["as_of_date", "y_excess"]].copy()
+    eval_full["z"] = (eval_full["y_excess"].astype(float) > 0.0).astype(float)
+    eval_full["p_cal"] = pred_full["p_cal"].to_numpy(dtype=float)
+    calib_stats = calibration_metrics(eval_full["p_cal"].to_numpy(dtype=float), eval_full["z"].to_numpy(dtype=float), bins=10)
+
+    version_dt = dt.datetime.utcnow().replace(microsecond=0)
+    while True:
+        version = version_dt.strftime("%Y%m%d_%H%M%S")
+        artifact_dir = Path(artifact_root) / version
+        if not artifact_dir.exists():
+            break
+        version_dt = version_dt + dt.timedelta(seconds=1)
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    model_path = artifact_dir / "model.npz"
+    model.save_npz(model_path)
+
+    train_start = prep["as_of_date"].min()
+    train_end = prep["as_of_date"].max()
+    config_hash = f"listnet-{len(feature_cols)}-{cfg.epochs}-{cfg.lr}-{cfg.lambda_l2}"
+
+    model_row = session.exec(
+        select(AlphaModel)
+        .where(AlphaModel.model_id == cfg.model_id)
+        .where(AlphaModel.version == version)
+    ).first()
+    if model_row is None:
+        model_row = AlphaModel(
+            model_id=cfg.model_id,
+            version=version,
+            artifact_path=str(model_path),
+            train_start=train_start,
+            train_end=train_end,
+            config_hash=config_hash,
+        )
+    else:
+        model_row.artifact_path = str(model_path)
+        model_row.train_start = train_start
+        model_row.train_end = train_end
+        model_row.config_hash = config_hash
+    session.add(model_row)
+
+    run_id = f"listnet_{version}"
+    diag = DiagnosticsRun(run_id=run_id, model_id=cfg.model_id, config_hash=config_hash)
+    session.add(diag)
+
+    if not cv_df.empty:
+        session.add(DiagnosticsMetric(run_id=run_id, metric_name="cv_mean_ndcg_at_30", metric_value=float(cv_df["ndcg_at_30"].mean())))
+        session.add(DiagnosticsMetric(run_id=run_id, metric_name="cv_mean_rank_ic", metric_value=float(cv_df["rank_ic"].mean())))
+    session.add(DiagnosticsMetric(run_id=run_id, metric_name="train_dates", metric_value=float(prep["as_of_date"].nunique())))
+    session.add(DiagnosticsMetric(run_id=run_id, metric_name="pcal_brier", metric_value=float(calib_stats.get("brier", 0.0))))
+    session.add(DiagnosticsMetric(run_id=run_id, metric_name="pcal_ece_10", metric_value=float(calib_stats.get("ece", 0.0))))
+
+    session.commit()
+
+    return {
+        "model_id": cfg.model_id,
+        "version": version,
+        "artifact_path": str(model_path),
+        "feature_cols": feature_cols,
+        "run_id": run_id,
+    }
+
+
+def predict_alpha_listnet_v2(session: Session, as_of_date: dt.date, version: str | None = None) -> int:
+    from core.db.models import AlphaModel
+    from core.ml.listnet import load_npz
+
+    q = select(AlphaModel).where(AlphaModel.model_id == "alpha_listnet_v2")
+    if version:
+        q = q.where(AlphaModel.version == version)
+    model_row = session.exec(q.order_by(AlphaModel.version.desc())).first()
+    if model_row is None:
+        return 0
+
+    model_file = Path(model_row.artifact_path)
+    if not model_file.exists():
+        return 0
+    model = load_npz(model_file)
+
+    feat_rows = session.exec(
+        select(MlFeature)
+        .where(MlFeature.feature_version == "v3")
+        .where(MlFeature.as_of_date == as_of_date)
+    ).all()
+    if not feat_rows:
+        return 0
+
+    feat_df = pd.DataFrame([
+        {k: v for k, v in r.model_dump().items() if k not in {"id", "created_at"}}
+        for r in feat_rows
+    ])
+    pred_df = model.predict_frame(feat_df).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    existing_rows = session.exec(
+        select(AlphaPrediction)
+        .where(AlphaPrediction.model_id == "alpha_listnet_v2")
+        .where(AlphaPrediction.as_of_date == as_of_date)
+    ).all()
+    existing = {r.symbol: r for r in existing_rows}
+
+    now = dt.datetime.utcnow()
+    for _, r in pred_df.iterrows():
+        symbol = str(r["symbol"])
+        row = existing.get(symbol)
+        score = float(r["score_z"])
+        raw_score = float(r["score_raw"])
+        p_raw = float(r.get("p_raw", 0.5))
+        p_cal = float(r.get("p_cal", p_raw))
+        if row is None:
+            row = AlphaPrediction(
+                model_id="alpha_listnet_v2",
+                as_of_date=as_of_date,
+                symbol=symbol,
+                score=score,
+                mu=p_cal,
+                uncert=p_raw,
+                pred_base=raw_score,
+                created_at=now,
+            )
+        else:
+            row.score = score
+            row.mu = p_cal
+            row.uncert = p_raw
+            row.pred_base = raw_score
+        session.add(row)
+
+    session.commit()
+    return len(pred_df)
+
+
+def job_train_alpha_listnet_v2(session: Session, as_of_date: dt.date | None = None) -> dict[str, int]:
+    trained = train_alpha_listnet_v2(session)
+    if trained is None:
+        return {"trained": 0, "predictions": 0}
+
+    pred_date = as_of_date
+    if pred_date is None:
+        pred_date = session.exec(
+            select(MlFeature.as_of_date)
+            .where(MlFeature.feature_version == "v3")
+            .order_by(MlFeature.as_of_date.desc())
+        ).first()
+    if pred_date is None:
+        return {"trained": 1, "predictions": 0}
+
+    preds = predict_alpha_listnet_v2(session, as_of_date=pred_date, version=trained["version"])
+    return {"trained": 1, "predictions": preds}
+
+
+
+
+def job_prob_calibration_governance_listnet_v2(session: Session, lookback_days: int = 20, ece_threshold: float = 0.05) -> dict[str, float | int | bool]:
+    from core.alpha_v3.calibration import compute_probability_calibration_metrics
+
+    preds = session.exec(
+        select(AlphaPrediction)
+        .where(AlphaPrediction.model_id == "alpha_listnet_v2")
+        .order_by(AlphaPrediction.as_of_date.asc())
+    ).all()
+    if not preds:
+        return {"triggered": False, "latest_ece": 0.0, "days_above": 0}
+
+    labels = session.exec(select(MlLabel).where(MlLabel.label_version == "v3")).all()
+    lbl_map = {(r.symbol, r.date): float(r.y_excess) for r in labels}
+
+    rows = []
+    for p in preds:
+        key = (str(p.symbol), p.as_of_date)
+        if key not in lbl_map:
+            continue
+        rows.append({
+            "as_of_date": p.as_of_date,
+            "p_cal": float(p.mu),
+            "z": 1.0 if float(lbl_map[key]) > 0.0 else 0.0,
+        })
+    if not rows:
+        return {"triggered": False, "latest_ece": 0.0, "days_above": 0}
+
+    df = pd.DataFrame(rows)
+    daily = []
+    for d, g in df.groupby("as_of_date", sort=True):
+        met = compute_probability_calibration_metrics(g["p_cal"].tolist(), g["z"].tolist(), bins=10)
+        daily.append({"as_of_date": d, "ece": float(met.get("ece", 0.0))})
+    day_df = pd.DataFrame(daily).sort_values("as_of_date").reset_index(drop=True)
+    day_df["above"] = (day_df["ece"] > float(ece_threshold)).astype(int)
+    day_df["above_rolling"] = day_df["above"].rolling(int(lookback_days), min_periods=int(lookback_days)).sum()
+
+    triggered = bool((day_df["above_rolling"] >= lookback_days).any())
+    latest_ece = float(day_df["ece"].iloc[-1])
+    days_above = int(day_df["above"].tail(lookback_days).sum())
+
+    if triggered:
+        existing = session.exec(
+            select(DataHealthIncident)
+            .where(DataHealthIncident.source == "prob_calibration")
+            .where(DataHealthIncident.status == "OPEN")
+        ).first()
+        if existing is None:
+            session.add(
+                DataHealthIncident(
+                    source="prob_calibration",
+                    severity="HIGH",
+                    status="OPEN",
+                    summary="ListNet v2 probability calibration drift: rolling ECE>0.05",
+                    details_json={
+                        "lookback_days": int(lookback_days),
+                        "ece_threshold": float(ece_threshold),
+                        "latest_ece": latest_ece,
+                        "days_above": days_above,
+                    },
+                    runbook_section="ML-CAL-001",
+                    suggested_actions_json={
+                        "actions": [
+                            "Re-fit logit+isotonic calibrator on latest validation window",
+                            "Inspect reliability bins by decile",
+                        ]
+                    },
+                )
+            )
+            session.commit()
+
+    return {"triggered": triggered, "latest_ece": latest_ece, "days_above": days_above}
+
 
 
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
+from core.report_pack_v3 import export_report_pack_v3
 
 from apps.dashboard_streamlit.ui.cache import cached_post_json
 
@@ -22,3 +25,20 @@ def render() -> None:
                 if "as_of_date" in curve
                 else curve["equity"]
             )
+
+    st.markdown("---")
+    st.subheader("Audit Export — Report Pack v3")
+    export_run_id = st.text_input("run_id", value="")
+    if st.button("Export report pack v3"):
+        if not export_run_id.strip():
+            st.warning("Please provide a run_id before exporting.")
+        else:
+            bundle = export_report_pack_v3(export_run_id.strip())
+            st.success(f"Export completed: {bundle.outdir}")
+            for name, p in {
+                "Download HTML": bundle.html_path,
+                "Download PDF": bundle.pdf_path,
+                "Download Manifest": bundle.manifest_path,
+            }.items():
+                p = Path(p)
+                st.download_button(name, data=p.read_bytes(), file_name=p.name)
