@@ -21,9 +21,15 @@ from core.db.models import (
     IndicatorState,
     IndicatorValue,
     JobRun,
+    MlFeature,
+    MlLabel,
     PriceOHLCV,
+    QuoteL2,
     Signal,
     Ticker,
+    DailyFlowFeature,
+    DailyIntradayFeature,
+    DailyOrderbookFeature,
 )
 from core.db.partitioning import ensure_partitions_monthly as ensure_partitions_monthly_impl
 from core.features.daily_flow import compute_daily_flow_features as compute_daily_flow_features_impl
@@ -803,7 +809,95 @@ def compute_ml_labels_rank_z(session: Session) -> int:
     return up
 
 
+
+
+def job_build_labels_v3(session: Session) -> int:
+    from core.alpha_v3.targets import build_labels_v3
+
+    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
+    if not prices:
+        return 0
+    labels = build_labels_v3(pd.DataFrame([p.model_dump() for p in prices]))
+
+    up = 0
+    for _, r in labels.dropna(subset=["y_excess", "y_rank_z"]).iterrows():
+        obj = session.exec(
+            select(MlLabel)
+            .where(MlLabel.symbol == str(r["symbol"]))
+            .where(MlLabel.date == r["date"])
+            .where(MlLabel.label_version == "v3")
+        ).first()
+        if obj:
+            obj.y_excess = float(r["y_excess"])
+            obj.y_rank_z = float(r["y_rank_z"])
+            session.add(obj)
+        else:
+            session.add(
+                MlLabel(
+                    symbol=str(r["symbol"]),
+                    date=r["date"],
+                    y_excess=float(r["y_excess"]),
+                    y_rank_z=float(r["y_rank_z"]),
+                    label_version="v3",
+                )
+            )
+        up += 1
+    session.commit()
+    return up
+
+
+def job_build_ml_features_v3(session: Session) -> int:
+    from core.alpha_v3.features import build_ml_features_v3, feature_columns_v3
+
+    prices = session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
+    if not prices:
+        return 0
+
+    factors = pd.DataFrame([r.model_dump() for r in session.exec(select(FactorScore)).all()])
+    fundamentals = pd.DataFrame([r.model_dump() for r in session.exec(select(Fundamental)).all()])
+    tickers = pd.DataFrame([r.model_dump() for r in session.exec(select(Ticker)).all()])
+    flow = pd.DataFrame([r.model_dump() for r in session.exec(select(DailyFlowFeature)).all()])
+    orderbook = pd.DataFrame([r.model_dump() for r in session.exec(select(DailyOrderbookFeature)).all()])
+    intra = pd.DataFrame([r.model_dump() for r in session.exec(select(DailyIntradayFeature)).all()])
+
+    feat = build_ml_features_v3(
+        prices=pd.DataFrame([p.model_dump() for p in prices]),
+        factors=factors if not factors.empty else None,
+        fundamentals=fundamentals if not fundamentals.empty else None,
+        flow_features=flow if not flow.empty else None,
+        orderbook_features=orderbook if not orderbook.empty else None,
+        intraday_features=intra if not intra.empty else None,
+        tickers=tickers if not tickers.empty else None,
+    )
+
+    feat_cols = feature_columns_v3(feat)
+    up = 0
+    for _, r in feat.iterrows():
+        payload = _json_sanitize({k: r[k] for k in feat_cols})
+        obj = session.exec(
+            select(MlFeature)
+            .where(MlFeature.symbol == str(r["symbol"]))
+            .where(MlFeature.as_of_date == r["date"])
+            .where(MlFeature.feature_version == "v3")
+        ).first()
+        if obj:
+            obj.features_json = payload
+            session.add(obj)
+        else:
+            session.add(
+                MlFeature(
+                    symbol=str(r["symbol"]),
+                    as_of_date=r["date"],
+                    feature_version="v3",
+                    features_json=payload,
+                )
+            )
+        up += 1
+    session.commit()
+    return up
+
 def train_models_v2(session: Session) -> int:
+    from core.alpha_v3.features import enforce_no_leakage_guard
     from core.db.models import ForeignRoom, MlPrediction, QuoteL2
     from core.ml.features import build_ml_features, feature_columns
     from core.ml.features_v2 import build_features_v2
@@ -835,6 +929,9 @@ def train_models_v2(session: Session) -> int:
         intraday if not intraday.empty else None,
     )
     feat = feat.dropna(subset=["y_rank_z"])
+    leakage_check = feat[["as_of_date"]].drop_duplicates().rename(columns={"as_of_date": "date"})
+    leakage_check["label_date"] = pd.to_datetime(leakage_check["date"]) + pd.to_timedelta(21, unit="D")
+    enforce_no_leakage_guard(leakage_check, horizon=21)
     cols = feature_columns(feat)
     model = MlModelV2Bundle().fit(feat[cols], feat["y_rank_z"])
     comp = model.predict_components(feat[cols])
