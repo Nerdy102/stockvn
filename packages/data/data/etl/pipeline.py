@@ -110,8 +110,10 @@ def ingest_from_fixtures(
 
     bronze_added = 0
     silver_rows = 0
-    writer = BronzeWriter()
-    writer.write_batch(session, provider="ssi_fcdata", channel="DailyOhlc", payloads=prices_payload)
+    writer = BronzeWriter(provider="ssi_fcdata", channel="DailyOhlc", session=session)
+    for payload in prices_payload:
+        writer.write(payload)
+    writer.flush()
 
     for rec in prices_payload:
         parsed = DailyOhlcRecord.model_validate(rec)

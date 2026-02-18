@@ -38,13 +38,23 @@ class _FallbackHGBR:
         return np.full(shape=(len(x),), fill_value=self.mean)
 
 
+def _sanitize_xy(x, y=None):
+    x_arr = np.nan_to_num(np.asarray(x, dtype=float), nan=0.0, posinf=0.0, neginf=0.0)
+    if y is None:
+        return x_arr
+    y_arr = np.nan_to_num(np.asarray(y, dtype=float), nan=0.0, posinf=0.0, neginf=0.0)
+    return x_arr, y_arr
+
+
 class MlModelBundle:
     def __init__(self) -> None:
         if _HAS_SK:
-            self.ridge = Pipeline([
-                ("scaler", StandardScaler()),
-                ("model", Ridge(alpha=10.0, fit_intercept=True)),
-            ])
+            self.ridge = Pipeline(
+                [
+                    ("scaler", StandardScaler()),
+                    ("model", Ridge(alpha=10.0, fit_intercept=True)),
+                ]
+            )
             self.hgbr = HistGradientBoostingRegressor(
                 loss="squared_error",
                 learning_rate=0.05,
@@ -62,11 +72,13 @@ class MlModelBundle:
             self.hgbr = _FallbackHGBR()
 
     def fit(self, x, y):
-        self.ridge.fit(x, y)
-        self.hgbr.fit(x, y)
+        x_arr, y_arr = _sanitize_xy(x, y)
+        self.ridge.fit(x_arr, y_arr)
+        self.hgbr.fit(x_arr, y_arr)
         return self
 
     def predict(self, x):
-        y1 = self.ridge.predict(x)
-        y2 = self.hgbr.predict(x)
+        x_arr = _sanitize_xy(x)
+        y1 = self.ridge.predict(x_arr)
+        y2 = self.hgbr.predict(x_arr)
         return 0.2 * np.asarray(y1) + 0.8 * np.asarray(y2)

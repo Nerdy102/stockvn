@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import os
 from pathlib import Path
 from typing import Any
-
-import json
 
 try:
     import orjson
 except ImportError:  # pragma: no cover
     orjson = None
+
+from core.db.session import create_db_and_tables, get_engine
+from sqlmodel import Session
+
+from data.bronze.writer import BronzeWriter
 
 from .client import SsiRestClient, fmt_date
 from .mapper_rest import map_daily_index, map_daily_stock_price, map_ohlcv_rows, map_tickers
@@ -24,6 +28,7 @@ class SsiRestProvider:
         base_url: str | None = None,
         bronze_dir: str | None = None,
         client: SsiRestClient | None = None,
+        session: Session | None = None,
     ) -> None:
         base = base_url or os.getenv("SSI_FCDATA_BASE_URL", "")
         if not base:
@@ -36,6 +41,13 @@ class SsiRestProvider:
             token_manager = SsiTokenManager(base_url=self.base_url)
             client = SsiRestClient(base_url=self.base_url, token_manager=token_manager)
         self.client = client
+        self.session = session
+        self._bronze_writers: dict[str, BronzeWriter] = {}
+        self._engine = None
+        if self.session is None:
+            database_url = os.getenv("DATABASE_URL", "sqlite:///./vn_invest.db")
+            create_db_and_tables(database_url)
+            self._engine = get_engine(database_url)
 
     async def get_tickers(self) -> list[Any]:
         securities = await self.client.request("GET", "/Securities")
@@ -44,7 +56,9 @@ class SsiRestProvider:
         details_resp = await self.client.request("GET", "/SecuritiesDetails")
         await self._log_bronze("securities_details", details_resp)
 
-        details = details_resp.get("RepeatedInfo") if isinstance(details_resp, dict) else details_resp
+        details = (
+            details_resp.get("RepeatedInfo") if isinstance(details_resp, dict) else details_resp
+        )
         if not isinstance(details, list):
             raise ValueError("SecuritiesDetails response missing RepeatedInfo list")
         if not isinstance(securities, list):
@@ -114,12 +128,39 @@ class SsiRestProvider:
 
     async def _log_bronze(self, endpoint: str, payload: Any) -> None:
         channel = f"ssi_rest_{endpoint}"
-        now = dt.datetime.now(dt.timezone.utc).isoformat()
-        day = dt.datetime.now(dt.timezone.utc).strftime("%Y/%m/%d")
+        now = dt.datetime.now(dt.timezone.utc)
+        rec = {"channel": channel, "payload": payload, "received_at_utc": now.isoformat()}
+
+        if self.session is not None:
+            writer = self._bronze_writers.get(channel)
+            if writer is None:
+                writer = BronzeWriter(
+                    provider="ssi_fastconnect",
+                    channel=channel,
+                    session=self.session,
+                    base_dir=str(self.bronze_dir),
+                )
+                self._bronze_writers[channel] = writer
+            writer.write(rec, now_utc=now)
+            writer.flush(now_utc=now)
+            return
+
+        if self._engine is not None:
+            with Session(self._engine) as temp_session:
+                writer = BronzeWriter(
+                    provider="ssi_fastconnect",
+                    channel=channel,
+                    session=temp_session,
+                    base_dir=str(self.bronze_dir),
+                )
+                writer.write(rec, now_utc=now)
+                writer.flush(now_utc=now)
+            return
+
+        day = now.strftime("%Y/%m/%d")
         out_dir = self.bronze_dir / "ssi_fastconnect" / channel / day
         out_dir.mkdir(parents=True, exist_ok=True)
         out_file = out_dir / "events.jsonl"
-        rec = {"channel": channel, "payload": payload, "received_at_utc": now}
         with out_file.open("ab") as f:
             if orjson is not None:
                 f.write(orjson.dumps(rec) + b"\n")

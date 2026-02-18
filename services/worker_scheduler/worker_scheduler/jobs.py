@@ -13,6 +13,7 @@ import yaml
 from core.db.models import (
     AlertEvent,
     AlertRule,
+    BronzeFile,
     DataQualityMetric,
     DriftMetric,
     FactorScore,
@@ -32,6 +33,7 @@ from core.monitoring.drift import compute_weekly_drift_metrics
 from core.settings import Settings
 from core.signals.dsl import evaluate
 from core.technical import detect_breakout, detect_pullback, detect_trend, detect_volume_spike
+from data.bronze.writer import BronzeWriter
 from data.etl.ingest import ingest_fundamentals, ingest_prices, ingest_tickers
 from data.etl.pipeline import ingest_from_fixtures
 from data.providers.base import BaseMarketDataProvider
@@ -41,11 +43,11 @@ from sqlmodel import Session, select
 
 log = get_logger(__name__)
 
+
 def _create_redis_client(redis_url: str):
     from redis import Redis
 
     return Redis.from_url(redis_url, decode_responses=True)
-
 
 
 def _safe_float(x: Any, default: float = 0.0) -> float:
@@ -420,6 +422,26 @@ def ingest_ssi_fixtures_job(session: Session) -> dict[str, int]:
     return ingest_from_fixtures(session)
 
 
+def bronze_retention_cleanup(session: Session) -> int:
+    try:
+        retention_days = int(os.getenv("BRONZE_RETENTION_DAYS", "30"))
+    except ValueError:
+        retention_days = 30
+    retention_days = max(retention_days, 1)
+    cutoff_date = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=retention_days)).date()
+    rows = session.exec(select(BronzeFile).where(BronzeFile.date < cutoff_date)).all()
+    deleted = 0
+    for row in rows:
+        try:
+            Path(row.filepath).unlink(missing_ok=True)
+        except Exception:
+            log.warning("Failed deleting bronze file", extra={"filepath": row.filepath})
+        session.delete(row)
+        deleted += 1
+    session.commit()
+    return deleted
+
+
 def cleanup_stream_dedup_job(session: Session) -> int:
     repo = SsiStreamIngestRepository(session)
     deleted = repo.cleanup_dedup_older_than_days(days=14)
@@ -429,6 +451,7 @@ def cleanup_stream_dedup_job(session: Session) -> int:
 
 def consume_ssi_stream_to_bronze_silver(session: Session) -> dict[str, int]:
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    bronze_writers: dict[str, BronzeWriter] = {}
     consumer_name = os.getenv("SSI_STREAM_CONSUMER", "worker-1")
     stream_keys = [f"ssi:{name}" for name in ["X", "X-QUOTE", "X-TRADE", "R", "MI", "B", "F", "OL"]]
     redis_client = _create_redis_client(redis_url)
@@ -461,7 +484,9 @@ def consume_ssi_stream_to_bronze_silver(session: Session) -> dict[str, int]:
             channel = f"ssi_stream_{rtype}"
             payload_hash = repo.payload_hash(payload_raw)
 
-            if (rtype, payload_hash) in seen_hashes or repo.is_duplicate("ssi_stream", rtype, payload_hash):
+            if (rtype, payload_hash) in seen_hashes or repo.is_duplicate(
+                "ssi_stream", rtype, payload_hash
+            ):
                 redis_client.xack(stream_key, "silver_writer", msg_id)
                 skipped += 1
                 acked += 1
@@ -470,6 +495,20 @@ def consume_ssi_stream_to_bronze_silver(session: Session) -> dict[str, int]:
             try:
                 payload_obj = json.loads(payload_raw)
                 mapped_rtype, mapped_items = map_stream_payload(payload_obj)
+                writer = bronze_writers.get(channel)
+                if writer is None:
+                    writer = BronzeWriter(
+                        provider="ssi_fastconnect", channel=channel, session=session
+                    )
+                    bronze_writers[channel] = writer
+                writer.write(
+                    {
+                        "rtype": mapped_rtype,
+                        "payload": payload_obj,
+                        "payload_hash": payload_hash,
+                        "received_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+                    }
+                )
                 repo.append_bronze(
                     channel=channel,
                     payload_hash=payload_hash,
@@ -496,6 +535,9 @@ def consume_ssi_stream_to_bronze_silver(session: Session) -> dict[str, int]:
             except Exception:
                 session.rollback()
                 raise
+
+    for writer in bronze_writers.values():
+        writer.flush()
 
     return {"processed": processed, "skipped": skipped, "acked": acked}
 
@@ -709,9 +751,18 @@ def compute_daily_flow_features(session: Session) -> int:
         return 0
     df = pd.DataFrame([r.model_dump() for r in rows])
     df["as_of_date"] = pd.to_datetime(df["timestamp"]).dt.date
-    daily = df.sort_values(["symbol", "timestamp"]).groupby(["symbol", "as_of_date"], as_index=False).last()
+    daily = (
+        df.sort_values(["symbol", "timestamp"])
+        .groupby(["symbol", "as_of_date"], as_index=False)
+        .last()
+    )
     daily["net_foreign_val"] = daily["fbuy_val"].fillna(0.0) - daily["fsell_val"].fillna(0.0)
-    adv = pd.DataFrame([r.model_dump() for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()])
+    adv = pd.DataFrame(
+        [
+            r.model_dump()
+            for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1D")).all()
+        ]
+    )
     if adv.empty:
         return 0
     adv["as_of_date"] = pd.to_datetime(adv["timestamp"]).dt.date
@@ -738,7 +789,14 @@ def compute_daily_flow_features(session: Session) -> int:
             obj.features_json.update(payload)
             session.add(obj)
         else:
-            session.add(MlFeature(symbol=str(r["symbol"]), as_of_date=r["as_of_date"], feature_version="v2", features_json=payload))
+            session.add(
+                MlFeature(
+                    symbol=str(r["symbol"]),
+                    as_of_date=r["as_of_date"],
+                    feature_version="v2",
+                    features_json=payload,
+                )
+            )
         up += 1
     session.commit()
     return up
@@ -770,7 +828,14 @@ def compute_daily_orderbook_features(session: Session) -> int:
             obj.features_json.update(payload)
             session.add(obj)
         else:
-            session.add(MlFeature(symbol=str(r["symbol"]), as_of_date=r["as_of_date"], feature_version="v2", features_json=payload))
+            session.add(
+                MlFeature(
+                    symbol=str(r["symbol"]),
+                    as_of_date=r["as_of_date"],
+                    feature_version="v2",
+                    features_json=payload,
+                )
+            )
         up += 1
     session.commit()
     return up
@@ -801,7 +866,14 @@ def compute_intraday_daily_features(session: Session) -> int:
             obj.features_json.update(payload)
             session.add(obj)
         else:
-            session.add(MlFeature(symbol=str(r["symbol"]), as_of_date=r["as_of_date"], feature_version="v2", features_json=payload))
+            session.add(
+                MlFeature(
+                    symbol=str(r["symbol"]),
+                    as_of_date=r["as_of_date"],
+                    feature_version="v2",
+                    features_json=payload,
+                )
+            )
         up += 1
     session.commit()
     return up
@@ -830,7 +902,14 @@ def compute_ml_labels_rank_z(session: Session) -> int:
             obj.features_json.update(payload)
             session.add(obj)
         else:
-            session.add(MlFeature(symbol=str(r["symbol"]), as_of_date=r["as_of_date"], feature_version="v2", features_json=payload))
+            session.add(
+                MlFeature(
+                    symbol=str(r["symbol"]),
+                    as_of_date=r["as_of_date"],
+                    feature_version="v2",
+                    features_json=payload,
+                )
+            )
         up += 1
     session.commit()
     return up
@@ -854,8 +933,19 @@ def train_models_v2(session: Session) -> int:
         fr = fr.groupby(["symbol", "as_of_date"], as_index=False).last()
         fr["net_foreign_val"] = fr["fbuy_val"].fillna(0.0) - fr["fsell_val"].fillna(0.0)
     quotes = pd.DataFrame([r.model_dump() for r in session.exec(select(QuoteL2)).all()])
-    intraday = pd.DataFrame([r.model_dump() for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1m")).all()])
-    feat = build_features_v2(feat, None, fr if not fr.empty else None, quotes if not quotes.empty else None, intraday if not intraday.empty else None)
+    intraday = pd.DataFrame(
+        [
+            r.model_dump()
+            for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1m")).all()
+        ]
+    )
+    feat = build_features_v2(
+        feat,
+        None,
+        fr if not fr.empty else None,
+        quotes if not quotes.empty else None,
+        intraday if not intraday.empty else None,
+    )
     feat = feat.dropna(subset=["y_rank_z"])
     cols = feature_columns(feat)
     model = MlModelV2Bundle().fit(feat[cols], feat["y_rank_z"])
@@ -895,7 +985,15 @@ def train_models_v2(session: Session) -> int:
                 old.meta = m
                 session.add(old)
             else:
-                session.add(MlPrediction(model_id=model_id, symbol=str(r["symbol"]), as_of_date=r["as_of_date"], y_hat=yhat, meta=m))
+                session.add(
+                    MlPrediction(
+                        model_id=model_id,
+                        symbol=str(r["symbol"]),
+                        as_of_date=r["as_of_date"],
+                        y_hat=yhat,
+                        meta=m,
+                    )
+                )
         up += 1
     session.commit()
     return up
@@ -918,11 +1016,26 @@ def run_diagnostics_v2(session: Session) -> int:
         fr = fr.groupby(["symbol", "as_of_date"], as_index=False).last()
         fr["net_foreign_val"] = fr["fbuy_val"].fillna(0.0) - fr["fsell_val"].fillna(0.0)
     quotes = pd.DataFrame([r.model_dump() for r in session.exec(select(QuoteL2)).all()])
-    intraday = pd.DataFrame([r.model_dump() for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1m")).all()])
-    f = build_features_v2(f, None, fr if not fr.empty else None, quotes if not quotes.empty else None, intraday if not intraday.empty else None)
+    intraday = pd.DataFrame(
+        [
+            r.model_dump()
+            for r in session.exec(select(PriceOHLCV).where(PriceOHLCV.timeframe == "1m")).all()
+        ]
+    )
+    f = build_features_v2(
+        f,
+        None,
+        fr if not fr.empty else None,
+        quotes if not quotes.empty else None,
+        intraday if not intraday.empty else None,
+    )
     p = pd.DataFrame([x.model_dump() for x in preds])
-    p["score_final"] = p["meta"].apply(lambda m: float((m or {}).get("score_final", 0.0)) if isinstance(m, dict) else 0.0)
-    d = f.merge(p[["symbol", "as_of_date", "score_final"]], on=["symbol", "as_of_date"], how="inner")
+    p["score_final"] = p["meta"].apply(
+        lambda m: float((m or {}).get("score_final", 0.0)) if isinstance(m, dict) else 0.0
+    )
+    d = f.merge(
+        p[["symbol", "as_of_date", "score_final"]], on=["symbol", "as_of_date"], how="inner"
+    )
     d["net_ret"] = d["y_excess"].fillna(0.0)
     d["order_notional"] = 10_000_000.0
     d["turnover"] = 0.0

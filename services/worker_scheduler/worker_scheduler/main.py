@@ -11,6 +11,7 @@ from data.providers.factory import get_provider
 from sqlmodel import Session, select
 
 from worker_scheduler.jobs import (
+    bronze_retention_cleanup,
     cleanup_stream_dedup_job,
     compute_data_quality_metrics_job,
     compute_drift_metrics_job,
@@ -67,6 +68,12 @@ def main() -> None:
             consume_ssi_stream_to_bronze_silver(session)
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
+    def job_bronze_cleanup() -> None:
+        job_log = get_logger(__name__, job_id="bronze_retention_cleanup")
+        with Session(engine) as session:
+            bronze_retention_cleanup(session)
+        job_log.info("worker_job_completed", extra={"event": "worker_job"})
+
     def job_cleanup_dedup() -> None:
         job_log = get_logger(__name__, job_id="cleanup_stream_dedup")
         with Session(engine) as session:
@@ -78,6 +85,7 @@ def main() -> None:
         job_compute()
         job_consume_stream()
         job_cleanup_dedup()
+        job_bronze_cleanup()
         return
 
     scheduler = BlockingScheduler(timezone="UTC")
@@ -108,6 +116,14 @@ def main() -> None:
         hour=0,
         minute=5,
         id="cleanup_stream_dedup",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_bronze_cleanup,
+        "cron",
+        hour=0,
+        minute=10,
+        id="bronze_retention_cleanup",
         replace_existing=True,
     )
 
