@@ -1,0 +1,8 @@
+timestamp: 2026-02-19T08:14:55.279623+00:00
+python_311: Python 3.11.14
+python_mặc_định: Python 3.10.19
+git_rev: xem lệnh `git rev-parse HEAD` trong phần kiểm chứng
+git_status_porcelain:
+(sạch)
+verify_offline_log: artifacts/evidence/verify-offline.log
+verify_e2e_log: artifacts/evidence/verify-e2e.log

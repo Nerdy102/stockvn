@@ -5,7 +5,7 @@ from pathlib import Path
 from types import ModuleType
 
 _PAGE_FILES = [
-    "0_Home_Dashboard.py",
+    "0_Tong_quan_hom_nay.py",
     "1_Screener.py",
     "2_Charting.py",
     "3_Heatmap.py",

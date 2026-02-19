@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import httpx
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
@@ -217,6 +218,12 @@ def render() -> None:
             value="FPT,VNM,VCB,MWG,HPG",
         )
         lookback = st.slider("Khoảng backtest (mặc định 1 năm / 252 phiên)", 60, 756, 252)
+        detail_mode = st.checkbox("Xem chi tiết (Detailed)", value=False)
+        execution_mode = st.selectbox(
+            "Kiểu khớp lệnh (Execution)",
+            ["giá đóng cửa (close)", "thanh nến kế tiếp (next-bar)"],
+            index=0,
+        )
         if st.button("Chạy so sánh (Run comparison)", disabled=not api_ready):
             rows = [s.strip().upper() for s in symbols.split(",") if s.strip()]
             if len(rows) != 1 and not (5 <= len(rows) <= 20):
@@ -224,10 +231,34 @@ def render() -> None:
                 return
             resp = api.post(
                 "/simple/run_compare",
-                {"symbols": rows, "lookback_days": lookback, "timeframe": "1D"},
+                {
+                    "symbols": rows,
+                    "lookback_days": lookback,
+                    "timeframe": "1D",
+                    "detail_level": "chi tiết" if detail_mode else "tóm tắt",
+                    "include_equity_curve": detail_mode,
+                    "include_trades": detail_mode,
+                    "execution": execution_mode,
+                },
             )
             st.error(resp["warning"])
             st.dataframe(resp["leaderboard"], use_container_width=True)
+            if detail_mode and resp.get("leaderboard"):
+                best = resp["leaderboard"][0]
+                if best.get("equity_curve"):
+                    st.markdown("### Giá trị danh mục theo thời gian (Equity curve)")
+                    st.line_chart(best["equity_curve"], x="date", y="nav", use_container_width=True)
+                    st.markdown("### Sụt giảm (Drawdown)")
+                    st.line_chart(best["equity_curve"], x="date", y="drawdown", use_container_width=True)
+                if best.get("trade_list"):
+                    st.markdown("### Danh sách giao dịch (Trade list)")
+                    st.dataframe(best["trade_list"], use_container_width=True)
+                    st.download_button(
+                        "Tải CSV giao dịch",
+                        data=pd.DataFrame(best["trade_list"]).to_csv(index=False).encode("utf-8"),
+                        file_name="trade_list_simple_mode.csv",
+                        mime="text/csv",
+                    )
             chosen = st.selectbox(
                 "Dùng mô hình này cho bước 2 (Use this model)",
                 [row["model_id"] for row in resp["leaderboard"]],
