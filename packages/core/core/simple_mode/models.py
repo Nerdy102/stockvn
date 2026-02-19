@@ -5,7 +5,15 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from data.quality.gates import MIN_ROWS_1D, MIN_ROWS_60M, run_quality_gates
 
+from core.simple_mode.confidence import (
+    build_risk_tags,
+    compact_debug_fields,
+    confidence_bucket,
+    detect_regime,
+    liquidity_bucket,
+)
 from core.simple_mode.schemas import SignalResult
 
 
@@ -17,9 +25,9 @@ class ModelProfile:
 
 
 MODEL_PROFILES = [
-    ModelProfile("model_1", "Model 1 — Xu hướng", "EMA20/EMA50 + breakout + volume"),
-    ModelProfile("model_2", "Model 2 — Hồi quy về trung bình", "RSI14 + khoảng cách EMA20 + ATR%"),
-    ModelProfile("model_3", "Model 3 — Factor + Regime", "Đa yếu tố + lọc regime, ít giao dịch"),
+    ModelProfile("model_1", "Mô hình 1 — Xu hướng", "EMA20/EMA50 + bứt phá + khối lượng"),
+    ModelProfile("model_2", "Mô hình 2 — Hồi quy trung bình", "RSI14 + khoảng cách EMA20 + ATR%"),
+    ModelProfile("model_3", "Mô hình 3 — Đa yếu tố + chế độ", "Đa yếu tố + lọc chế độ"),
 ]
 
 
@@ -43,81 +51,160 @@ def _atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     return tr.rolling(period).mean()
 
 
+def _limit_sentence(text: str, max_len: int = 140) -> str:
+    t = " ".join(text.split())
+    return t if len(t) <= max_len else t[: max_len - 1].rstrip() + "…"
+
+
+def _neutral_signal(
+    symbol: str, timeframe: str, model_id: str, reason: str, failures: list[str]
+) -> SignalResult:
+    return SignalResult(
+        symbol=symbol,
+        timeframe=timeframe,
+        model_id=model_id,
+        as_of=dt.datetime.utcnow(),
+        signal="TRUNG_TINH",
+        confidence="THAP",
+        proposed_side="HOLD",
+        explanation=[reason],
+        reason_short=_limit_sentence(reason),
+        reason_bullets=[reason, f"Lỗi dữ liệu: {', '.join(failures[:2])}" if failures else ""],
+        risk_tags=["Thiếu dữ liệu"],
+        confidence_bucket="Thấp",
+        risks=["Thiếu dữ liệu"],
+        debug_fields={"gate_failures": ",".join(failures)},
+    )
+
+
 def run_signal(model_id: str, symbol: str, timeframe: str, df: pd.DataFrame) -> SignalResult:
     if df.empty:
-        return SignalResult(
-            symbol=symbol,
-            timeframe=timeframe,
-            model_id=model_id,
-            as_of=dt.datetime.utcnow(),
-            signal="UU_TIEN_QUAN_SAT",
-            confidence="THAP",
-            explanation=["Thiếu dữ liệu giá để chạy mô hình."],
-            risks=["Thiếu dữ liệu"],
+        return _neutral_signal(
+            symbol,
+            timeframe,
+            model_id,
+            "Thiếu dữ liệu để phân tích (cần tối thiểu phiên).",
+            ["EMPTY_DATA"],
         )
-    w = df.copy().reset_index(drop=True)
+
+    gate = run_quality_gates(df, timeframe)
+    min_rows = MIN_ROWS_60M if timeframe == "60m" else MIN_ROWS_1D
+    if not gate.ok:
+        return _neutral_signal(
+            symbol,
+            timeframe,
+            model_id,
+            f"Thiếu dữ liệu để phân tích (cần tối thiểu {min_rows} phiên).",
+            gate.failures,
+        )
+
+    w = gate.cleaned.copy().reset_index(drop=True)
     w["ema20"] = _ema(w["close"], 20)
     w["ema50"] = _ema(w["close"], 50)
     w["rsi14"] = _rsi(w["close"], 14)
     w["atr14"] = _atr(w, 14)
+    w["vol_avg20"] = w["volume"].rolling(20).mean()
+    w["high20_prev"] = w["high"].rolling(20).max().shift(1)
+
     last = w.iloc[-1]
+    close = float(last["close"])
+    ema20 = float(last["ema20"])
+    ema50 = float(last["ema50"])
+    rsi14 = float(last["rsi14"]) if not np.isnan(float(last["rsi14"])) else 50.0
+    atr14 = float(last["atr14"]) if not np.isnan(float(last["atr14"])) else 0.0
+    atr_pct = atr14 / max(close, 1e-9)
+    vol = float(last["volume"])
+    vol_avg20 = float(last["vol_avg20"]) if not np.isnan(float(last["vol_avg20"])) else vol
+    high20_prev = float(last["high20_prev"]) if not np.isnan(float(last["high20_prev"])) else close
+
+    regime = detect_regime(close, ema20, ema50)
+    liq_bucket = liquidity_bucket(close, vol, (w["close"] * w["volume"]).tail(60))
 
     if model_id == "model_1":
-        hh20 = float(w["high"].tail(20).max())
-        vol20 = float(w["volume"].tail(20).mean()) if len(w) >= 20 else float(w["volume"].mean())
-        trend = float(last["ema20"]) > float(last["ema50"]) and float(last["close"]) > float(
-            last["ema50"]
+        trend_bias = ema20 > ema50 and close > ema50
+        entry = close > high20_prev and vol > 1.5 * max(vol_avg20, 1.0) and atr_pct >= 0.01
+        exit_cond = close < ema50
+        signal = "TANG" if (trend_bias and entry) else ("GIAM" if exit_cond else "TRUNG_TINH")
+        side = "BUY" if signal == "TANG" else ("SELL" if signal == "GIAM" else "HOLD")
+        reason_short = (
+            "Giá vượt đỉnh 20 phiên trước và khối lượng tăng."
+            if signal == "TANG"
+            else (
+                "Giá rơi dưới EMA50, ưu tiên hạ rủi ro."
+                if signal == "GIAM"
+                else "Xu hướng chưa đủ rõ để vào lệnh mới."
+            )
         )
-        breakout = float(last["close"]) >= hh20 and float(last["volume"]) > 1.5 * max(vol20, 1.0)
+        regime_expected = "risk_on"
+    elif model_id == "model_2":
+        oversold = rsi14 < 30 and close < ema20 and atr_pct >= 0.008
+        overbought = rsi14 > 70 and close > ema20 and atr_pct >= 0.008
+        exit_cond = (45 <= rsi14 <= 55) or (abs(close - ema20) / max(close, 1e-9) < 0.003)
         signal = (
             "TANG"
-            if trend and breakout
-            else ("GIAM" if float(last["close"]) < float(last["ema50"]) else "TRUNG_TINH")
+            if oversold
+            else ("GIAM" if overbought else ("TRUNG_TINH" if exit_cond else "TRUNG_TINH"))
         )
         side = "BUY" if signal == "TANG" else ("SELL" if signal == "GIAM" else "HOLD")
-        conf = "CAO" if signal in {"TANG", "GIAM"} else "VUA"
-        explanation = [
-            "Mô hình xu hướng dùng EMA20/EMA50 và breakout 20 phiên.",
-            f"EMA20={last['ema20']:.2f}, EMA50={last['ema50']:.2f}, close={last['close']:.2f}.",
-            "Tín hiệu là nghiên cứu định lượng, không phải khuyến nghị đầu tư.",
-        ]
-    elif model_id == "model_2":
-        dist = (float(last["close"]) - float(last["ema20"])) / max(float(last["ema20"]), 1e-9)
-        atr_pct = float(last["atr14"]) / max(float(last["close"]), 1e-9)
-        rsi = float(last["rsi14"]) if not np.isnan(float(last["rsi14"])) else 50.0
-        if rsi < 30 and dist < -0.01 and atr_pct < 0.08:
-            signal, side = "TANG", "BUY"
-        elif rsi > 70 and dist > 0.01:
-            signal, side = "GIAM", "SELL"
-        else:
-            signal, side = "TRUNG_TINH", "HOLD"
-        conf = "VUA" if signal != "TRUNG_TINH" else "THAP"
-        explanation = [
-            "Mô hình mean-reversion dùng RSI14 + khoảng cách so với EMA20 + ATR%.",
-            f"RSI14={rsi:.2f}, distance_to_EMA20={dist:.4f}, ATR%={atr_pct:.4f}.",
-            "Mô hình giao dịch dày hơn nên cần chú ý phí/slippage.",
-        ]
+        reason_short = (
+            "RSI thấp và giá dưới EMA20, có thể hồi kỹ thuật."
+            if signal == "TANG"
+            else (
+                "RSI cao và giá vượt EMA20, dễ điều chỉnh."
+                if signal == "GIAM"
+                else "Động lượng hồi quy trung tính, ưu tiên quan sát."
+            )
+        )
+        regime_expected = "risk_on"
     else:
-        ret20 = float(w["close"].pct_change(20).iloc[-1] if len(w) > 21 else 0.0)
-        vol20 = float(w["close"].pct_change().tail(20).std() or 0.0)
-        regime_risk_off = float(last["close"]) < float(last["ema50"])
-        score = 0.6 * ret20 - 0.4 * vol20
-        if regime_risk_off:
+        if regime == "risk_off":
             signal, side = "TRUNG_TINH", "HOLD"
-        elif score > 0.02:
-            signal, side = "TANG", "BUY"
-        elif score < -0.02:
-            signal, side = "GIAM", "SELL"
+            reason_short = "Chế độ rủi ro-xấu, ưu tiên quan sát."
         else:
-            signal, side = "UU_TIEN_QUAN_SAT", "HOLD"
-        conf = "CAO" if (not regime_risk_off and signal != "UU_TIEN_QUAN_SAT") else "THAP"
-        explanation = [
-            "Mô hình đa yếu tố (value/quality/momentum/low-vol/dividend) + lọc regime.",
-            f"Factor score xấp xỉ={score:.4f}, regime_risk_off={regime_risk_off}.",
-            "Ưu tiên giảm giao dịch khi regime xấu.",
-        ]
+            ret20 = float(w["close"].pct_change(20).iloc[-1] if len(w) > 21 else 0.0)
+            smooth_rank = float(pd.Series([ret20]).ewm(span=5, adjust=False).mean().iloc[-1])
+            signal = "TANG" if (smooth_rank >= 0.0 and 0.008 <= atr_pct <= 0.06) else "TRUNG_TINH"
+            side = "BUY" if signal == "TANG" else "HOLD"
+            reason_short = (
+                "Điểm xu hướng đã làm mượt đang ở vùng thuận lợi."
+                if signal == "TANG"
+                else "Điểm yếu tố chưa đủ mạnh để phát lệnh."
+            )
+        regime_expected = "risk_on"
 
-    risks = ["Kết quả quá khứ không đảm bảo tương lai", "Rủi ro thanh khoản và trượt giá"]
+    conf_bucket, _score = confidence_bucket(
+        has_min_rows=True,
+        liquidity=liq_bucket,
+        regime=regime,
+        regime_expected=regime_expected,
+        atr_pct=atr_pct,
+    )
+    conf = "CAO" if conf_bucket == "Cao" else "VUA" if conf_bucket == "Vừa" else "THAP"
+    risk_tags = build_risk_tags(
+        liquidity=liq_bucket,
+        regime=regime,
+        atr_pct=atr_pct,
+        has_min_rows=True,
+    )
+    explanation = [
+        reason_short,
+        f"Chế độ thị trường: {regime}; thanh khoản: {liq_bucket}; ATR%={atr_pct*100:.2f}%.",
+        "Đây là tín hiệu nghiên cứu phục vụ giáo dục, không phải khuyến nghị đầu tư.",
+    ]
+    debug_fields = compact_debug_fields(
+        {
+            "ema20": ema20,
+            "ema50": ema50,
+            "rsi14": rsi14,
+            "atr14": atr14,
+            "atr_pct": atr_pct,
+            "vol": vol,
+            "vol_avg20": vol_avg20,
+            "high20_prev": high20_prev,
+            "close": close,
+        }
+    )
+
     return SignalResult(
         symbol=symbol,
         timeframe=timeframe,
@@ -127,13 +214,18 @@ def run_signal(model_id: str, symbol: str, timeframe: str, df: pd.DataFrame) -> 
         confidence=conf,  # type: ignore[arg-type]
         proposed_side=side,  # type: ignore[arg-type]
         explanation=explanation,
-        risks=risks,
+        reason_short=_limit_sentence(reason_short),
+        reason_bullets=explanation[:3],
+        risk_tags=risk_tags[:2],
+        confidence_bucket=conf_bucket,  # type: ignore[arg-type]
+        risks=["Quá khứ không đảm bảo tương lai", "Rủi ro thanh khoản và trượt giá"],
         indicators={
-            "ema20": float(last["ema20"]),
-            "ema50": float(last["ema50"]),
-            "rsi14": float(last["rsi14"]) if not np.isnan(float(last["rsi14"])) else 50.0,
-            "atr14": float(last["atr14"]) if not np.isnan(float(last["atr14"])) else 0.0,
+            "ema20": ema20,
+            "ema50": ema50,
+            "rsi14": rsi14,
+            "atr14": atr14,
         },
-        latest_price=float(last["close"]),
-        marker_time=str(w.iloc[-1].get("date") or w.iloc[-1].get("timestamp")),
+        debug_fields=debug_fields,
+        latest_price=close,
+        marker_time=str(last.get("date") or last.get("timestamp")),
     )

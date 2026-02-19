@@ -1,4 +1,4 @@
-.PHONY: setup run-api run-worker run-ui run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke
+.PHONY: setup run-api run-worker run-ui run-ui-kiosk run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke
 
 PYTHONPATH := packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
@@ -22,6 +22,9 @@ run-worker:
 
 run-ui:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m streamlit run apps/dashboard_streamlit/app.py --server.port 8501
+
+run-ui-kiosk:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m streamlit run apps/web_kiosk/app.py --server.port 8502
 
 run-stream-ingestor:
 	SSI_STREAM_MOCK_MESSAGES_PATH=$(SSI_STREAM_MOCK_MESSAGES_PATH) PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m stream_ingestor.main
@@ -83,7 +86,7 @@ verify-program:
 
 
 verify-offline:
-	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_simple_mode_models_smoke.py tests/test_order_draft_tick_lot_fee_tax.py tests/test_confirm_execute_paper_updates_ledger.py tests/test_ui_simple_mode_import.py tests/test_api_simple_mode_bounds.py tests/test_age_gating_disclaimer.py tests/test_simple_mode_ui_guardrails.py tests/test_simple_dashboard_payload_smoke.py tests/test_simple_dashboard_bounds.py tests/test_simple_dashboard_determinism_hash.py tests/test_ui_home_dashboard_import.py tests/test_ui_vietnamese_labels_smoke.py
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_simple_mode_models_smoke.py tests/test_order_draft_tick_lot_fee_tax.py tests/test_confirm_execute_paper_updates_ledger.py tests/test_ui_simple_mode_import.py tests/test_api_simple_mode_bounds.py tests/test_age_gating_disclaimer.py tests/test_simple_mode_ui_guardrails.py tests/test_simple_dashboard_payload_smoke.py tests/test_simple_dashboard_bounds.py tests/test_simple_dashboard_determinism_hash.py tests/test_ui_home_dashboard_import.py tests/test_ui_vietnamese_labels_smoke.py tests/test_api_kiosk_bounds.py tests/test_api_kiosk_smoke.py tests/test_ui_kiosk_import.py tests/test_ui_kiosk_vietnamese_text_smoke.py tests/test_briefing_output_vi.py tests/test_signal_reason_short_present.py tests/test_run_compare_story_fields.py tests/test_confirm_idempotent_double_click.py tests/test_risk_limits_block_reason_codes.py tests/test_off_session_forces_draft_only.py tests/test_data_quality_gates.py tests/test_no_lookahead_breakout.py tests/test_confidence_bucket_rules.py tests/test_model_rules_smoke.py tests/test_backtest_v2_long_only_math.py tests/test_backtest_v2_short_math.py tests/test_fee_tax_slippage_applied.py tests/test_tick_lot_rounding_vn.py tests/test_determinism_report_id.py tests/test_position_sizing_board_lot.py tests/test_kill_switch_daily_loss.py tests/test_cooldown_blocks_signal.py tests/test_walk_forward_stability_score.py tests/test_drift_slippage_anomaly.py
 
 verify-e2e:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_simple_mode_models_smoke.py tests/test_confirm_execute_paper_updates_ledger.py
