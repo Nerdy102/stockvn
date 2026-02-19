@@ -20,6 +20,10 @@
 
 ## 4) So sánh mô hình (Model comparison)
 - Bảng xếp hạng (Leaderboard): CAGR, MDD, Sharpe, turnover, lợi nhuận ròng sau phí/thuế (Net return after fees/taxes).
+- Có tuỳ chọn **Xem chi tiết (Detailed)** để xem:
+  - Giá trị danh mục theo thời gian (Equity curve)
+  - Sụt giảm (Drawdown)
+  - Danh sách giao dịch (Trade list) và tải CSV
 - Có hash tái lập: config hash, dataset hash, code hash.
 - **Cảnh báo lớn**: quá khứ không đảm bảo tương lai (Past performance is not indicative of future results); có rủi ro overfit; chi phí thực tế có thể khác mô phỏng.
 
@@ -37,6 +41,6 @@ Mục tiêu là phát hiện sớm lỗi font/thiếu glyph trên môi trường
 
 
 ## 7) Đi từ dashboard sang Simple Mode
-- Ở trang **🏠 Tổng quan hôm nay (Home dashboard)**, bấm **Mở chế độ đơn giản (Open Simple Mode)** tại dòng tín hiệu.
+- Ở trang **🏠 Tổng quan hôm nay (Tổng quan hôm nay)**, bấm **Mở chế độ đơn giản (Open Simple Mode)** tại dòng tín hiệu.
 - Hệ thống tự điền sẵn mã, khung thời gian (Timeframe), và mô hình vào wizard 3 bước.
 - Sau đó bạn tạo **Lệnh nháp (Order draft)** và bấm xác nhận để ghi **Giao dịch giấy (Paper trading)** hoặc lưu nháp.

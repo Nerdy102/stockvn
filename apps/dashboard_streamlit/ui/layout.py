@@ -29,7 +29,7 @@ NAV_ORDER = [
 ]
 
 PAGE_PATHS = {
-    "🏠 Tổng quan hôm nay": "apps/dashboard_streamlit/pages/0_Home_Dashboard.py",
+    "🏠 Tổng quan hôm nay": "apps/dashboard_streamlit/pages/0_Tong_quan_hom_nay.py",
     "Watchlists": "apps/dashboard_streamlit/pages/3_Heatmap.py",
     "Screener": "apps/dashboard_streamlit/pages/1_Screener.py",
     "Chart": "apps/dashboard_streamlit/pages/2_Charting.py",

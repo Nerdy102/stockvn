@@ -1,7 +1,7 @@
-# Hướng dẫn Trang tổng quan hôm nay (Home dashboard)
+# Hướng dẫn Trang tổng quan hôm nay (Today dashboard)
 
 ## Mở web lên thấy gì?
-Khi mở web, bạn vào ngay trang **🏠 Tổng quan hôm nay (Home dashboard)** để xem nhanh:
+Khi mở web, bạn vào ngay trang **🏠 Tổng quan hôm nay (Today dashboard)** để xem nhanh:
 1. Tình hình thị trường hôm nay (Market today).
 2. Tín hiệu đáng chú ý dạng lệnh nháp (Draft BUY/Draft SELL candidates).
 3. Hiệu quả mô hình (Model performance) cho Mô hình 1/2/3.

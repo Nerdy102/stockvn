@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any
 
 from core.db.models import Fill, Portfolio, Trade
+from core.execution_model import apply_slippage, load_execution_assumptions, slippage_bps
 from core.fees_taxes import FeesTaxes
 from core.market_rules import MarketRules
 from core.settings import get_settings
@@ -41,6 +44,15 @@ class RunCompareIn(BaseModel):
     symbols: list[str] = Field(default_factory=list, min_length=1, max_length=20)
     timeframe: str = "1D"
     lookback_days: int = Field(default=252, ge=60, le=756)
+    detail_level: str = Field(default="tóm tắt", pattern="^(tóm tắt|chi tiết)$")
+    include_equity_curve: bool = False
+    include_trades: bool = False
+    execution: str = Field(default="giá đóng cửa (close)", pattern=r"^(giá đóng cửa \(close\)|thanh nến kế tiếp \(next-bar\))$")
+
+
+def _hash_obj(v: object) -> str:
+    s = json.dumps(v, ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()[:16]
 
 
 def _write_simple_audit(event: dict[str, Any]) -> str:
@@ -84,6 +96,35 @@ def _write_dashboard_cache(key: str, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
+def _compare_cache_path(key: str) -> Path:
+    out_dir = Path("artifacts/cache")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir / f"simple_compare_{key}.json"
+
+
+def _read_compare_cache(key: str) -> dict[str, Any] | None:
+    path = _compare_cache_path(key)
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        expires_at = dt.datetime.fromisoformat(str(data.get("expires_at")))
+        if dt.datetime.utcnow() > expires_at:
+            return None
+        return data.get("payload")
+    except Exception:
+        return None
+
+
+def _write_compare_cache(key: str, payload: dict[str, Any]) -> None:
+    path = _compare_cache_path(key)
+    data = {
+        "expires_at": (dt.datetime.utcnow() + dt.timedelta(seconds=CACHE_TTL_SECONDS)).isoformat(),
+        "payload": payload,
+    }
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
 def _as_of_date_for_symbols(provider: Any, symbols: list[str], timeframe: str) -> str:
     latest: dt.date | None = None
     for symbol in symbols:
@@ -114,12 +155,18 @@ def _resolve_universe_symbols(db: Session, universe: str, limit: int = MAX_UNIVE
 
 
 def _market_today_summary(provider: Any, symbols: list[str], timeframe: str) -> dict[str, Any]:
-    benchmark = "VNINDEX" if "VNINDEX" in symbols else symbols[0]
-    bench_df = provider.get_ohlcv(benchmark, timeframe)
+    bench_df = provider.get_ohlcv("VNINDEX", timeframe)
+    benchmark = "VNINDEX"
+    benchmark_note = "Dùng VNINDEX làm chỉ số tham chiếu chính."
+    if bench_df.empty or len(bench_df) < 2:
+        benchmark = symbols[0] if symbols else "VN30"
+        bench_df = provider.get_ohlcv(benchmark, timeframe)
+        benchmark_note = f"Thiếu VNINDEX, dùng mã đại diện {benchmark} làm tham chiếu."
     if bench_df.empty or len(bench_df) < 2:
         return {
             "text": "Thiếu dữ liệu để tóm tắt thị trường hôm nay. Hãy bấm Đồng bộ dữ liệu (Sync data) hoặc dùng demo.",
             "benchmark": benchmark,
+            "benchmark_note": benchmark_note,
             "daily_change_pct": 0.0,
             "breadth_up": 0,
             "breadth_down": 0,
@@ -154,20 +201,20 @@ def _market_today_summary(provider: Any, symbols: list[str], timeframe: str) -> 
 
     liq_ratio = (total_liq / max(total_avg20, 1e-9)) if total_avg20 > 0 else 0.0
     text = (
-        f"Chỉ số tham chiếu (Benchmark) {benchmark} đang biến động {daily_change_pct:.2f}% trong ngày. "
+        f"{benchmark_note} Chỉ số tham chiếu biến động {daily_change_pct:.2f}% trong ngày. "
         f"Độ rộng thị trường: {up} mã tăng, {down} mã giảm, {flat} mã đi ngang. "
         f"Thanh khoản so với trung bình 20 phiên: {liq_ratio:.2f} lần."
     )
     return {
         "text": text,
         "benchmark": benchmark,
+        "benchmark_note": benchmark_note,
         "daily_change_pct": daily_change_pct,
         "breadth_up": up,
         "breadth_down": down,
         "breadth_flat": flat,
         "liquidity_vs_avg20": liq_ratio,
     }
-
 
 def _scan_signals(provider: Any, symbols: list[str], timeframe: str, limit_signals: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     model_labels = {
@@ -228,6 +275,184 @@ def _model_performance(provider: Any, symbols: list[str], timeframe: str, lookba
         rows.append(out)
     rows.sort(key=lambda x: x["sharpe"], reverse=True)
     return rows
+
+
+def _safe_date(v: Any) -> str:
+    return str(v)[:10]
+
+
+def _run_compare_v2(
+    *,
+    provider: Any,
+    model_id: str,
+    symbols: list[str],
+    timeframe: str,
+    lookback_days: int,
+    execution_mode: str,
+    include_equity_curve: bool,
+    include_trades: bool,
+) -> dict[str, Any]:
+    settings = get_settings()
+    mr = MarketRules.from_yaml(settings.MARKET_RULES_PATH)
+    fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
+    exec_assump = load_execution_assumptions(settings.EXECUTION_MODEL_PATH)
+    end = dt.date.today()
+    start = end - dt.timedelta(days=lookback_days)
+
+    commission_rate = fees.commission_rate(settings.BROKER_NAME)
+    lot_size = int(mr.quantity_rules.get("board_lot", 100))
+    fixed_notional = 100_000_000.0
+
+    nav = 1.0
+    cash = 1.0
+    pos_qty = 0
+    pos_entry_price = 0.0
+    equity_curve: list[dict[str, Any]] = []
+    trade_list: list[dict[str, Any]] = []
+    turnover = 0.0
+
+    benchmark = 1.0
+    has_benchmark = False
+    benchmark_df = provider.get_ohlcv("VNINDEX", timeframe)
+    if not benchmark_df.empty and len(benchmark_df) >= 2:
+        benchmark_df = benchmark_df.copy()
+        benchmark_df["d"] = benchmark_df["date"].astype(str).str[:10]
+        benchmark_df = benchmark_df[(benchmark_df["d"] >= start.isoformat()) & (benchmark_df["d"] <= end.isoformat())]
+        if len(benchmark_df) >= 2:
+            has_benchmark = True
+
+    combined_rows = 0
+    for symbol in symbols:
+        df = provider.get_ohlcv(symbol, timeframe)
+        if df.empty:
+            continue
+        if "date" in df.columns:
+            df = df.copy()
+            df["d"] = df["date"].astype(str).str[:10]
+            w = df[(df["d"] >= start.isoformat()) & (df["d"] <= end.isoformat())].copy()
+        else:
+            w = df.copy()
+            w["d"] = w.index.astype(str).str[:10]
+        if len(w) < 30:
+            continue
+        combined_rows += len(w)
+        w = w.reset_index(drop=True)
+
+        for i in range(20, len(w)):
+            hist = w.iloc[: i + 1].copy()
+            sig = run_signal(model_id, symbol, timeframe, hist)
+            today = w.iloc[i]
+            trade_bar_idx = min(i + 1, len(w) - 1) if execution_mode.endswith("(next-bar)") else i
+            trade_bar = w.iloc[trade_bar_idx]
+            trade_px_raw = float(trade_bar["close"])
+            trade_dt = _safe_date(trade_bar.get("date", trade_bar.get("d", "")))
+            mark_px = float(today["close"])
+
+            if sig.proposed_side == "BUY" and pos_qty == 0:
+                qty_raw = fixed_notional / max(trade_px_raw, 1.0)
+                qty = int(math.floor(qty_raw / max(lot_size, 1)) * lot_size)
+                if qty <= 0:
+                    continue
+                slip_bps = slippage_bps(float(qty * trade_px_raw), max(float(today.get("volume", 0.0) * trade_px_raw), 1.0), 0.01, exec_assump)
+                exec_px = mr.round_price(apply_slippage(trade_px_raw, "BUY", slip_bps), direction="up")
+                notional = float(exec_px * qty)
+                fee = fees.commission(notional, settings.BROKER_NAME)
+                cash -= (notional + fee) / fixed_notional
+                pos_qty = qty
+                pos_entry_price = exec_px
+                turnover += notional / fixed_notional
+                trade_list.append(
+                    {
+                        "entry_date": trade_dt,
+                        "exit_date": None,
+                        "side": "BUY",
+                        "qty": qty,
+                        "entry_price": exec_px,
+                        "exit_price": None,
+                        "pnl_gross": 0.0,
+                        "fee": fee,
+                        "tax": 0.0,
+                        "slippage_est": (exec_px - trade_px_raw) * qty,
+                        "pnl_net": -fee,
+                        "lot_size": lot_size,
+                    }
+                )
+
+            if sig.proposed_side == "SELL" and pos_qty > 0:
+                slip_bps = slippage_bps(float(pos_qty * trade_px_raw), max(float(today.get("volume", 0.0) * trade_px_raw), 1.0), 0.01, exec_assump)
+                exec_px = mr.round_price(apply_slippage(trade_px_raw, "SELL", slip_bps), direction="down")
+                notional = float(exec_px * pos_qty)
+                fee = fees.commission(notional, settings.BROKER_NAME)
+                tax = fees.sell_tax(notional)
+                pnl_gross = (exec_px - pos_entry_price) * pos_qty
+                pnl_net = pnl_gross - fee - tax
+                cash += (notional - fee - tax) / fixed_notional
+                turnover += notional / fixed_notional
+                if trade_list:
+                    trade_list[-1].update(
+                        {
+                            "exit_date": trade_dt,
+                            "exit_price": exec_px,
+                            "pnl_gross": pnl_gross,
+                            "fee": trade_list[-1]["fee"] + fee,
+                            "tax": tax,
+                            "slippage_est": trade_list[-1]["slippage_est"] + (trade_px_raw - exec_px) * pos_qty,
+                            "pnl_net": pnl_net,
+                        }
+                    )
+                pos_qty = 0
+                pos_entry_price = 0.0
+
+            nav = cash + (pos_qty * mark_px) / fixed_notional
+            peak = max(nav, max([x["nav"] for x in equity_curve], default=nav))
+            drawdown = (nav / max(peak, 1e-9)) - 1
+            equity_curve.append({"date": _safe_date(today.get("date", today.get("d", ""))), "nav": nav, "drawdown": drawdown})
+
+    if not equity_curve:
+        equity_curve = [{"date": end.isoformat(), "nav": 1.0, "drawdown": 0.0}]
+    nav_series = [float(x["nav"]) for x in equity_curve]
+    rets = []
+    for i in range(1, len(nav_series)):
+        prev = nav_series[i - 1]
+        rets.append((nav_series[i] / prev - 1.0) if prev > 0 else 0.0)
+    mdd = min([float(x["drawdown"]) for x in equity_curve], default=0.0)
+    net_return = nav_series[-1] - 1.0
+    vol = float((sum((r - (sum(rets) / max(len(rets), 1))) ** 2 for r in rets) / max(len(rets), 1)) ** 0.5) if rets else 0.0
+    sharpe = float((sum(rets) / max(len(rets), 1)) / vol * (252**0.5)) if vol > 0 else 0.0
+    cagr = float((nav_series[-1]) ** (252 / max(len(nav_series), 1)) - 1)
+
+    hash_payload = {
+        "model_id": model_id,
+        "symbols": symbols,
+        "timeframe": timeframe,
+        "lookback_days": lookback_days,
+        "execution": execution_mode,
+        "rows": combined_rows,
+    }
+    config_hash = _hash_obj({k: hash_payload[k] for k in ["model_id", "symbols", "timeframe", "lookback_days", "execution"]})
+    dataset_hash = _hash_obj({"rows": combined_rows, "symbols": symbols})
+    code_hash = "simple_mode_backtest_v2"
+    report_id = _hash_obj({"config_hash": config_hash, "dataset_hash": dataset_hash, "code_hash": code_hash})
+
+    out = {
+        "model_id": model_id,
+        "cagr": cagr,
+        "mdd": mdd,
+        "sharpe": sharpe,
+        "sortino": sharpe,
+        "turnover": turnover,
+        "net_return_after_fees_taxes": net_return,
+        "config_hash": config_hash,
+        "dataset_hash": dataset_hash,
+        "code_hash": code_hash,
+        "report_id": report_id,
+        "benchmark": {"status": "ok" if has_benchmark else "không có benchmark", "net_return": (float(benchmark_df.iloc[-1]["close"]/benchmark_df.iloc[0]["close"]-1) if has_benchmark else None)},
+    }
+    if include_equity_curve:
+        out["equity_curve"] = equity_curve[:MAX_POINTS_PER_CHART]
+    if include_trades:
+        out["trade_list"] = trade_list
+    return out
 
 
 def _paper_portfolio_summary(db: Session, provider: Any, timeframe: str = "1D") -> dict[str, Any]:
@@ -342,9 +567,13 @@ def get_dashboard(
     leaderboard = _model_performance(provider, symbols[:max(1, min(20, len(symbols)))], timeframe, lookback_sessions)
     payload = {
         "as_of_date": as_of_date,
+        "market_summary": _market_today_summary(provider, symbols, timeframe),
         "market_today_summary": _market_today_summary(provider, symbols, timeframe),
+        "buy_candidates": buy_rows,
+        "sell_candidates": sell_rows,
         "signals_buy_candidates": buy_rows,
         "signals_sell_candidates": sell_rows,
+        "model_leaderboard": leaderboard,
         "model_performance_leaderboard": leaderboard,
         "paper_portfolio_summary": _paper_portfolio_summary(db, provider, timeframe),
         "data_status": _data_status(provider, symbols, timeframe),
@@ -435,30 +664,64 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     end = dt.date.today()
     start = end - dt.timedelta(days=payload.lookback_days)
 
+    is_detail = payload.detail_level == "chi tiết"
+    include_equity_curve = payload.include_equity_curve or is_detail
+    include_trades = payload.include_trades or is_detail
+    as_of_date = _as_of_date_for_symbols(provider, payload.symbols, payload.timeframe)
+    compare_cache_key = _hash_obj(
+        {
+            "as_of_date": as_of_date,
+            "symbols": payload.symbols,
+            "timeframe": payload.timeframe,
+            "lookback_days": payload.lookback_days,
+            "detail_level": payload.detail_level,
+            "execution": payload.execution,
+            "include_equity_curve": include_equity_curve,
+            "include_trades": include_trades,
+        }
+    )
+    cached_compare = _read_compare_cache(compare_cache_key)
+    if cached_compare is not None:
+        return cached_compare
+
     rows: list[dict[str, Any]] = []
     for model in ["model_1", "model_2", "model_3"]:
-        reports = []
-        for symbol in payload.symbols:
-            df = provider.get_ohlcv(symbol, payload.timeframe)
-            reports.append(quick_backtest(model, symbol, df, start, end))
-        avg = {
-            "model_id": model,
-            "cagr": sum(r.cagr for r in reports) / len(reports),
-            "mdd": sum(r.mdd for r in reports) / len(reports),
-            "sharpe": sum(r.sharpe for r in reports) / len(reports),
-            "sortino": sum(r.sortino for r in reports) / len(reports),
-            "turnover": sum(r.turnover for r in reports) / len(reports),
-            "net_return_after_fees_taxes": sum(r.net_return for r in reports) / len(reports),
-            "config_hash": reports[0].config_hash,
-            "dataset_hash": reports[0].dataset_hash,
-            "code_hash": reports[0].code_hash,
-        }
+        if is_detail:
+            avg = _run_compare_v2(
+                provider=provider,
+                model_id=model,
+                symbols=payload.symbols,
+                timeframe=payload.timeframe,
+                lookback_days=payload.lookback_days,
+                execution_mode=payload.execution,
+                include_equity_curve=include_equity_curve,
+                include_trades=include_trades,
+            )
+        else:
+            reports = []
+            for symbol in payload.symbols:
+                df = provider.get_ohlcv(symbol, payload.timeframe)
+                reports.append(quick_backtest(model, symbol, df, start, end))
+            avg = {
+                "model_id": model,
+                "cagr": sum(r.cagr for r in reports) / len(reports),
+                "mdd": sum(r.mdd for r in reports) / len(reports),
+                "sharpe": sum(r.sharpe for r in reports) / len(reports),
+                "sortino": sum(r.sortino for r in reports) / len(reports),
+                "turnover": sum(r.turnover for r in reports) / len(reports),
+                "net_return_after_fees_taxes": sum(r.net_return for r in reports) / len(reports),
+                "config_hash": reports[0].config_hash,
+                "dataset_hash": reports[0].dataset_hash,
+                "code_hash": reports[0].code_hash,
+            }
         rows.append(avg)
     rows.sort(key=lambda x: x["sharpe"], reverse=True)
-    return {
+    out = {
         "leaderboard": rows,
         "warning": "CẢNH BÁO (Warning): Quá khứ không đảm bảo tương lai (Past performance is not indicative of future results); có rủi ro overfit; chi phí thực tế có thể khác mô phỏng.",
     }
+    _write_compare_cache(compare_cache_key, out)
+    return out
 
 
 class CreateDraftIn(RunSignalIn):

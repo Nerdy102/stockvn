@@ -27,7 +27,7 @@ def _go_simple_mode(symbol: str, model_id: str, timeframe: str) -> None:
     st.session_state["simple_prefill_symbol"] = symbol
     st.session_state["simple_preferred_model"] = model_id
     st.session_state["simple_prefill_timeframe"] = timeframe
-    st.success("Đã lưu cấu hình. Vui lòng mở trang 🚀 Giao dịch đơn giản (Simple Trading).")
+    st.success("Đã lưu cấu hình. Vui lòng mở trang 🚀 Giao dịch đơn giản (Simple mode).")
 
 
 def render() -> None:
@@ -41,7 +41,7 @@ def render() -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.title("🏠 Tổng quan hôm nay (Home dashboard)")
+    st.title("🏠 Tổng quan hôm nay (Today dashboard)")
     st.info("Kiểm tra hiển thị dấu: Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư.")
 
     c1, c2, c3, c4 = st.columns(4)
@@ -50,9 +50,9 @@ def render() -> None:
     with c2:
         timeframe = st.selectbox("Khung thời gian (Timeframe)", ["1D", "60m"], index=0)
     with c3:
-        limit_signals = st.slider("Giới hạn tín hiệu (Limit signals)", 5, 20, 10)
+        limit_signals = st.slider("Giới hạn tín hiệu (Signal limit)", 5, 20, 10)
     with c4:
-        lookback = st.slider("Số phiên backtest (Lookback sessions)", 60, 756, 252)
+        lookback = st.slider("Số phiên kiểm chứng (Backtest sessions)", 60, 756, 252)
 
     if st.button("Đồng bộ dữ liệu (Sync data)"):
         try:
@@ -65,13 +65,13 @@ def render() -> None:
     try:
         data = _load_dashboard(universe, timeframe, limit_signals, lookback)
     except (httpx.HTTPError, ValueError):
-        st.warning("Chưa kết nối được API dashboard. Hãy chạy API hoặc dùng verify-offline để kiểm tra.")
+        st.warning("Chưa kết nối được API tổng quan. Hãy chạy API hoặc dùng verify-offline để kiểm tra.")
         return
 
     st.caption(f"Ngày dữ liệu mới nhất (Latest data date): {data.get('as_of_date', 'N/A')}")
 
     st.subheader("Tình hình thị trường hôm nay (Market today)")
-    market = data.get("market_today_summary", {})
+    market = data.get("market_summary", data.get("market_today_summary", {}))
     st.write(market.get("text", "Chưa có dữ liệu tóm tắt."))
 
     st.subheader("Tín hiệu đáng chú ý (Research signals) — MUA/BÁN (nháp)")
@@ -82,7 +82,7 @@ def render() -> None:
         ]
     )
     with t_buy:
-        buys = data.get("signals_buy_candidates", [])
+        buys = data.get("buy_candidates", data.get("signals_buy_candidates", []))
         if not buys:
             st.warning("Chưa có ứng viên MUA (nháp) phù hợp.")
         for i, row in enumerate(buys[:20]):
@@ -99,7 +99,7 @@ def render() -> None:
                     _go_simple_mode(row["symbol"], row["model_id"], timeframe)
 
     with t_sell:
-        sells = data.get("signals_sell_candidates", [])
+        sells = data.get("sell_candidates", data.get("signals_sell_candidates", []))
         if not sells:
             st.warning("Chưa có ứng viên BÁN (nháp) phù hợp.")
         for i, row in enumerate(sells[:20]):
@@ -119,7 +119,7 @@ def render() -> None:
     st.error(
         "CẢNH BÁO (Warning): Quá khứ không đảm bảo tương lai (Past performance is not indicative of future results); có rủi ro overfit; chi phí thực tế có thể khác mô phỏng."
     )
-    perf = data.get("model_performance_leaderboard", [])
+    perf = data.get("model_leaderboard", data.get("model_performance_leaderboard", []))
     if perf:
         st.dataframe(perf, use_container_width=True)
         st.caption(
@@ -137,7 +137,7 @@ def render() -> None:
     st.subheader("Trạng thái dữ liệu (Data status)")
     d = data.get("data_status", {})
     st.write(
-        f"Provider: {d.get('provider','N/A')} • Số mã: {d.get('symbols_count',0)} • Số dòng dữ liệu: {d.get('rows',0)} • Khung thời gian sẵn có: {', '.join(d.get('timeframes', []))} • Lần cập nhật gần nhất (Last update): {d.get('last_update','N/A')}"
+        f"Nhà cung cấp dữ liệu (Provider): {d.get('provider','N/A')} • Số mã: {d.get('symbols_count',0)} • Số dòng dữ liệu: {d.get('rows',0)} • Khung thời gian sẵn có: {', '.join(d.get('timeframes', []))} • Lần cập nhật gần nhất (Last update): {d.get('last_update','N/A')}"
     )
 
     st.subheader("Cảnh báo rủi ro (Risk disclaimers)")
