@@ -1,0 +1,5 @@
+timestamp_utc=20260219T113235Z
+python_version=Python 3.10.19
+git_head=d46a7a91aa3ecb54cff5ecafe5362273c65a38a0
+git_clean=false
+screenshot=browser:/tmp/codex_browser_invocations/5f06d7f8d0037ba3/artifacts/artifacts/screenshots/kiosk_v3_landing.png

@@ -25,18 +25,21 @@ def render() -> None:
 
     try:
         logs = api.get("/simple/audit_logs", {"limit": limit})
-        health = api.get("/simple/system_health", {})
+        health = api.get("/healthz/detail", {})
+        reconcile = api.get("/reconcile/latest", {})
     except (httpx.HTTPError, ValueError):
         st.error("Không thể kết nối API để đọc nhật ký hệ thống.")
         return
 
     st.subheader("Sức khoẻ hệ thống (System health)")
-    freshness = health.get('data_freshness', {})
     st.write(
-        f"Kết nối broker: {health.get('broker_connectivity','N/A')} • Redis: {health.get('redis_connectivity','N/A')} • Kill-switch cấu hình: {'BẬT' if health.get('config_kill_switch') else 'TẮT'} • Kill-switch runtime: {'BẬT' if health.get('runtime_kill_switch') else 'TẮT'} • Kill-switch DB: {'BẬT' if health.get('db_kill_switch') else 'TẮT'}"
+        f"DB: {'OK' if health.get('db_ok') else 'FAIL'} • Độ trễ DB: {health.get('db_latency_ms','N/A')}ms • Broker: {'OK' if health.get('broker_ok') else 'FAIL'} • Kill-switch: {'BẬT' if health.get('kill_switch_state') else 'TẮT'}"
     )
     st.write(
-        f"Độ mới dữ liệu (Data freshness): {freshness.get('status','N/A')} • Cập nhật gần nhất: {freshness.get('last_update','N/A')}"
+        f"Độ mới dữ liệu (Data freshness): {'OK' if health.get('data_freshness_ok') else 'STALE'} • as_of: {health.get('as_of_date','N/A')} • Drift pause: {'BẬT' if health.get('drift_pause_state') else 'TẮT'}"
+    )
+    st.write(
+        f"Đối soát gần nhất (Last reconcile): {reconcile.get('last_reconcile_ts','N/A')} • Số mismatch: {reconcile.get('mismatch_count',0)} • Trạng thái: {reconcile.get('status','N/A')}"
     )
 
     st.subheader("Sự kiện kiểm toán")

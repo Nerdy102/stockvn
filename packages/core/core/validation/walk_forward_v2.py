@@ -36,16 +36,22 @@ def run_walk_forward_v2(
     fees_taxes_path: str,
     fees_crypto_path: str,
     execution_model_path: str,
+    embargo_bars: int | None = None,
 ) -> dict[str, Any]:
     w = df.copy().reset_index(drop=True)
+    if embargo_bars is None:
+        embargo_bars = 1 if timeframe == "1D" else 2
+    embargo_bars = max(0, int(embargo_bars))
     splits = build_walk_forward_splits(len(w))
     rows: list[dict[str, Any]] = []
     net_returns: list[float] = []
     mdds: list[float] = []
 
     for fold_id, (train_rng, test_rng) in enumerate(splits, start=1):
-        train_df = w.iloc[train_rng[0] : train_rng[1]].copy()
-        test_df = w.iloc[test_rng[0] : test_rng[1]].copy()
+        train_end = max(train_rng[0], train_rng[1] - embargo_bars)
+        test_start = min(test_rng[1], test_rng[0] + embargo_bars)
+        train_df = w.iloc[train_rng[0] : train_end].copy()
+        test_df = w.iloc[test_start : test_rng[1]].copy()
         if test_df.empty:
             continue
         baseline = {

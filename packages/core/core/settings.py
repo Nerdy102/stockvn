@@ -36,10 +36,11 @@ class Settings(BaseSettings):
 
     API_BASE_URL: str = Field(default="http://localhost:8000")
 
-    TRADING_ENV: str = Field(default="dev")
+    TRADING_ENV: str = Field(default="paper")
     ENABLE_LIVE_TRADING: bool = Field(default=False)
-    LIVE_BROKER: str = Field(default="paper")
-    LIVE_SANDBOX: bool = Field(default=True)
+    ENABLE_SANDBOX: bool = Field(default=True)
+    LIVE_BROKER_KIND: str = Field(default="none")
+    REQUIRE_SANDBOX_PASS_BEFORE_LIVE: bool = Field(default=True)
     KILL_SWITCH: bool = Field(default=False)
 
     ALERT_EMAIL_ENABLED: bool = Field(default=False)
