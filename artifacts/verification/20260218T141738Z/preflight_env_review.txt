@@ -1,0 +1,17 @@
+Config presence checks
+FOUND configs/market_rules_vn.yaml
+FOUND configs/fees_taxes.yaml
+FOUND .env.example
+
+Provider mapping templates
+4:configs/providers/ssi_mapping.yaml
+5:configs/providers/lakehouse_mapping_template.yaml
+6:configs/providers/ssi_template.yaml
+7:configs/providers/README.md
+
+.env.example potential secrets scan
+27:# ===== Stub credentials (KHÔNG hardcode secrets) =====
+29:SSI_PASSWORD=
+37:SSI_CONSUMER_SECRET=
+
+Feature flag defaults from .env.example

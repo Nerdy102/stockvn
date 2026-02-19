@@ -1,0 +1,48 @@
+# EVIDENCE_INDEX
+
+- `preflight_repo_tree.txt` — Repository structure snapshot (depth 4).
+- `preflight_security_scan.txt` — Offline secret-pattern scan evidence.
+- `preflight_env_review.txt` — Config presence + env flag default review.
+- `t0_quality_gate.txt` — Static quality gate (ruff/black/mypy/targeted tests).
+- `t0_ui_guardrails.txt` — UI guardrail check result.
+- `t1_pytest.txt` — Full unit test run output (timed out).
+- `t1_pytest_failures.txt` — Failure/timeout capture for full-suite run.
+- `t2_batch_pipeline_log.txt` — Seed + worker once + rerun execution logs.
+- `t2_row_counts_before_after.json` — Idempotency table counts before/after rerun.
+- `t2_idempotency_assertions.txt` — Pass/fail idempotency assertions by table.
+- `t3_realtime_smoke_log.txt` — Realtime smoke service/replay attempt logs.
+- `t3_realtime_metrics_gateway.json` — Realtime gateway metrics/status capture.
+- `t3_realtime_metrics_bar_builder.json` — Realtime bar-builder metrics/status capture.
+- `t3_realtime_metrics_signal_engine.json` — Realtime signal-engine metrics/status capture.
+- `t3_realtime_determinism_hash_compare.json` — Replay/load determinism hash comparison.
+- `t3_late_correction_sample.json` — Late-event correction policy evidence.
+- `t4_realtime_api_samples.json` — Realtime API sample responses.
+- `t4_realtime_api_bounds.txt` — Bounded limit behavior (422 on oversized limits).
+- `t4_realtime_api_disabled_samples.json` — Graceful disabled realtime responses.
+- `t5_ui_import_smoke.txt` — Headless UI import smoke test.
+- `t5_ui_budget_checks.txt` — UI budget/disclaimer/static policy checks.
+- `t5_ui_realtime_toggle_behavior.txt` — Live-toggle behavior evidence.
+- `t6_oms_risk_tests.txt` — OMS/risk/reconcile/governance fail-safe tests.
+- `t6_oms_idempotency.json` — Order idempotency evidence summary.
+- `t6_pretrade_rejections.json` — Pre-trade rejection evidence summary.
+- `t6_reconcile_run.json` — Reconciliation mismatch evidence summary.
+- `t6_governance_pause_evidence.json` — Governance pause evidence summary.
+- `t7_observability_tests.txt` — SLO/incident tests output.
+- `t7_slo_snapshots.json` — Metrics endpoint snapshots/unavailability notes.
+- `t7_incidents_created.json` — Incident creation evidence summary.
+- `t7_runbook_links_check.txt` — Runbook link/id verification evidence.
+- `t8_rt_load_report.json` — Small deterministic load-test report.
+- `t8_rt_chaos_report.json` — Chaos-test report.
+- `t8_rt_load_report_full.json` — Full load-test report (500 symbols, 2 days).
+- `t8_perf_budget_summary.json` — Load/chaos performance budget rollup.
+- `t9_quant_tests.txt` — Quant governance/model-risk test output.
+- `t9_quant_monitoring_summary.json` — Quant monitoring summary.
+- `t9_governance_events.json` — Governance event evidence summary.
+- `t9_calibration_metrics.json` — Calibration metrics evidence summary.
+- `t10_report_tests.txt` — Report pack export tests output.
+- `t10_report_manifest.json` — Report manifest/hash evidence summary.
+- `t10_report_sections_check.txt` — Report sections non-empty verification.
+- `t10_report_security_scan.txt` — Report artifact security scan note.
+- `ABSOLUTE_VERIFICATION_REPORT.md` — Human-readable release-readiness verdict.
+- `ABSOLUTE_VERIFICATION_REPORT.json` — Machine-readable stage/status bundle.
+- `FIX_PLAN.md` — Corrective plan for critical blockers.

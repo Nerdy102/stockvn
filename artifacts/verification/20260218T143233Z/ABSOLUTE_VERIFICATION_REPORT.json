@@ -1,0 +1,74 @@
+{
+  "status": "NOT READY",
+  "stages": {
+    "T0": "PASS",
+    "T1": "FAIL",
+    "T2": "FAIL",
+    "T3": "FAIL",
+    "T4": "PASS",
+    "T5": "PASS",
+    "T6": "PASS",
+    "T7": "PASS",
+    "T8": "PASS",
+    "T9": "PASS",
+    "T10": "PASS"
+  },
+  "hashes": {
+    "run1_bars_hash": "1438a741da10a6115a0e7ca0dff388a473abad2cf4b4419ae5dd28bbc79325d9",
+    "run2_bars_hash": "1438a741da10a6115a0e7ca0dff388a473abad2cf4b4419ae5dd28bbc79325d9",
+    "hash_match": true,
+    "run1_signals_idempotent": true,
+    "run2_signals_idempotent": true
+  },
+  "counts": {
+    "before_rerun": {
+      "tickers": 11,
+      "prices_daily": 6950,
+      "bars_daily": 6950,
+      "bars_weekly": 0,
+      "fundamentals": 10,
+      "factors_z": 60,
+      "indicators": 14000,
+      "signals": 3,
+      "alerts": 0,
+      "models_registry": 0,
+      "screen_runs": 0,
+      "screen_run_items": 0
+    },
+    "after_rerun": {
+      "tickers": 11,
+      "prices_daily": 6950,
+      "bars_daily": 6950,
+      "bars_weekly": 0,
+      "fundamentals": 10,
+      "factors_z": 60,
+      "indicators": 14000,
+      "signals": 3,
+      "alerts": 0,
+      "models_registry": 0,
+      "screen_runs": 0,
+      "screen_run_items": 0
+    },
+    "delta": {
+      "tickers": 0,
+      "prices_daily": 0,
+      "bars_daily": 0,
+      "bars_weekly": 0,
+      "fundamentals": 0,
+      "factors_z": 0,
+      "indicators": 0,
+      "signals": 0,
+      "alerts": 0,
+      "models_registry": 0,
+      "screen_runs": 0,
+      "screen_run_items": 0
+    }
+  },
+  "timings": {},
+  "incidents": {
+    "t7": "see t7_incidents_created.json"
+  },
+  "governance": {
+    "t6": "see t6_governance_pause_evidence.json"
+  }
+}

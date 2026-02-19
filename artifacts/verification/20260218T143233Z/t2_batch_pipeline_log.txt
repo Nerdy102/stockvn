@@ -1,0 +1,230 @@
+[seed_demo_data]
+DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+{"ts": 1771426140848, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Seeding database (idempotent)...", "module": "jobs"}
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:93: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.to_pydatetime()
+{"ts": 1771426165809, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Indicators computed (MVP).", "module": "jobs"}
+{"ts": 1771426166084, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Factor scores computed (MVP).", "module": "jobs"}
+{"ts": 1771426166312, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Technical setups computed (MVP).", "module": "jobs"}
+{"ts": 1771426166501, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Alerts generated (MVP).", "module": "jobs"}
+{"ts": 1771426166505, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Seed done.", "module": "jobs"}
+{"ts": 1771426166505, "level": "INFO", "logger": "__main__", "message": "Seed completed.", "module": "seed_demo_data"}
+[worker_once_pass1]
+DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+{"ts": 1771426172811, "level": "INFO", "logger": "__main__", "message": "worker_job_completed", "module": "main", "job_id": "ingest_prices"}
+{"ts": 1771426185333, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Indicators computed (MVP).", "module": "jobs"}
+{"ts": 1771426185532, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Factor scores computed (MVP).", "module": "jobs"}
+{"ts": 1771426185817, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Technical setups computed (MVP).", "module": "jobs"}
+{"ts": 1771426185918, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Alerts generated (MVP).", "module": "jobs"}
+{"ts": 1771426188696, "level": "WARNING", "logger": "core.settings", "message": "DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH", "module": "settings"}
+{"ts": 1771426195628, "level": "INFO", "logger": "__main__", "message": "worker_job_completed", "module": "main", "job_id": "compute_all"}
+{"ts": 1771426195981, "level": "INFO", "logger": "__main__", "message": "worker_job_completed", "module": "main", "job_id": "compute_data_quality"}
+/workspace/stockvn/services/worker_scheduler/worker_scheduler/jobs.py:952: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  (mkt["value_vnd"].astype(float) / mkt["volume"].replace(0, pd.NA)).fillna(0.0).iloc[1:]
+{"ts": 1771426196225, "level": "INFO", "logger": "__main__", "message": "worker_job_completed", "module": "main", "job_id": "compute_drift"}
+Traceback (most recent call last):
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 998, in connect_check_health
+    sock = self._connect()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 1512, in _connect
+    raise err
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 1496, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/main.py", line 232, in <module>
+    main()
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/main.py", line 138, in main
+    job_consume_stream()
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/main.py", line 96, in job_consume_stream
+    consume_ssi_stream_to_bronze_silver(session)
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/jobs.py", line 636, in consume_ssi_stream_to_bronze_silver
+    redis_client.xgroup_create(stream_key, "silver_writer", id="0", mkstream=True)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/commands/core.py", line 4212, in xgroup_create
+    return self.execute_command(*pieces)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 2958, in get_connection
+    connection.connect()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 1022, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+/workspace/stockvn/packages/data/data/etl/ingest.py:91: FutureWarning: The behavior of DatetimeProperties.to_pydatetime is deprecated, in a future version this will return a Series containing python datetime objects instead of an ndarray. To retain the old behavior, call `np.array` on the result
+  df["timestamp"] = pd.to_datetime(df["date"]).dt.to_pydatetime()
+{"ts": 1771426217583, "level": "INFO", "logger": "__main__", "message": "worker_job_completed", "module": "main", "job_id": "ingest_prices"}
+{"ts": 1771426229056, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Indicators computed (MVP).", "module": "jobs"}
+{"ts": 1771426229263, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Factor scores computed (MVP).", "module": "jobs"}
+{"ts": 1771426229556, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Technical setups computed (MVP).", "module": "jobs"}
+{"ts": 1771426229663, "level": "INFO", "logger": "worker_scheduler.jobs", "message": "Alerts generated (MVP).", "module": "jobs"}
+{"ts": 1771426232044, "level": "WARNING", "logger": "core.settings", "message": "DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH", "module": "settings"}
+{"ts": 1771426232404, "level": "INFO", "logger": "__main__", "message": "worker_job_completed", "module": "main", "job_id": "compute_all"}
+{"ts": 1771426232752, "level": "INFO", "logger": "__main__", "message": "worker_job_completed", "module": "main", "job_id": "compute_data_quality"}
+/workspace/stockvn/services/worker_scheduler/worker_scheduler/jobs.py:952: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  (mkt["value_vnd"].astype(float) / mkt["volume"].replace(0, pd.NA)).fillna(0.0).iloc[1:]
+{"ts": 1771426232914, "level": "INFO", "logger": "__main__", "message": "worker_job_completed", "module": "main", "job_id": "compute_drift"}
+Traceback (most recent call last):
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 998, in connect_check_health
+    sock = self._connect()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 1512, in _connect
+    raise err
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 1496, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/main.py", line 232, in <module>
+    main()
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/main.py", line 138, in main
+    job_consume_stream()
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/main.py", line 96, in job_consume_stream
+    consume_ssi_stream_to_bronze_silver(session)
+  File "/workspace/stockvn/services/worker_scheduler/worker_scheduler/jobs.py", line 636, in consume_ssi_stream_to_bronze_silver
+    redis_client.xgroup_create(stream_key, "silver_writer", id="0", mkstream=True)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/commands/core.py", line 4212, in xgroup_create
+    return self.execute_command(*pieces)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 2958, in get_connection
+    connection.connect()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+  File "/root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/redis/connection.py", line 1022, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.

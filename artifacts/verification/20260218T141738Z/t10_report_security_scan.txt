@@ -1,0 +1,1 @@
+No explicit secrets found in generated verification artifacts scan scope.

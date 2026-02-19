@@ -1,0 +1,5 @@
+{
+  "gateway": "curl: (7) Failed to connect to localhost port 9101 after 0 ms: Couldn't connect to server\n",
+  "bar_builder": "curl: (7) Failed to connect to localhost port 9102 after 0 ms: Couldn't connect to server\n",
+  "signal_engine": "curl: (7) Failed to connect to localhost port 9103 after 0 ms: Couldn't connect to server\n"
+}

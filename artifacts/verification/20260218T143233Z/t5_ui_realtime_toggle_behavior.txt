@@ -1,0 +1,16 @@
+apps/dashboard_streamlit/lib/disclaimer.py:11:def render_global_disclaimer() -> None:
+apps/dashboard_streamlit/ui/layout.py:118:                f'<div class="disclaimer">⚠️ {DISCLAIMER_SHORT}</div>', unsafe_allow_html=True
+apps/dashboard_streamlit/assets/theme.css:34:.disclaimer {
+apps/dashboard_streamlit/pages/2_Charting.py:23:LIVE_BARS_LIMIT = 200
+apps/dashboard_streamlit/pages/2_Charting.py:59:    live_refresh = st.checkbox("Live refresh", value=False, help="Fetch realtime last 200 bars only")
+apps/dashboard_streamlit/pages/2_Charting.py:86:            params={"symbol": symbol, "tf": tf, "limit": LIVE_BARS_LIMIT},
+apps/dashboard_streamlit/pages/2_Charting.py:90:            ohlcv_resp["rows"] = rt_bars.get("rows", [])[-LIVE_BARS_LIMIT:]
+apps/dashboard_streamlit/pages/2_Charting.py:91:            st.caption(f"Live refresh ON: using realtime cache ({LIVE_BARS_LIMIT} bars max).")
+apps/dashboard_streamlit/pages/2_Charting.py:93:            st.caption("Live refresh ON but realtime is unavailable; showing historical API data.")
+apps/dashboard_streamlit/pages/3_Heatmap.py:76:        pinned = st.checkbox("Pinned", value=False)
+apps/dashboard_streamlit/pages/1_Screener.py:71:        neutral_enabled = st.checkbox("neutralization.enabled", value=False)
+apps/dashboard_streamlit/pages/1_Screener.py:87:            t_pullback = st.checkbox("pullback", value=False)
+apps/dashboard_streamlit/pages/1_Screener.py:88:            t_vol_spike = st.checkbox("volume_spike", value=False)
+apps/dashboard_streamlit/pages/9_Settings.py:11:    st.toggle("Show debug info", value=False, key="ui_show_debug")
+apps/dashboard_streamlit/pages/9_Settings.py:12:    st.toggle("Enable realtime polling", value=False, key="realtime_enabled")
+38:    max_days: int = 365,

@@ -1,0 +1,1 @@
+Validated required sections via tests/test_report_pack_v3_export.py assertions.

@@ -1,0 +1,11 @@
+PASS tickers: delta=0
+PASS prices_daily: delta=0
+PASS bars_daily_weekly: delta=0
+PASS fundamentals: delta=0
+PASS factors_z: delta=0
+PASS indicators: delta=0
+PASS signals: delta=0
+PASS alerts: delta=0
+PASS models_registry: delta=0
+PASS screen_runs: delta=0
+PASS screen_run_items: delta=0

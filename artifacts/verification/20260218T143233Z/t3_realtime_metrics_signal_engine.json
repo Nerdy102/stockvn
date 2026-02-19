@@ -1,0 +1,7 @@
+{
+  "status": {
+    "smoke_exit": "1",
+    "determinism_exit": "0"
+  },
+  "docker_log_has_name": false
+}

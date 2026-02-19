@@ -20,7 +20,12 @@ class InMemoryRedisStream:
         return [(f"{i+1}-0", dict(v)) for i, v in enumerate(arr)]
 
 
-def replay_jsonl_to_stream(redis_client: InMemoryRedisStream, *, jsonl_path: str | Path, stream: str = "stream:market_events") -> int:
+def replay_jsonl_to_stream(
+    redis_client: InMemoryRedisStream,
+    *,
+    jsonl_path: str | Path,
+    stream: str = "stream:market_events",
+) -> int:
     p = Path(jsonl_path)
     count = 0
     for line in p.read_text(encoding="utf-8").splitlines():

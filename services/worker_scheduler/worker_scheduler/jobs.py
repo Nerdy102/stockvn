@@ -906,7 +906,7 @@ def compute_data_quality_metrics_job(session: Session) -> list[dict[str, Any]]:
     run.status = "completed"
     run.end_ts = dt.datetime.utcnow()
     run.rows_in = len(df)
-    run.rows_out = len(metrics) + int(schema_incidents)
+    run.rows_out = len(metrics)
     session.add(run)
     session.commit()
     UPSERT_ROWS_TOTAL.labels(table="data_quality_metrics").inc(len(metrics))
@@ -980,7 +980,7 @@ def compute_drift_metrics_job(session: Session) -> list[dict[str, Any]]:
     run.status = "completed"
     run.end_ts = dt.datetime.utcnow()
     run.rows_in = len(df)
-    run.rows_out = len(metrics) + int(schema_incidents)
+    run.rows_out = len(metrics)
     session.add(run)
     session.commit()
     UPSERT_ROWS_TOTAL.labels(table="drift_metrics").inc(len(metrics))

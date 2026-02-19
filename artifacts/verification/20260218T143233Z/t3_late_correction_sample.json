@@ -1,0 +1,5 @@
+{
+  "late_event_policy_test": "tests/test_late_event_correction_policy.py",
+  "suite_passed": true,
+  "summary": "6 passed in 2.63s"
+}
