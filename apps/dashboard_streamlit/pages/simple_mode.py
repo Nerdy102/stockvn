@@ -85,6 +85,12 @@ def render() -> None:
     st.info(
         "Kiểm tra hiển thị dấu: Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư."
     )
+    if "session_id" not in st.session_state:
+        st.session_state["session_id"] = f"streamlit-{pd.Timestamp.utcnow().strftime('%Y%m%d%H%M%S')}"
+    if "session_user_id" not in st.session_state:
+        st.session_state["session_user_id"] = "streamlit-user"
+    if "idempotency_token" not in st.session_state:
+        st.session_state["idempotency_token"] = ""
 
     meta: dict[str, object] = {"live_enabled": False, "max_points_per_chart": MAX_POINTS_PER_CHART}
     api_ready = True
@@ -150,6 +156,17 @@ def render() -> None:
         if bool(meta.get("live_enabled")):
             modes.append("live")
         mode = st.selectbox("Chế độ chạy (Mode)", modes, format_func=lambda x: mode_labels[x])
+        if mode == "live":
+            st.warning("Bạn đang ở chế độ giao dịch thật (Live trading). Luôn kiểm tra hạn mức rủi ro trước khi xác nhận.")
+            cks1, cks2 = st.columns(2)
+            with cks1:
+                if st.button("DỪNG KHẨN CẤP (Kill-switch)", disabled=not api_ready):
+                    out = api.post("/simple/kill_switch/toggle", {"enabled": True})
+                    st.error(f"Kill-switch: {out.get('status','PAUSED')}")
+            with cks2:
+                if st.button("MỞ LẠI GIAO DỊCH (Tắt kill-switch)", disabled=not api_ready):
+                    out = api.post("/simple/kill_switch/toggle", {"enabled": False})
+                    st.success(f"Kill-switch: {out.get('status','RUNNING')}")
         if st.button("Đồng bộ dữ liệu (Sync data)") and api_ready:
             status = api.get("/simple/sync_status", {"symbol": symbol, "timeframe": timeframe})
             st.write(
@@ -236,6 +253,22 @@ def render() -> None:
                 for risk in draft["risks"]:
                     st.write(f"- {risk}")
 
+                if mode == "live":
+                    st.subheader("Bước 3.5 — Xác nhận giao dịch thật (Live confirmation)")
+                    st.warning(
+                        "Bạn sắp xác nhận lệnh thật. Hãy kiểm tra kỹ thông tin lệnh, chi phí và điều kiện pháp lý trước khi tiếp tục."
+                    )
+                    age = int(
+                        st.number_input(
+                            "Tuổi của bạn (Age)", min_value=10, max_value=100, value=18, step=1
+                        )
+                    )
+                    st.write(
+                        f"Kiểm tra trước khi gửi live: Giá trị lệnh {draft['notional']:,} • Tổng chi phí ước tính {draft['fee_tax']['total_cost']:,} • Ngoài giờ giao dịch: {'Có' if draft.get('off_session') else 'Không'}"
+                    )
+                else:
+                    age = None
+
                 ack1 = st.checkbox(
                     "Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư (Not investment advice)"
                 )
@@ -252,10 +285,14 @@ def render() -> None:
                         "/simple/confirm_execute",
                         {
                             "portfolio_id": 1,
+                            "user_id": str(st.session_state.get("session_user_id", "streamlit-user")),
+                            "session_id": str(st.session_state.get("session_id", "streamlit-session")),
+                            "idempotency_token": str(st.session_state.get("idempotency_token", "")),
                             "mode": mode,
                             "acknowledged_educational": ack1,
                             "acknowledged_loss": ack2,
                             "acknowledged_live_eligibility": ack_live,
+                            "age": age,
                             "draft": draft,
                         },
                     )

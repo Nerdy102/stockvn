@@ -66,6 +66,9 @@ class BacktestReport(BaseModel):
 
 class ConfirmExecutePayload(BaseModel):
     portfolio_id: int = 1
+    user_id: str = "anonymous"
+    session_id: str = "anonymous-session"
+    idempotency_token: str | None = None
     mode: Literal["paper", "draft", "live"] = "paper"
     acknowledged_educational: bool = False
     acknowledged_loss: bool = False

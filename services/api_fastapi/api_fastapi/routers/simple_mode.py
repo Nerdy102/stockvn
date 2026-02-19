@@ -4,10 +4,13 @@ import datetime as dt
 import hashlib
 import json
 import math
+import logging
+import os
+import uuid
 from pathlib import Path
 from typing import Any
 
-from core.db.models import Fill, Portfolio, Trade
+from core.db.models import Fill, GovernanceState, Portfolio, Trade
 from core.execution_model import apply_slippage, load_execution_assumptions, slippage_bps
 from core.fees_taxes import FeesTaxes
 from core.market_rules import MarketRules
@@ -26,6 +29,7 @@ from sqlmodel import Session, select
 from api_fastapi.deps import get_db
 
 router = APIRouter(prefix="/simple", tags=["simple_mode"])
+log = logging.getLogger(__name__)
 
 MAX_POINTS_PER_CHART = 300
 MAX_SIGNAL_ROWS = 20
@@ -689,8 +693,7 @@ def get_models() -> dict[str, Any]:
     settings = get_settings()
     return {
         "models": [m.__dict__ for m in MODEL_PROFILES],
-        "live_enabled": str(__import__("os").getenv("ENABLE_LIVE_TRADING", "false")).lower()
-        == "true",
+        "live_enabled": bool(settings.ENABLE_LIVE_TRADING),
         "max_points_per_chart": MAX_POINTS_PER_CHART,
         "warning": "Tín hiệu nghiên cứu (Research signal), không phải lời khuyên đầu tư (Not investment advice).",
         "provider": settings.DATA_PROVIDER,
@@ -750,6 +753,13 @@ def get_dashboard(
         "model_performance_leaderboard": leaderboard,
         "paper_portfolio_summary": _paper_portfolio_summary(db, provider, timeframe),
         "data_status": _data_status(provider, symbols, timeframe),
+        "system_status": {
+            "trading_env": settings.TRADING_ENV,
+            "live_status": "BẬT" if (settings.TRADING_ENV == "live" and settings.ENABLE_LIVE_TRADING) else "TẮT",
+            "kill_switch": "BẬT" if (settings.KILL_SWITCH or _runtime_kill_switch_enabled() or _db_kill_switch_enabled(db)) else "TẮT",
+            "broker_connectivity": "ok" if settings.BROKER_NAME else "error",
+            "live_block_reason": _live_trading_block_reason(settings),
+        },
         "disclaimers": [
             "Đây là tín hiệu nghiên cứu (Research signal), không phải lời khuyên đầu tư (Not investment advice).",
             "Quá khứ không đảm bảo tương lai (Past performance is not indicative of future results).",
@@ -929,6 +939,116 @@ class CreateDraftIn(RunSignalIn):
     pass
 
 
+def _live_trading_block_reason(settings: Any) -> str | None:
+    if settings.TRADING_ENV != "live":
+        return "LIVE_BLOCKED_TRADING_ENV"
+    if not settings.ENABLE_LIVE_TRADING:
+        return "LIVE_BLOCKED_DISABLED"
+    if settings.KILL_SWITCH:
+        return "LIVE_BLOCKED_KILL_SWITCH_CONFIG"
+    missing = []
+    for key in ["SSI_CONSUMER_ID", "SSI_CONSUMER_SECRET", "SSI_PRIVATE_KEY_PATH"]:
+        if not str(getattr(settings, key, "")).strip():
+            missing.append(key)
+    if missing:
+        return "LIVE_BLOCKED_MISSING_CREDENTIALS"
+    return None
+
+
+def _runtime_kill_switch_enabled() -> bool:
+    return str(os.getenv("RUNTIME_KILL_SWITCH", "false")).lower() == "true"
+
+
+def _db_kill_switch_enabled(db: Session) -> bool:
+    latest = db.exec(select(GovernanceState).order_by(GovernanceState.updated_at.desc())).first()
+    if latest is None:
+        return False
+    return str(latest.status).upper() == "PAUSED" and str(latest.source).lower() in {"killswitch", "manual_killswitch", "risk_auto"}
+
+
+def _risk_guardrails(draft: Any, db: Session, portfolio_id: int) -> tuple[bool, list[str]]:
+    reasons: list[str] = []
+    max_notional = float(os.getenv("RISK_MAX_NOTIONAL_PER_ORDER", "100000000"))
+    if float(draft.notional) > max_notional:
+        reasons.append("RISK_MAX_NOTIONAL_EXCEEDED")
+
+    max_orders_per_day = int(os.getenv("RISK_MAX_ORDERS_PER_DAY", "20"))
+    if max_orders_per_day <= 0:
+        reasons.append("RISK_MAX_ORDERS_INVALID")
+    else:
+        today = dt.date.today()
+        orders_today = db.exec(select(Trade).where(Trade.portfolio_id == portfolio_id, Trade.trade_date == today)).all()
+        if len(orders_today) >= max_orders_per_day:
+            reasons.append("RISK_MAX_ORDERS_PER_DAY_EXCEEDED")
+
+    max_daily_loss_pct = float(os.getenv("RISK_MAX_DAILY_LOSS_PCT", "0.02"))
+    realized_daily_pnl = float(os.getenv("RISK_REALIZED_DAILY_PNL", "0"))
+    nav = float(os.getenv("RISK_NAV", "1000000000"))
+    if nav > 0 and ((-realized_daily_pnl) / nav) >= max_daily_loss_pct:
+        reasons.append("RISK_MAX_DAILY_LOSS_EXCEEDED")
+
+    if bool(getattr(draft, "off_session", False)):
+        reasons.append("RISK_OFF_SESSION_DRAFT_ONLY")
+    return (len(reasons) == 0, reasons)
+
+
+def _idempotency_key(payload: ConfirmExecutePayload) -> str:
+    token = str(payload.idempotency_token or "").strip()
+    if not token:
+        token = f"auto-{dt.datetime.utcnow().isoformat()}"
+    raw = "|".join([
+        str(payload.user_id),
+        str(payload.draft.symbol),
+        str(payload.draft.side),
+        str(payload.draft.qty),
+        str(payload.draft.price),
+        str(payload.mode),
+        token,
+    ])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _write_order_audit(event: dict[str, Any]) -> str:
+    ts = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%S%f")
+    audit_id = f"order-audit-{ts}"
+    out_dir = Path("artifacts/audit")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / "order_audit.jsonl"
+    payload = {"audit_id": audit_id, **event}
+    with out_file.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    return audit_id
+
+
+def _payload_hash(payload: ConfirmExecutePayload) -> str:
+    return hashlib.sha256(
+        json.dumps(payload.model_dump(), sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:16]
+
+
+def _audit_transition(
+    *,
+    payload: ConfirmExecutePayload,
+    from_state: str,
+    to_state: str,
+    reason_code: str = "",
+    broker_response: dict[str, Any] | None = None,
+    correlation_id: str = "",
+) -> str:
+    event = {
+        "event": "order_state_transition",
+        "user": payload.user_id,
+        "session": payload.session_id,
+        "from_state": from_state,
+        "to_state": to_state,
+        "reason_code": reason_code,
+        "payload_hash": _payload_hash(payload),
+        "broker_response": broker_response or {},
+        "correlation_id": correlation_id,
+    }
+    return _write_order_audit(event)
+
+
 @router.post("/create_order_draft")
 def create_order_draft(payload: CreateDraftIn) -> dict[str, Any]:
     settings = get_settings()
@@ -970,10 +1090,40 @@ def confirm_execute(
         age=payload.age,
     )
 
+    settings = get_settings()
+    correlation_id = f"ord-{uuid.uuid4().hex[:12]}"
+    idem_key = _idempotency_key(payload)
+    existing = db.exec(select(Trade).where(Trade.external_id == idem_key)).first()
+    if existing is not None:
+        return {"status": "idempotent_reuse", "trade_id": existing.id, "idempotent": True, "correlation_id": correlation_id}
+
+    risk_ok, risk_reasons = _risk_guardrails(payload.draft, db=db, portfolio_id=payload.portfolio_id)
     if payload.mode == "live":
-        raise HTTPException(
-            status_code=422, detail="LiveBrokerStub: mặc định không hoạt động để bảo vệ an toàn"
-        )
+        reason = _live_trading_block_reason(settings)
+        if _runtime_kill_switch_enabled() or _db_kill_switch_enabled(db):
+            reason = "LIVE_BLOCKED_KILL_SWITCH_RUNTIME"
+        if reason is not None:
+            _audit_transition(
+                payload=payload,
+                from_state="DRAFT",
+                to_state="ERROR",
+                reason_code=reason,
+                broker_response={"adapter": settings.LIVE_BROKER, "status": "blocked"},
+                correlation_id=correlation_id,
+            )
+            raise HTTPException(status_code=422, detail={"reason_code": reason, "correlation_id": correlation_id})
+        if not risk_ok:
+            _audit_transition(
+                payload=payload,
+                from_state="APPROVED",
+                to_state="ERROR",
+                reason_code="RISK_BLOCKED",
+                broker_response={"reasons": risk_reasons},
+                correlation_id=correlation_id,
+            )
+            log.warning("risk_blocked", extra={"correlation_id": correlation_id, "reasons": risk_reasons})
+            raise HTTPException(status_code=422, detail={"reason_code": "RISK_BLOCKED", "reasons": risk_reasons, "correlation_id": correlation_id})
+        raise HTTPException(status_code=422, detail={"reason_code": "LIVE_BROKER_NOT_CONFIGURED", "correlation_id": correlation_id})
 
     portfolio = db.exec(select(Portfolio).where(Portfolio.id == payload.portfolio_id)).first()
     if portfolio is None:
@@ -984,6 +1134,27 @@ def confirm_execute(
     client_order_id = build_client_order_id(payload.draft.symbol)
 
     if payload.mode == "paper":
+        _audit_transition(
+            payload=payload,
+            from_state="DRAFT",
+            to_state="APPROVED",
+            broker_response={"adapter": "paper", "status": "approved"},
+            correlation_id=correlation_id,
+        )
+        _audit_transition(
+            payload=payload,
+            from_state="APPROVED",
+            to_state="SENT",
+            broker_response={"adapter": "paper", "status": "sent"},
+            correlation_id=correlation_id,
+        )
+        _audit_transition(
+            payload=payload,
+            from_state="SENT",
+            to_state="ACKED",
+            broker_response={"adapter": "paper", "status": "ack"},
+            correlation_id=correlation_id,
+        )
         trade = Trade(
             portfolio_id=payload.portfolio_id,
             trade_date=dt.date.today(),
@@ -995,7 +1166,7 @@ def confirm_execute(
             notes=client_order_id,
             commission=payload.draft.fee_tax.commission,
             taxes=payload.draft.fee_tax.sell_tax,
-            external_id=client_order_id,
+            external_id=idem_key,
         )
         db.add(trade)
         db.flush()
@@ -1024,7 +1195,15 @@ def confirm_execute(
                 "slippage_est": payload.draft.fee_tax.slippage_est,
                 "status": "paper_filled",
                 "client_order_id": client_order_id,
+                "idempotency_key": idem_key,
             }
+        )
+        _audit_transition(
+            payload=payload,
+            from_state="ACKED",
+            to_state="FILLED",
+            broker_response={"adapter": "paper", "status": "filled"},
+            correlation_id=correlation_id,
         )
         return {
             "status": "paper_filled",
@@ -1032,6 +1211,8 @@ def confirm_execute(
             "fill_id": fill.id,
             "off_session": payload.draft.off_session,
             "audit_id": audit_id,
+            "idempotent": False,
+            "correlation_id": correlation_id,
         }
 
     db.commit()
@@ -1050,13 +1231,76 @@ def confirm_execute(
             "slippage_est": payload.draft.fee_tax.slippage_est,
             "status": "draft_saved",
             "client_order_id": client_order_id,
+            "idempotency_key": idem_key,
         }
+    )
+    _audit_transition(
+        payload=payload,
+        from_state="DRAFT",
+        to_state="APPROVED",
+        broker_response={"adapter": "draft", "status": "saved"},
+        correlation_id=correlation_id,
     )
     return {
         "status": "draft_saved",
         "draft": payload.draft.model_dump(),
         "off_session": payload.draft.off_session,
         "audit_id": audit_id,
+        "idempotent": False,
+        "correlation_id": correlation_id,
+    }
+
+
+
+
+
+
+class KillSwitchToggleIn(BaseModel):
+    enabled: bool = True
+    source: str = "manual_killswitch"
+
+
+@router.post("/kill_switch/toggle")
+def toggle_kill_switch(payload: KillSwitchToggleIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    row = GovernanceState(
+        status="PAUSED" if payload.enabled else "RUNNING",
+        pause_reason="manual_kill_switch" if payload.enabled else "",
+        source=payload.source,
+        updated_at=dt.datetime.utcnow(),
+    )
+    db.add(row)
+    db.commit()
+    return {"status": row.status, "source": row.source}
+
+
+@router.get("/audit_logs")
+def get_audit_logs(limit: int = Query(default=200, ge=1, le=500)) -> dict[str, Any]:
+    out_file = Path("artifacts/audit/order_audit.jsonl")
+    if not out_file.exists():
+        return {"items": [], "message": "Chưa có nhật ký kiểm toán"}
+    lines = out_file.read_text(encoding="utf-8").splitlines()[-limit:]
+    items: list[dict[str, Any]] = []
+    for line in lines:
+        try:
+            items.append(json.loads(line))
+        except Exception:
+            continue
+    return {"items": items, "count": len(items)}
+
+
+@router.get("/system_health")
+def system_health(db: Session = Depends(get_db)) -> dict[str, Any]:
+    settings = get_settings()
+    provider = get_provider(settings)
+    df = provider.get_ohlcv("VNINDEX", "1D")
+    last_update = None if df.empty else str(df.iloc[-1].get("date") or df.iloc[-1].get("timestamp"))
+    return {
+        "broker_connectivity": "ok" if settings.BROKER_NAME else "error",
+        "redis_connectivity": "configured" if str(settings.REDIS_URL).strip() else "missing",
+        "db_kill_switch": _db_kill_switch_enabled(db),
+        "runtime_kill_switch": _runtime_kill_switch_enabled(),
+        "config_kill_switch": bool(settings.KILL_SWITCH),
+        "data_freshness": {"last_update": last_update, "status": "ok" if last_update else "stale"},
     }
 
 

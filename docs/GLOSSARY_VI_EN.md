@@ -24,3 +24,9 @@
 - Mở vị thế mua (Long)
 - Mở vị thế bán (Short)
 - Giao dịch giấy (Paper trading)
+
+
+- Giao dịch thật (Live trading): Chế độ gửi lệnh tới broker thật, yêu cầu bật cờ an toàn và kiểm soát rủi ro.
+- Dừng khẩn cấp (Kill-switch): Cơ chế chặn toàn bộ lệnh live ở mức cấu hình/runtime/tự động theo rủi ro.
+- Tính idempotent (Idempotency): Gọi lặp lại cùng yêu cầu không tạo thêm lệnh trùng.
+- Nhật ký kiểm toán (Audit log): Bản ghi mọi chuyển trạng thái lệnh và lý do.
