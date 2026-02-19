@@ -3,11 +3,24 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from sqlmodel import SQLModel, Session
+
+from core.db.session import get_database_url, get_engine
+from core.monitoring.drift_monitor import DriftAlertTrade
 
 from api_fastapi.main import app
 
 
+def _clear_drift_alerts() -> None:
+    engine = get_engine(get_database_url())
+    SQLModel.metadata.create_all(engine, tables=[DriftAlertTrade.__table__])
+    with Session(engine) as s:
+        s.exec(DriftAlertTrade.__table__.delete())
+        s.commit()
+
+
 def test_confirm_execute_paper_updates_ledger() -> None:
+    _clear_drift_alerts()
     client = TestClient(app)
     draft = {
         "symbol": "FPT",

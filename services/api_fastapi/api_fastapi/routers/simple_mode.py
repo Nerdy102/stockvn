@@ -19,13 +19,15 @@ from core.simple_mode.backtest import quick_backtest
 from core.simple_mode.briefing import build_market_brief
 from core.simple_mode.models import MODEL_PROFILES, run_signal
 from core.simple_mode.orchestrator import build_client_order_id, generate_order_draft
+from core.backtest_v3.engine import BacktestV3Config, run_backtest_v3
 from core.simple_mode.safety import ensure_disclaimers
 from core.simple_mode.schemas import ConfirmExecutePayload
+from core.monitoring.drift_monitor import DriftAlertTrade
 from core.universe.manager import UniverseManager
 from data.providers.factory import get_provider
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlmodel import Session, select
+from sqlmodel import SQLModel, Session, select
 
 from api_fastapi.deps import get_db
 
@@ -49,7 +51,7 @@ class RunSignalIn(BaseModel):
 
 
 class RunCompareIn(BaseModel):
-    symbols: list[str] = Field(default_factory=list, min_length=1, max_length=20)
+    symbols: list[str] = Field(default_factory=list, min_length=1, max_length=50)
     timeframe: str = "1D"
     lookback_days: int = Field(default=252, ge=60, le=756)
     detail_level: str = Field(default="tóm tắt", pattern="^(tóm tắt|chi tiết)$")
@@ -63,6 +65,9 @@ class RunCompareIn(BaseModel):
     trading_type: str | None = Field(default=None, pattern="^(spot_paper|perp_paper)$")
     exchange: str | None = "binance_public"
     include_story_mode: bool = False
+    engine_version: str = Field(default="v2", pattern="^(v2|v3)$")
+    lookback_sessions: int = Field(default=252, ge=60, le=756)
+    universe_size: int = Field(default=20, ge=1, le=50)
 
 
 def _resolve_market_mode(market: str, trading_type: str | None) -> tuple[str, str, str]:
@@ -133,6 +138,18 @@ def _write_dashboard_cache(key: str, payload: dict[str, Any]) -> None:
         "payload": payload,
     }
     path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def _has_high_drift_alert(db: Session, market: str | None = None) -> tuple[bool, list[str]]:
+    try:
+        SQLModel.metadata.create_all(db.get_bind(), tables=[DriftAlertTrade.__table__])
+    except Exception:
+        pass
+    stmt = select(DriftAlertTrade).where(DriftAlertTrade.severity == "HIGH")
+    if market:
+        stmt = stmt.where(DriftAlertTrade.market == market)
+    rows = db.exec(stmt).all()
+    return (len(rows) > 0, [r.code for r in rows[-3:]])
 
 
 def _compare_cache_path(key: str) -> Path:
@@ -358,6 +375,13 @@ def _run_compare_v2(
     position_mode: str = "long_only",
 ) -> dict[str, Any]:
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     mr = MarketRules.from_yaml(settings.MARKET_RULES_PATH)
     fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
     exec_assump = load_execution_assumptions(settings.EXECUTION_MODEL_PATH)
@@ -695,6 +719,13 @@ def _data_status(provider: Any, symbols: list[str], timeframe: str) -> dict[str,
 @router.get("/models")
 def get_models() -> dict[str, Any]:
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     return {
         "models": [m.__dict__ for m in MODEL_PROFILES],
         "live_enabled": bool(settings.ENABLE_LIVE_TRADING),
@@ -753,6 +784,13 @@ def get_kiosk(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     provider = _build_provider(settings, "vn")
     symbols = _resolve_universe_symbols(db=db, universe=universe, limit=MAX_UNIVERSE_SCAN)
     as_of_date = _as_of_date_for_symbols(provider, symbols, "1D")
@@ -822,6 +860,13 @@ def get_dashboard(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     mk = market if market != "both" else "crypto"
     _, position_mode, normalized_trading_type = _resolve_market_mode(mk, trading_type)
     provider = _build_provider(settings, mk, exchange)
@@ -920,6 +965,13 @@ def refresh_dashboard() -> dict[str, Any]:
 def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[str, Any]:
     del db
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     mk, position_mode, normalized_trading_type = _resolve_market_mode(
         payload.market, payload.trading_type
     )
@@ -930,7 +982,7 @@ def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[
         df = df.iloc[::step].copy()
 
     signal = _map_signal_side(
-        run_signal(payload.model_id, payload.symbol, payload.timeframe, df), position_mode
+        run_signal(payload.model_id, payload.symbol, payload.timeframe, df, market=mk), position_mode
     )
     if not df.empty:
         df = df.copy()
@@ -973,6 +1025,7 @@ def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[
         "draft": None if draft is None else draft.model_dump(),
         "data_status": data_status,
         "chart": chart,
+        "degraded_ok": bool(signal.debug_fields.get("degraded_ok", False)),
     }
 
 
@@ -997,6 +1050,13 @@ def _story_for_model(
 @router.post("/run_compare")
 def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     mk, position_mode, normalized_trading_type = _resolve_market_mode(
         payload.market, payload.trading_type
     )
@@ -1007,13 +1067,14 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     is_detail = payload.detail_level == "chi tiết"
     include_equity_curve = payload.include_equity_curve or is_detail
     include_trades = payload.include_trades or is_detail
-    as_of_date = _as_of_date_for_symbols(provider, payload.symbols, payload.timeframe)
+    symbols = payload.symbols[: payload.universe_size]
+    as_of_date = _as_of_date_for_symbols(provider, symbols, payload.timeframe)
     compare_cache_key = _hash_obj(
         {
             "as_of_date": as_of_date,
             "market": mk,
             "trading_type": normalized_trading_type,
-            "symbols": payload.symbols,
+            "symbols": symbols,
             "timeframe": payload.timeframe,
             "lookback_days": payload.lookback_days,
             "detail_level": payload.detail_level,
@@ -1031,20 +1092,63 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     for model in ["model_1", "model_2", "model_3"]:
         if is_detail:
-            avg = _run_compare_v2(
-                provider=provider,
-                model_id=model,
-                symbols=payload.symbols,
-                timeframe=payload.timeframe,
-                lookback_days=payload.lookback_days,
-                execution_mode=payload.execution,
-                include_equity_curve=include_equity_curve,
-                include_trades=include_trades,
-                position_mode=position_mode,
-            )
+            if payload.engine_version == "v3":
+                first_symbol = symbols[0]
+                df_v3 = provider.get_ohlcv(first_symbol, payload.timeframe)
+                cfg = BacktestV3Config(
+                    market=mk,
+                    trading_type=normalized_trading_type,
+                    position_mode=position_mode,
+                    execution="next_bar" if payload.execution.endswith("(next-bar)") else "close",
+                )
+                avg_v3 = run_backtest_v3(
+                    df=df_v3,
+                    symbol=first_symbol,
+                    timeframe=payload.timeframe,
+                    config=cfg,
+                    signal_fn=lambda hist: _map_signal_side(run_signal(model, first_symbol, payload.timeframe, hist, market=mk), position_mode).signal,
+                    fees_taxes_path=settings.FEES_TAXES_PATH,
+                    fees_crypto_path="configs/fees_crypto.yaml",
+                    execution_model_path=settings.EXECUTION_MODEL_PATH,
+                    include_equity_curve=include_equity_curve,
+                    include_trades=include_trades,
+                )
+                avg = {
+                    "model_id": model,
+                    "net_return_after_fees_taxes": avg_v3.net_return,
+                    "cagr": avg_v3.cagr,
+                    "mdd": avg_v3.mdd,
+                    "sharpe": avg_v3.sharpe,
+                    "sortino": avg_v3.sortino,
+                    "turnover": avg_v3.turnover,
+                    "equity_curve": avg_v3.equity_curve if include_equity_curve else [],
+                    "trades": avg_v3.trades if include_trades else [],
+                    "config_hash": avg_v3.config_hash,
+                    "dataset_hash": avg_v3.dataset_hash,
+                    "code_hash": avg_v3.code_hash,
+                    "report_id": avg_v3.report_id,
+                    "costs_breakdown": avg_v3.costs_breakdown,
+                    "win_rate": avg_v3.win_rate,
+                    "profit_factor": avg_v3.profit_factor,
+                    "avg_hold_bars": avg_v3.avg_hold_bars,
+                    "exposure_long_pct": avg_v3.exposure_long_pct,
+                    "exposure_short_pct": avg_v3.exposure_short_pct,
+                }
+            else:
+                avg = _run_compare_v2(
+                    provider=provider,
+                    model_id=model,
+                    symbols=symbols,
+                    timeframe=payload.timeframe,
+                    lookback_days=payload.lookback_days,
+                    execution_mode=payload.execution,
+                    include_equity_curve=include_equity_curve,
+                    include_trades=include_trades,
+                    position_mode=position_mode,
+                )
         else:
             reports = []
-            for symbol in payload.symbols:
+            for symbol in symbols:
                 df = provider.get_ohlcv(symbol, payload.timeframe)
                 reports.append(
                     quick_backtest(model, symbol, df, start, end, position_mode=position_mode)
@@ -1234,13 +1338,20 @@ def _audit_transition(
 @router.post("/create_order_draft")
 def create_order_draft(payload: CreateDraftIn) -> dict[str, Any]:
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     mk, position_mode, normalized_trading_type = _resolve_market_mode(
         payload.market, payload.trading_type
     )
     provider = _build_provider(settings, mk, payload.exchange)
     df = provider.get_ohlcv(payload.symbol, payload.timeframe)
     signal = _map_signal_side(
-        run_signal(payload.model_id, payload.symbol, payload.timeframe, df), position_mode
+        run_signal(payload.model_id, payload.symbol, payload.timeframe, df, market=mk), position_mode
     )
     mr = MarketRules.from_yaml(settings.MARKET_RULES_PATH)
     fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
@@ -1273,6 +1384,13 @@ def confirm_execute(
     )
 
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     correlation_id = f"ord-{uuid.uuid4().hex[:12]}"
     idem_key = _idempotency_key(payload)
     existing = db.exec(select(Trade).where(Trade.external_id == idem_key)).first()
@@ -1287,6 +1405,21 @@ def confirm_execute(
     risk_ok, risk_reasons = _risk_guardrails(
         payload.draft, db=db, portfolio_id=payload.portfolio_id
     )
+    drift_blocked, drift_codes = _has_high_drift_alert(db)
+    if drift_blocked and payload.mode in {"paper", "live"}:
+        _audit_transition(
+            payload=payload,
+            from_state="APPROVED",
+            to_state="ERROR",
+            reason_code="DRIFT_HIGH_BLOCKED",
+            broker_response={"drift_codes": drift_codes},
+            correlation_id=correlation_id,
+        )
+        _raise_confirm_error(
+            reason_code="DRIFT_HIGH_BLOCKED",
+            correlation_id=correlation_id,
+            reasons=drift_codes,
+        )
     if payload.mode != "draft" and bool(payload.draft.off_session):
         _audit_transition(
             payload=payload,
@@ -1520,6 +1653,13 @@ def get_audit_logs(limit: int = Query(default=200, ge=1, le=500)) -> dict[str, A
 @router.get("/system_health")
 def system_health(db: Session = Depends(get_db)) -> dict[str, Any]:
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     provider = get_provider(settings)
     df = provider.get_ohlcv("VNINDEX", "1D")
     last_update = None if df.empty else str(df.iloc[-1].get("date") or df.iloc[-1].get("timestamp"))
@@ -1536,6 +1676,13 @@ def system_health(db: Session = Depends(get_db)) -> dict[str, Any]:
 @router.get("/sync_status")
 def sync_status(symbol: str = Query(...), timeframe: str = Query(default="1D")) -> dict[str, Any]:
     settings = get_settings()
+    try:
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+        )
+    except Exception:
+        pass
+
     provider = get_provider(settings)
     df = provider.get_ohlcv(symbol, timeframe)
     if df.empty:

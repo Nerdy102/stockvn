@@ -1,0 +1,4 @@
+spot_taker_fee_rate: 0.001
+perp_taker_fee_rate: 0.0005
+maker_fee_rate: 0.0002
+funding_interval_hours: 8

@@ -7,7 +7,7 @@ from core.simple_mode.models import run_signal
 
 def _df() -> pd.DataFrame:
     rows = []
-    for i in range(160):
+    for i in range(240):
         c = 100 + i * 0.2
         rows.append(
             {

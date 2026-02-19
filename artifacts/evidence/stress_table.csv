@@ -1,0 +1,18 @@
+scenario,params,net_return,mdd,sharpe,costs_total
+COST_MULTIPLIER,"{'fee_mul': 1.0, 'slippage_mul': 1.0}",0.0,0.0,0.0,0.0
+COST_MULTIPLIER,"{'fee_mul': 1.0, 'slippage_mul': 2.0}",0.0,0.0,0.0,0.0
+COST_MULTIPLIER,"{'fee_mul': 1.0, 'slippage_mul': 3.0}",0.0,0.0,0.0,0.0
+COST_MULTIPLIER,"{'fee_mul': 2.0, 'slippage_mul': 1.0}",0.0,0.0,0.0,0.0
+COST_MULTIPLIER,"{'fee_mul': 2.0, 'slippage_mul': 2.0}",0.0,0.0,0.0,0.0
+COST_MULTIPLIER,"{'fee_mul': 2.0, 'slippage_mul': 3.0}",0.0,0.0,0.0,0.0
+COST_MULTIPLIER,"{'fee_mul': 3.0, 'slippage_mul': 1.0}",0.0,0.0,0.0,0.0
+COST_MULTIPLIER,"{'fee_mul': 3.0, 'slippage_mul': 2.0}",0.0,0.0,0.0,0.0
+COST_MULTIPLIER,"{'fee_mul': 3.0, 'slippage_mul': 3.0}",0.0,0.0,0.0,0.0
+EXECUTION_DELAY,{'delay_bars': 0},0.0,0.0,0.0,0.0
+EXECUTION_DELAY,{'delay_bars': 1},0.0,0.0,0.0,0.0
+EXECUTION_DELAY,{'delay_bars': 2},0.0,0.0,0.0,0.0
+SPREAD_STRESS,{'spread_multiplier': 1.0},0.0,0.0,0.0,0.0
+SPREAD_STRESS,{'spread_multiplier': 1.5},0.0,0.0,0.0,0.0
+SPREAD_STRESS,{'spread_multiplier': 2.0},0.0,0.0,0.0,0.0
+DATA_GAP,{'drop_rate': 0.0},0.0,0.0,0.0,0.0
+DATA_GAP,{'drop_rate': 0.01},0.0,0.0,0.0,0.0

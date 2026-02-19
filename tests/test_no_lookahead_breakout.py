@@ -7,7 +7,7 @@ from core.simple_mode.models import run_signal
 
 def test_breakout_uses_high20_prev_shifted() -> None:
     rows = []
-    for i in range(130):
+    for i in range(230):
         high = 100 + i
         close = 95 + i
         rows.append(

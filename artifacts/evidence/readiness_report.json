@@ -1,0 +1,127 @@
+{
+  "walk_forward": {
+    "stability_score": 100.0,
+    "per_fold_summary": [
+      {
+        "fold": 1,
+        "train_start": 0,
+        "train_end": 252,
+        "test_start": 252,
+        "test_end": 315,
+        "dataset_hash": "5ab1edc37d3a8647faca8b0928d5674dac6fdad4b94058c44eafec6a9238ba15",
+        "baseline_stats": {
+          "liq_p20": 21506000.0,
+          "liq_p80": 26024000.0,
+          "volatility": 0.00011778534008455877
+        },
+        "net_return": 0.0,
+        "mdd": 0.0,
+        "sharpe": 0.0,
+        "turnover": 0.0,
+        "costs_breakdown": {
+          "fee_total": 0.0,
+          "tax_total": 0.0,
+          "slippage_total": 0.0,
+          "funding_total": 0.0
+        }
+      },
+      {
+        "fold": 2,
+        "train_start": 63,
+        "train_end": 315,
+        "test_start": 315,
+        "test_end": 378,
+        "dataset_hash": "a8c11650d5a01e414506179f372def814c4560611ec922dc0b444a5139b30aad",
+        "baseline_stats": {
+          "liq_p20": 23396000.0,
+          "liq_p80": 27914000.0,
+          "volatility": 0.00010079090091372767
+        },
+        "net_return": 0.0,
+        "mdd": 0.0,
+        "sharpe": 0.0,
+        "turnover": 0.0,
+        "costs_breakdown": {
+          "fee_total": 0.0,
+          "tax_total": 0.0,
+          "slippage_total": 0.0,
+          "funding_total": 0.0
+        }
+      },
+      {
+        "fold": 3,
+        "train_start": 126,
+        "train_end": 378,
+        "test_start": 378,
+        "test_end": 441,
+        "dataset_hash": "910bfa9c0801aeaa9c168dce469d7bb406ba0cda1aa454cb0234e8a6e4c68966",
+        "baseline_stats": {
+          "liq_p20": 25286000.0,
+          "liq_p80": 29804000.000000004,
+          "volatility": 8.7240359456038e-05
+        },
+        "net_return": 0.0,
+        "mdd": 0.0,
+        "sharpe": 0.0,
+        "turnover": 0.0,
+        "costs_breakdown": {
+          "fee_total": 0.0,
+          "tax_total": 0.0,
+          "slippage_total": 0.0,
+          "funding_total": 0.0
+        }
+      },
+      {
+        "fold": 4,
+        "train_start": 189,
+        "train_end": 441,
+        "test_start": 441,
+        "test_end": 504,
+        "dataset_hash": "e9002616993923f05837049d1b042359c626bf7fe1aef54a5bf99936d8f54708",
+        "baseline_stats": {
+          "liq_p20": 27176000.0,
+          "liq_p80": 31694000.0,
+          "volatility": 7.625911973913744e-05
+        },
+        "net_return": 0.0,
+        "mdd": 0.0,
+        "sharpe": 0.0,
+        "turnover": 0.0,
+        "costs_breakdown": {
+          "fee_total": 0.0,
+          "tax_total": 0.0,
+          "slippage_total": 0.0,
+          "funding_total": 0.0
+        }
+      }
+    ]
+  },
+  "stress": {
+    "worst_case_metrics": {
+      "scenario": "COST_MULTIPLIER",
+      "params": {
+        "fee_mul": 1.0,
+        "slippage_mul": 1.0
+      },
+      "net_return": 0.0,
+      "mdd": 0.0,
+      "sharpe": 0.0,
+      "costs_total": 0.0
+    },
+    "sensitivity_index": 0.0
+  },
+  "data_quality": {
+    "count_events_by_severity": {
+      "error": 66,
+      "warning": 24
+    }
+  },
+  "paper_vs_backtest_drift": {
+    "high_alerts": 0,
+    "latest_codes": []
+  },
+  "hashes": {
+    "payload_hash": "e5c9a6c4114c0feacfb1fb9b2a237e1c7ebce9ebbdab9d58b93fc7a104a101d2"
+  },
+  "report_id": "c8c3e22bb5a2be7443688163c19a81d62f1a6d2dc59b8029905748548b993e42"
+}

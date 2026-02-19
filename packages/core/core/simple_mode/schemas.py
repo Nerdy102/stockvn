@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -25,7 +25,7 @@ class SignalResult(BaseModel):
     confidence_bucket: Literal["Thấp", "Vừa", "Cao"] = "Thấp"
     risks: list[str] = Field(default_factory=list)
     indicators: dict[str, float] = Field(default_factory=dict)
-    debug_fields: dict[str, float | str | None] = Field(default_factory=dict)
+    debug_fields: dict[str, Any] = Field(default_factory=dict)
     latest_price: float = 0.0
     marker_time: str | None = None
 

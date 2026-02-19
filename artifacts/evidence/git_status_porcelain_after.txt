@@ -1,0 +1,2 @@
+ M artifacts/evidence/git_head_after.txt
+ M artifacts/evidence/git_status_porcelain_after.txt
