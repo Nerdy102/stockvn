@@ -28,6 +28,7 @@ from api_fastapi.routers import (
     realtime,
     screeners,
     signals,
+    simple_mode,
     tickers,
     universe,
     watchlists,
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(fundamentals.router)
     app.include_router(screeners.router)
     app.include_router(signals.router)
+    app.include_router(simple_mode.router)
     app.include_router(portfolio.router)
     app.include_router(alerts.router)
     app.include_router(data_health.router)

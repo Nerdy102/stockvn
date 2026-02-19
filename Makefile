@@ -80,3 +80,10 @@ rt-verify: rt-load-test rt-chaos-test
 
 verify-program:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.verify_program
+
+
+verify-offline:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_simple_mode_models_smoke.py tests/test_order_draft_tick_lot_fee_tax.py tests/test_confirm_execute_paper_updates_ledger.py tests/test_ui_simple_mode_import.py tests/test_api_simple_mode_bounds.py tests/test_age_gating_disclaimer.py
+
+verify-e2e:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_simple_mode_models_smoke.py tests/test_confirm_execute_paper_updates_ledger.py
