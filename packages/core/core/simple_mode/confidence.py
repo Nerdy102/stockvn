@@ -18,7 +18,9 @@ def detect_regime(close: float, ema20: float, ema50: float) -> str:
 
 
 def liquidity_bucket(close: float, volume: float, dv_lookback: pd.Series) -> str:
-    if volume <= 0 or dv_lookback.empty or len(dv_lookback.dropna()) < 60:
+    if volume <= 0:
+        return "thấp"
+    if dv_lookback.empty or len(dv_lookback.dropna()) < 60:
         return "unknown"
     dv = close * volume
     p20 = float(dv_lookback.quantile(0.2))
