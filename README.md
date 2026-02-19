@@ -283,3 +283,19 @@ Rollback plan:
   - `STREAM_BACKLOG` (`runbook:redis_backlog`) when pending > 50,000
 - Worker job `job_realtime_incident_monitor` evaluates SLO snapshots and creates deterministic `data_health_incidents` rows with runbook IDs.
 - Data Health UI exposes realtime ops gauges/incidents/runbook IDs and governance endpoint includes realtime ops gauges.
+
+
+## Simple Mode Quickstart (5 lệnh)
+
+```bash
+make setup
+make run-api
+make run-worker
+make run-ui
+python -m scripts.ingest_data_drop --inbox data_drop/inbox --mapping configs/providers/data_drop_default.yaml --out data_demo/prices_demo_1d.csv
+```
+
+- Mở UI tại `http://localhost:8501`, chọn trang **Simple Mode**.
+- **Paper**: xác nhận sẽ ghi giao dịch paper vào ledger.
+- **Draft**: chỉ lưu lệnh nháp, không tạo fill.
+- **Live**: mặc định tắt (`ENABLE_LIVE_TRADING=false`), không hướng dẫn lách luật.
