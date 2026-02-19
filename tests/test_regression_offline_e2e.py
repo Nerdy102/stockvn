@@ -95,7 +95,7 @@ def test_regression_offline_e2e(tmp_path, monkeypatch) -> None:
             json={
                 "order_id": order["id"],
                 "data_freshness": {"as_of_date": dt.date.today().isoformat()},
-                "portfolio_snapshot": {"cash": 2_000_000_000.0, "nav_est": 2_000_000_000.0, "orders_today": 0},
+                "portfolio_snapshot": {"cash": 2_000_000_000.0, "nav_est": 1_999_000_100.0, "orders_today": 0},
                 "drift_alerts": {"drift_paused": False, "kill_switch_on": False},
             },
         )
@@ -131,7 +131,7 @@ def test_regression_offline_e2e(tmp_path, monkeypatch) -> None:
             json={
                 "order_id": order["id"],
                 "data_freshness": {"as_of_date": dt.date.today().isoformat()},
-                "portfolio_snapshot": {"cash": 2_000_000_000.0, "nav_est": 2_000_000_000.0, "orders_today": 0},
+                "portfolio_snapshot": {"cash": 2_000_000_000.0, "nav_est": 1_999_000_100.0, "orders_today": 0},
             },
         )
         assert blocked.status_code == 403
@@ -142,4 +142,4 @@ def test_regression_offline_e2e(tmp_path, monkeypatch) -> None:
         settings = get_settings()
         with Session(get_engine(settings.DATABASE_URL)) as db:
             report = run_reconciliation(db)
-        assert report.status in {"OK", "MISMATCH"}
+        assert report.status == "OK"

@@ -32,6 +32,10 @@ make verify-offline
 make verify-regression
 ```
 
+```bash
+pytest -q tests/test_cscv_* tests/test_rc_spa_* tests/test_hrp_* tests/test_var_es_*
+```
+
 - Kiosk: http://localhost:8502
 - Dashboard nâng cao (Advanced): chỉ bật khi `ENABLE_ADVANCED_UI=true`.
 - Từ điển thuật ngữ Việt (English): `docs/GLOSSARY_VI_EN.md`.

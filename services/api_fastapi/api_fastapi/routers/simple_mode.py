@@ -7,6 +7,8 @@ import math
 import logging
 import os
 import uuid
+
+import numpy as np
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +32,9 @@ from core.quant_stats.moments import sample_kurtosis_gamma4, sample_skewness_gam
 from core.quant_stats.psr_dsr import deflated_sharpe_ratio, min_track_record_length, probabilistic_sharpe_ratio
 from core.quant_stats.sharpe import sharpe_non_annualized
 from core.quant_stats.trials import make_trial_id, n_eff_default
+from core.quant_validation_advanced import compute_cscv_pbo, compute_rc_spa
+from core.portfolio_alloc.allocators import hrp as alloc_hrp, inverse_vol
+from core.risk_tail.var_es import es_historical, var_historical
 from core.universe.manager import UniverseManager
 from data.providers.factory import get_provider
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -78,6 +83,7 @@ class RunCompareIn(BaseModel):
     universe_size: int = Field(default=20, ge=1, le=50)
     enable_bootstrap: bool = False
     bootstrap_n_iter: int = Field(default=200, ge=10)
+    bootstrap_b: int = Field(default=300, ge=50, le=500)
 
 
 def _resolve_market_mode(market: str, trading_type: str | None) -> tuple[str, str, str]:
@@ -886,6 +892,20 @@ def get_kiosk_v3(
 
     readiness = _load_readiness_summary()
     health = _system_health_summary_for_kiosk(db, as_of_date)
+    compare_payload = RunCompareIn(
+        symbols=symbols[: min(10, len(symbols))],
+        timeframe="1D",
+        lookback_days=252,
+        detail_level="chi tiết",
+        market="vn",
+        trading_type="spot_paper",
+        engine_version="v3",
+        include_equity_curve=False,
+        include_trades=False,
+        enable_bootstrap=False,
+    )
+    compare_out = run_compare_api(compare_payload)
+    best = (compare_out.get("leaderboard") or [{}])[0]
     readiness_summary = {
         "stability_score": readiness["stability_score"],
         "worst_case_net_return": readiness["worst_case_net_return"],
@@ -895,6 +915,9 @@ def get_kiosk_v3(
         "paused_reason_code": health["paused_reason_code"],
         "report_id": readiness["report_id"],
         "hashes": readiness["hashes"],
+        "tin_cay_thong_ke": best.get("stats_confidence_bucket", "Thấp"),
+        "pbo_bucket": compare_out.get("cscv_bucket", "Chưa đủ mẫu"),
+        "rc_spa_p": None if compare_out.get("rc_spa") is None else compare_out.get("rc_spa", {}).get("spa_pvalue"),
     }
 
     return {
@@ -1205,6 +1228,25 @@ def _stats_bucket(dsr: float) -> str:
     return "Thấp"
 
 
+def _pbo_bucket(phi: float | None) -> str:
+    if phi is None:
+        return "Chưa đủ mẫu"
+    if phi <= 0.10:
+        return "Thấp"
+    if phi <= 0.25:
+        return "Vừa"
+    return "Cao"
+
+
+def _tail_risk_fields(returns_vec: list[float]) -> dict[str, float]:
+    return {
+        "var95": var_historical(returns_vec, 0.05),
+        "es95": es_historical(returns_vec, 0.05),
+        "var99": var_historical(returns_vec, 0.01),
+        "es99": es_historical(returns_vec, 0.01),
+    }
+
+
 def _attach_quant_stats(row: dict[str, Any], returns_vec: list[float], sr_trial_list: list[float], n_eff: int, periods_per_year: int, enable_bootstrap: bool, bootstrap_n_iter: int, timeframe: str) -> None:
     t = len(returns_vec)
     sr_hat = float(sharpe_non_annualized(returns_vec))
@@ -1280,6 +1322,9 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     include_equity_curve = payload.include_equity_curve or is_detail
     include_trades = payload.include_trades or is_detail
     symbols = payload.symbols[: payload.universe_size]
+    n_trials_expected = len(symbols) * 3
+    if n_trials_expected > 60:
+        raise HTTPException(status_code=422, detail={"message": "quá nhiều trial, tối đa 60", "reason_code": "TOO_MANY_TRIALS"})
     as_of_date = _as_of_date_for_symbols(provider, symbols, payload.timeframe)
     compare_cache_key = _hash_obj(
         {
@@ -1407,6 +1452,45 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
             bootstrap_n_iter=bootstrap_n_iter,
             timeframe=payload.timeframe,
         )
+        row["tail_risk"] = _tail_risk_fields(rv)
+
+    # xây ma trận trial theo (symbol, model) để làm CSCV/RC-SPA
+    trial_names: list[str] = []
+    trial_cols: list[list[float]] = []
+    for sym in symbols:
+        for model in ["model_1", "model_2", "model_3"]:
+            rv = _returns_for_model(provider, model, sym, payload.timeframe, start, end, position_mode, mk)
+            if rv:
+                trial_names.append(f"{sym}:{model}")
+                trial_cols.append(rv)
+    min_len = min([len(v) for v in trial_cols], default=0)
+    cscv = None
+    rc_spa = None
+    allocation_suggestion: dict[str, Any] | None = None
+    if min_len > 0 and trial_cols:
+        trial_mat = np.column_stack([np.asarray(v[-min_len:], dtype=float) for v in trial_cols])
+        cscv_report, _ = compute_cscv_pbo(trial_mat, s_segments=8)
+        cscv = None if cscv_report is None else cscv_report.model_dump()
+        bmk = np.asarray(provider.get_ohlcv(symbols[0], payload.timeframe)["close"].pct_change().fillna(0.0).values[-min_len:], dtype=float)
+        rc_report, _ = compute_rc_spa(trial_mat, bmk, bootstrap_b=payload.bootstrap_b, q=0.9, seed=42)
+        rc_spa = rc_report.model_dump()
+
+    if len(symbols) >= 5:
+        ret_assets = []
+        asset_names = []
+        for sym in symbols:
+            rv = _returns_for_model(provider, "model_1", sym, payload.timeframe, start, end, "long_only", mk)
+            if rv:
+                ret_assets.append(rv)
+                asset_names.append(sym)
+        min_assets = min([len(v) for v in ret_assets], default=0)
+        if min_assets > 0 and len(asset_names) >= 2:
+            mat_assets = np.column_stack([np.asarray(v[-min_assets:], dtype=float) for v in ret_assets])
+            w_hrp = alloc_hrp(mat_assets, asset_names)
+            w_iv = inverse_vol(mat_assets, asset_names)
+            top_hrp = sorted([{"symbol": k, "weight": float(v)} for k, v in w_hrp.items()], key=lambda x: x["weight"], reverse=True)[:10]
+            top_iv = sorted([{"symbol": k, "weight": float(v)} for k, v in w_iv.items()], key=lambda x: x["weight"], reverse=True)[:10]
+            allocation_suggestion = {"allocator": "HRP", "weights_top": top_hrp, "allocator_inverse_vol": "Nghịch đảo biến động (Inverse Vol)", "weights_top_inverse_vol": top_iv}
 
     out = {
         "market": mk,
@@ -1414,6 +1498,10 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
         "leaderboard": rows,
         "warning": "CẢNH BÁO: Quá khứ không đảm bảo tương lai; có rủi ro quá khớp dữ liệu; chi phí thực tế có thể khác mô phỏng.",
         "multiple_testing_disclosure": {"N_trials": len(trial_ids), "N_eff": n_eff},
+        "cscv": cscv,
+        "cscv_bucket": _pbo_bucket(None if cscv is None else float(cscv.get("pbo_phi", 0.0))),
+        "rc_spa": rc_spa,
+        "allocation_suggestion": allocation_suggestion,
     }
     if payload.include_story_mode and rows:
         out["story_summary_vi"] = rows[0]["story_summary_vi"]
