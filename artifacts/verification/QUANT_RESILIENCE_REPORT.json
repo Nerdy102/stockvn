@@ -1,0 +1,9 @@
+{
+  "cp_events_examples": ["synthetic_variance_shift", "synthetic_tca_residual_shift"],
+  "regime_timeline": {"covered_by_tests": true},
+  "uncertainty_coverage_summary": {"metrics": ["coverage", "width_median", "width_p90", "ece"]},
+  "expert_weight_evolution_sample": {"covered_by_tests": true},
+  "portfolio_action_logs": {"status": "service integration pending"},
+  "tca_calibration_params_sample": {"covered_by_tests": true},
+  "timing_benchmarks": {"symbols": 500, "target_seconds": 3.0}
+}
