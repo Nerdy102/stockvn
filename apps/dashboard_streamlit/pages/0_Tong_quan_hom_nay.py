@@ -177,6 +177,15 @@ def render() -> None:
     if p.get("top_positions"):
         st.dataframe(p["top_positions"], use_container_width=True)
 
+
+    st.subheader("Trạng thái hệ thống (System health)")
+    sys_status = data.get("system_status", {})
+    st.write(
+        f"Môi trường giao dịch: {sys_status.get('trading_env','N/A')} • Trạng thái giao dịch thật (Live status): {sys_status.get('live_status','TẮT')} • Kill-switch: {sys_status.get('kill_switch','N/A')} • Kết nối broker: {sys_status.get('broker_connectivity','N/A')}"
+    )
+    if sys_status.get("live_block_reason"):
+        st.error(f"Lý do bị chặn (Block reason): {sys_status.get('live_block_reason')}")
+
     st.subheader("Trạng thái dữ liệu (Data status)")
     d = data.get("data_status", {})
     st.write(

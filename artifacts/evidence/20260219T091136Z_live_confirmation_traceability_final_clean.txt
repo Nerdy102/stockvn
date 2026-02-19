@@ -1,0 +1,14 @@
+timestamp_utc=20260219T091136Z
+Python 3.10.19
+af1e997cd84f44738689733711270a35221bc1aa
+PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m pytest -q tests/test_simple_mode_models_smoke.py tests/test_order_draft_tick_lot_fee_tax.py tests/test_confirm_execute_paper_updates_ledger.py tests/test_ui_simple_mode_import.py tests/test_api_simple_mode_bounds.py tests/test_age_gating_disclaimer.py tests/test_simple_mode_ui_guardrails.py tests/test_simple_dashboard_payload_smoke.py tests/test_simple_dashboard_bounds.py tests/test_simple_dashboard_determinism_hash.py tests/test_ui_home_dashboard_import.py tests/test_ui_vietnamese_labels_smoke.py
+...............                                                          [100%]
+15 passed in 4.35s
+PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m pytest -q tests/test_simple_mode_models_smoke.py tests/test_confirm_execute_paper_updates_ledger.py
+..                                                                       [100%]
+2 passed in 3.25s
+PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps python -m pytest -q tests/test_broker_sandbox_e2e.py
+.                                                                        [100%]
+1 passed in 0.20s
+cleanup_done
+?? artifacts/evidence/20260219T091136Z_live_confirmation_traceability_final_clean.txt

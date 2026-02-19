@@ -36,6 +36,12 @@ class Settings(BaseSettings):
 
     API_BASE_URL: str = Field(default="http://localhost:8000")
 
+    TRADING_ENV: str = Field(default="dev")
+    ENABLE_LIVE_TRADING: bool = Field(default=False)
+    LIVE_BROKER: str = Field(default="paper")
+    LIVE_SANDBOX: bool = Field(default=True)
+    KILL_SWITCH: bool = Field(default=False)
+
     ALERT_EMAIL_ENABLED: bool = Field(default=False)
     ALERT_DIGEST_RECIPIENT: str = Field(default="")
 
@@ -57,6 +63,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_runtime_requirements(self) -> Settings:
+        if self.TRADING_ENV not in {"dev", "paper", "live"}:
+            raise RuntimeError("TRADING_ENV phải thuộc dev|paper|live")
+
         required_urls = {
             "DATABASE_URL": self.DATABASE_URL,
             "REDIS_URL": self.REDIS_URL,

@@ -87,3 +87,6 @@ verify-offline:
 
 verify-e2e:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_simple_mode_models_smoke.py tests/test_confirm_execute_paper_updates_ledger.py
+
+verify-live-sandbox:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_broker_sandbox_e2e.py
