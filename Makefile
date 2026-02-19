@@ -1,4 +1,4 @@
-.PHONY: setup run-api run-worker run-ui run-ui-kiosk run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke
+.PHONY: setup run-api run-worker run-ui run-ui-kiosk run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke verify-regression
 
 PYTHONPATH := packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
@@ -93,3 +93,6 @@ verify-e2e:
 
 verify-live-sandbox:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_broker_sandbox_e2e.py
+
+verify-regression:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_regression_offline_e2e.py

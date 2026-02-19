@@ -8,6 +8,17 @@ from contextlib import contextmanager
 from typing import Any
 
 
+def _redact_text(v: str) -> str:
+    text = str(v)
+    import os
+
+    for key in ["SSI_CONSUMER_ID", "SSI_CONSUMER_SECRET", "SSI_PRIVATE_KEY_PATH", "CRYPTO_API_KEY", "CRYPTO_SECRET"]:
+        raw = os.getenv(key, "")
+        if raw and raw in text:
+            text = text.replace(raw, "***REDACTED***")
+    return text
+
+
 _request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 
@@ -26,7 +37,7 @@ class JsonFormatter(logging.Formatter):
             "ts": int(time.time() * 1000),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": _redact_text(record.getMessage()),
         }
         if hasattr(record, "event"):
             payload["event"] = record.event
@@ -39,6 +50,7 @@ class JsonFormatter(logging.Formatter):
             "job_id",
             "request_id",
             "correlation_id",
+            "reason_code",
         ]:
             if hasattr(record, key):
                 payload[key] = getattr(record, key)

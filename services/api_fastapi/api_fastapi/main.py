@@ -4,6 +4,9 @@ import uuid
 from contextlib import asynccontextmanager
 
 from core.db.models import Ticker
+from core.oms import models as oms_models
+from core.risk import controls_models
+from core.reconciliation import models as reconcile_models
 from core.db.session import create_db_and_tables, get_engine
 from core.logging import get_logger, request_id_context, setup_logging
 from core.monitoring.prometheus_metrics import metrics_payload
@@ -19,10 +22,12 @@ from api_fastapi.routers import (
     alerts,
     data_health,
     chart,
+    controls,
     fundamentals,
     health,
     ml,
     orders,
+    oms,
     portfolio,
     prices,
     realtime,
@@ -91,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(prices.router)
     app.include_router(realtime.router)
     app.include_router(orders.router)
+    app.include_router(oms.router)
     app.include_router(fundamentals.router)
     app.include_router(screeners.router)
     app.include_router(signals.router)
@@ -99,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(alerts.router)
     app.include_router(data_health.router)
     app.include_router(chart.router)
+    app.include_router(controls.router)
     app.include_router(ml.router)
     app.include_router(universe.router)
     app.include_router(watchlists.router)

@@ -29,6 +29,7 @@ make setup
 make run-api
 make run-ui-kiosk
 make verify-offline
+make verify-regression
 ```
 
 - Kiosk: http://localhost:8502
@@ -38,6 +39,7 @@ make verify-offline
 - Hardening định lượng: `docs/QUANT_CORE_HARDENING.md`.
 - Backtest v2: `docs/BACKTEST_V2_GUIDE.md`.
 - Tối ưu rủi ro vận hành: `docs/RISK_OPTIMIZATION_GUIDE.md`.
+- Quant Trust Pack: `docs/QUANT_TRUST_PACK.md`.
 
 ## Quickstart (Docker)
 

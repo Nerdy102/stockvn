@@ -1,0 +1,5 @@
+timestamp_utc=20260219T112514Z
+Python 3.10.19
+git_head=1124b6b34312fc74a894557289ed96e3a9213289
+git_clean=false
+reconcile_report_sample={"ts": "2026-02-19T11:24:38.619057", "status": "MISMATCH", "mismatches_json": {"orders_without_fill": [{"order_id": "483c9b57-2c3f-4386-a21d-d44f9f5024ac", "status": "FILLED"}], "snapshot_nav_mismatch": [{"ts": "2026-02-19T11:14:28.185988", "nav_est": 2000000000.0, "sum_cash_positions": 1999000100.0}, {"ts": "2026-02-19T11:24:38.594173", "nav_est": 1.0, "sum_cash_positions": 11000.0}]}, "fixed_actions_json": {"notes": []}}

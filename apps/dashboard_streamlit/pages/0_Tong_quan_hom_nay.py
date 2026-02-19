@@ -178,6 +178,27 @@ def render() -> None:
         st.dataframe(p["top_positions"], use_container_width=True)
 
 
+    st.subheader("DỪNG KHẨN CẤP (Kill-switch)")
+    st.error("Sẽ chặn mọi lệnh thực hiện (execute). Lệnh nháp vẫn tạo được.")
+    ks_ack = st.checkbox("Tôi xác nhận hiểu tác động", key="home_ks_ack")
+    ks_code = st.text_input("Gõ DUNG để xác nhận", key="home_ks_code")
+    k1, k2 = st.columns(2)
+    if k1.button("Bật DỪNG KHẨN CẤP", use_container_width=True):
+        if not ks_ack or str(ks_code).strip().upper() != "DUNG":
+            st.error("Thiếu xác nhận 2 bước để bật kill-switch.")
+        else:
+            try:
+                out = api.post("/controls/kill_switch/on", {})
+                st.success(out.get("message", "Đã bật kill-switch."))
+            except Exception as exc:
+                st.error(f"Không bật được kill-switch: {exc}")
+    if k2.button("Tắt DỪNG KHẨN CẤP", use_container_width=True):
+        try:
+            out = api.post("/controls/kill_switch/off", {})
+            st.success(out.get("message", "Đã tắt kill-switch."))
+        except Exception as exc:
+            st.error(f"Không tắt được kill-switch: {exc}")
+
     st.subheader("Trạng thái hệ thống (System health)")
     sys_status = data.get("system_status", {})
     st.write(

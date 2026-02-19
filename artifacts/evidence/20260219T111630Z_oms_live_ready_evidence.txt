@@ -1,0 +1,4 @@
+timestamp_utc=20260219T111630Z
+Python 3.10.19
+git_head=b4874b796bbc32a53aa7f05f95bb3de6f4b10d22
+git_clean=false
