@@ -11,7 +11,15 @@ FONT_STACK_VI = 'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif
 
 
 @st.cache_data(ttl=120)
-def _load_dashboard(universe: str, timeframe: str, limit_signals: int, lookback_sessions: int) -> dict:
+def _load_dashboard(
+    universe: str,
+    timeframe: str,
+    limit_signals: int,
+    lookback_sessions: int,
+    market: str,
+    trading_type: str,
+    exchange: str,
+) -> dict:
     return api.get(
         "/simple/dashboard",
         {
@@ -19,6 +27,9 @@ def _load_dashboard(universe: str, timeframe: str, limit_signals: int, lookback_
             "timeframe": timeframe,
             "limit_signals": limit_signals,
             "lookback_sessions": lookback_sessions,
+            "market": market,
+            "trading_type": trading_type,
+            "exchange": exchange,
         },
     )
 
@@ -42,17 +53,47 @@ def render() -> None:
         unsafe_allow_html=True,
     )
     st.title("🏠 Tổng quan hôm nay (Today dashboard)")
-    st.info("Kiểm tra hiển thị dấu: Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư.")
+    st.info(
+        "Kiểm tra hiển thị dấu: Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư."
+    )
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1:
-        universe = st.selectbox("Rổ cổ phiếu (Universe)", ["VN30", "VNINDEX", "ALL"], index=0)
+        market_view = st.selectbox(
+            "Xem thị trường",
+            ["vn", "crypto", "both"],
+            index=0,
+            format_func=lambda x: {
+                "vn": "Cổ phiếu Việt Nam (VN Stocks)",
+                "crypto": "Tiền mã hoá (Crypto)",
+                "both": "Cả hai (Both)",
+            }[x],
+        )
     with c2:
-        timeframe = st.selectbox("Khung thời gian (Timeframe)", ["1D", "60m"], index=0)
+        universe = st.selectbox("Rổ cổ phiếu (Universe)", ["VN30", "VNINDEX", "ALL"], index=0)
     with c3:
-        limit_signals = st.slider("Giới hạn tín hiệu (Signal limit)", 5, 20, 10)
+        timeframe = st.selectbox("Khung thời gian (Timeframe)", ["1D", "60m"], index=0)
     with c4:
+        limit_signals = st.slider("Giới hạn tín hiệu (Signal limit)", 5, 20, 10)
+    with c5:
         lookback = st.slider("Số phiên kiểm chứng (Backtest sessions)", 60, 756, 252)
+    with c6:
+        trading_type = st.selectbox(
+            "Loại giao dịch Crypto",
+            ["spot_paper", "perp_paper"],
+            index=0,
+            format_func=lambda x: (
+                "Giao ngay — giao dịch giấy (Spot paper)"
+                if x == "spot_paper"
+                else "Hợp đồng vĩnh cửu — giao dịch giấy (Perp paper, Long/Short)"
+            ),
+        )
+    exchange = st.selectbox(
+        "Sàn dữ liệu Crypto",
+        ["binance_public"],
+        index=0,
+        format_func=lambda x: "Binance công khai (Binance public)",
+    )
 
     if st.button("Đồng bộ dữ liệu (Sync data)"):
         try:
@@ -63,9 +104,13 @@ def render() -> None:
             st.warning("Không thể đồng bộ vì API chưa sẵn sàng.")
 
     try:
-        data = _load_dashboard(universe, timeframe, limit_signals, lookback)
+        data = _load_dashboard(
+            universe, timeframe, limit_signals, lookback, market_view, trading_type, exchange
+        )
     except (httpx.HTTPError, ValueError):
-        st.warning("Chưa kết nối được API tổng quan. Hãy chạy API hoặc dùng verify-offline để kiểm tra.")
+        st.warning(
+            "Chưa kết nối được API tổng quan. Hãy chạy API hoặc dùng verify-offline để kiểm tra."
+        )
         return
 
     st.caption(f"Ngày dữ liệu mới nhất (Latest data date): {data.get('as_of_date', 'N/A')}")
@@ -122,9 +167,7 @@ def render() -> None:
     perf = data.get("model_leaderboard", data.get("model_performance_leaderboard", []))
     if perf:
         st.dataframe(perf, use_container_width=True)
-        st.caption(
-            f"ID báo cáo (Report ID): {perf[0].get('report_id','N/A')}"
-        )
+        st.caption(f"ID báo cáo (Report ID): {perf[0].get('report_id','N/A')}")
 
     st.subheader("Danh mục giao dịch giấy (Paper portfolio)")
     p = data.get("paper_portfolio_summary", {})

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     DATA_PROVIDER: str = Field(default="csv")
     DEMO_DATA_DIR: str = Field(default="data_demo")
+    CRYPTO_DEFAULT_EXCHANGE: str = Field(default="binance_public")
 
     DATABASE_URL: str = Field(default="sqlite:///./vn_invest.db")
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
@@ -80,8 +81,7 @@ class Settings(BaseSettings):
         if missing_ssi_credentials and not self.DEV_MODE:
             missing_msg = ", ".join(missing_ssi_credentials)
             raise RuntimeError(
-                "SSI credentials are required when DEV_MODE=false. "
-                f"Missing: {missing_msg}"
+                "SSI credentials are required when DEV_MODE=false. " f"Missing: {missing_msg}"
             )
 
         if missing_ssi_credentials and self.DEV_MODE:

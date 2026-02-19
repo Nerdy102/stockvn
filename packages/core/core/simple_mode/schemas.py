@@ -17,7 +17,7 @@ class SignalResult(BaseModel):
     as_of: dt.datetime
     signal: SignalLabel
     confidence: ConfidenceLabel
-    proposed_side: Literal["BUY", "SELL", "HOLD"] = "HOLD"
+    proposed_side: Literal["BUY", "SELL", "SHORT", "HOLD"] = "HOLD"
     explanation: list[str] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     indicators: dict[str, float] = Field(default_factory=dict)
@@ -34,8 +34,8 @@ class FeeTaxPreview(BaseModel):
 
 class OrderDraft(BaseModel):
     symbol: str
-    side: Literal["BUY", "SELL"]
-    ui_side: Literal["MUA", "BAN"]
+    side: Literal["BUY", "SELL", "SHORT"]
+    ui_side: Literal["MUA", "BAN", "MO_VI_THE_BAN"]
     qty: int
     price: float
     notional: float
@@ -57,6 +57,8 @@ class BacktestReport(BaseModel):
     sortino: float
     turnover: float
     net_return: float
+    long_exposure: float = 0.0
+    short_exposure: float = 0.0
     config_hash: str
     dataset_hash: str
     code_hash: str

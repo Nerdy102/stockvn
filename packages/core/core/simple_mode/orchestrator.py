@@ -18,8 +18,14 @@ def generate_order_draft(
     max_single_name_weight: float = 0.10,
     mode: str = "draft",
     now: dt.datetime | None = None,
+    allow_short: bool = False,
+    has_open_position: bool = True,
 ) -> OrderDraft | None:
     if signal.proposed_side == "HOLD":
+        return None
+    if signal.proposed_side == "SHORT" and not allow_short:
+        return None
+    if signal.proposed_side == "SELL" and not has_open_position:
         return None
 
     budget = cash_available * max_single_name_weight
@@ -42,6 +48,11 @@ def generate_order_draft(
     slippage_est = notional * slippage_bps / 10000.0
     commission = fees_taxes.commission(notional)
     sell_tax = fees_taxes.sell_tax(notional) if signal.proposed_side == "SELL" else 0.0
+    ui_side = (
+        "MUA"
+        if signal.proposed_side == "BUY"
+        else ("MO_VI_THE_BAN" if signal.proposed_side == "SHORT" else "BAN")
+    )
 
     _now = now or dt.datetime.now()
     off_session = not market_rules.is_trading_time(_now.time())
@@ -49,7 +60,7 @@ def generate_order_draft(
     return OrderDraft(
         symbol=signal.symbol,
         side=signal.proposed_side,
-        ui_side="MUA" if signal.proposed_side == "BUY" else "BAN",
+        ui_side=ui_side,
         qty=qty,
         price=float(rounded_price),
         notional=float(notional),

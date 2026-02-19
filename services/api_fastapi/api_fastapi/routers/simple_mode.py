@@ -38,6 +38,9 @@ class RunSignalIn(BaseModel):
     timeframe: str = "1D"
     model_id: str = "model_1"
     mode: str = "paper"
+    market: str = Field(default="vn", pattern="^(vn|crypto)$")
+    trading_type: str | None = Field(default=None, pattern="^(spot_paper|perp_paper)$")
+    exchange: str | None = "binance_public"
 
 
 class RunCompareIn(BaseModel):
@@ -47,7 +50,37 @@ class RunCompareIn(BaseModel):
     detail_level: str = Field(default="tóm tắt", pattern="^(tóm tắt|chi tiết)$")
     include_equity_curve: bool = False
     include_trades: bool = False
-    execution: str = Field(default="giá đóng cửa (close)", pattern=r"^(giá đóng cửa \(close\)|thanh nến kế tiếp \(next-bar\))$")
+    execution: str = Field(
+        default="giá đóng cửa (close)",
+        pattern=r"^(giá đóng cửa \(close\)|thanh nến kế tiếp \(next-bar\))$",
+    )
+    market: str = Field(default="vn", pattern="^(vn|crypto)$")
+    trading_type: str | None = Field(default=None, pattern="^(spot_paper|perp_paper)$")
+    exchange: str | None = "binance_public"
+
+
+def _resolve_market_mode(market: str, trading_type: str | None) -> tuple[str, str, str]:
+    mk = (market or "vn").strip().lower()
+    tt = (trading_type or "spot_paper").strip().lower()
+    if mk == "vn":
+        return "vn", "vn_long_only", "spot_paper"
+    if tt == "perp_paper":
+        return "crypto", "long_short", "perp_paper"
+    return "crypto", "long_only", "spot_paper"
+
+
+def _map_signal_side(signal: Any, position_mode: str) -> Any:
+    if signal.proposed_side == "SELL" and position_mode == "long_short":
+        signal.proposed_side = "SHORT"
+    return signal
+
+
+def _build_provider(settings: Any, market: str, exchange: str | None = None) -> Any:
+    if market == "crypto":
+        from data.providers.crypto_public_ohlcv import CryptoPublicOHLCVProvider
+
+        return CryptoPublicOHLCVProvider(exchange=exchange or settings.CRYPTO_DEFAULT_EXCHANGE)
+    return get_provider(settings)
 
 
 def _hash_obj(v: object) -> str:
@@ -144,7 +177,9 @@ def _as_of_date_for_symbols(provider: Any, symbols: list[str], timeframe: str) -
     return (latest or dt.date.today()).isoformat()
 
 
-def _resolve_universe_symbols(db: Session, universe: str, limit: int = MAX_UNIVERSE_SCAN) -> list[str]:
+def _resolve_universe_symbols(
+    db: Session, universe: str, limit: int = MAX_UNIVERSE_SCAN
+) -> list[str]:
     manager = UniverseManager(db)
     as_of = dt.date.today()
     symbols, _ = manager.universe(date=as_of, name=universe)
@@ -195,7 +230,9 @@ def _market_today_summary(provider: Any, symbols: list[str], timeframe: str) -> 
         else:
             flat += 1
         vol_now = float(df.iloc[-1].get("volume", 0.0))
-        vol_avg20 = float(df["volume"].tail(20).mean()) if len(df) >= 20 else float(df["volume"].mean())
+        vol_avg20 = (
+            float(df["volume"].tail(20).mean()) if len(df) >= 20 else float(df["volume"].mean())
+        )
         total_liq += vol_now
         total_avg20 += vol_avg20
 
@@ -216,7 +253,15 @@ def _market_today_summary(provider: Any, symbols: list[str], timeframe: str) -> 
         "liquidity_vs_avg20": liq_ratio,
     }
 
-def _scan_signals(provider: Any, symbols: list[str], timeframe: str, limit_signals: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+
+def _scan_signals(
+    provider: Any,
+    symbols: list[str],
+    timeframe: str,
+    limit_signals: int,
+    *,
+    position_mode: str = "long_only",
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     model_labels = {
         "model_1": "Mô hình 1 — Xu hướng (Trend-following)",
         "model_2": "Mô hình 2 — Hồi quy về trung bình (Mean-reversion)",
@@ -229,7 +274,7 @@ def _scan_signals(provider: Any, symbols: list[str], timeframe: str, limit_signa
         if df.empty:
             continue
         for model_id in ["model_1", "model_2", "model_3"]:
-            sig = run_signal(model_id, symbol, timeframe, df)
+            sig = _map_signal_side(run_signal(model_id, symbol, timeframe, df), position_mode)
             row = {
                 "symbol": symbol,
                 "model": model_labels[model_id],
@@ -251,7 +296,14 @@ def _scan_signals(provider: Any, symbols: list[str], timeframe: str, limit_signa
     return buy_rows[:limit_signals], sell_rows[:limit_signals]
 
 
-def _model_performance(provider: Any, symbols: list[str], timeframe: str, lookback_sessions: int) -> list[dict[str, Any]]:
+def _model_performance(
+    provider: Any,
+    symbols: list[str],
+    timeframe: str,
+    lookback_sessions: int,
+    *,
+    position_mode: str = "long_only",
+) -> list[dict[str, Any]]:
     end = dt.date.today()
     start = end - dt.timedelta(days=lookback_sessions)
     rows: list[dict[str, Any]] = []
@@ -259,7 +311,9 @@ def _model_performance(provider: Any, symbols: list[str], timeframe: str, lookba
         reports = []
         for symbol in symbols:
             df = provider.get_ohlcv(symbol, timeframe)
-            reports.append(quick_backtest(model_id, symbol, df, start, end))
+            reports.append(
+                quick_backtest(model_id, symbol, df, start, end, position_mode=position_mode)
+            )
         out = {
             "model_id": model_id,
             "net_return": sum(r.net_return for r in reports) / len(reports),
@@ -270,6 +324,8 @@ def _model_performance(provider: Any, symbols: list[str], timeframe: str, lookba
             "config_hash": reports[0].config_hash,
             "dataset_hash": reports[0].dataset_hash,
             "code_hash": reports[0].code_hash,
+            "long_exposure": sum(r.long_exposure for r in reports) / len(reports),
+            "short_exposure": sum(r.short_exposure for r in reports) / len(reports),
         }
         out["report_id"] = f"{out['config_hash']}-{out['dataset_hash']}-{out['code_hash']}"
         rows.append(out)
@@ -291,6 +347,7 @@ def _run_compare_v2(
     execution_mode: str,
     include_equity_curve: bool,
     include_trades: bool,
+    position_mode: str = "long_only",
 ) -> dict[str, Any]:
     settings = get_settings()
     mr = MarketRules.from_yaml(settings.MARKET_RULES_PATH)
@@ -307,6 +364,7 @@ def _run_compare_v2(
     cash = 1.0
     pos_qty = 0
     pos_entry_price = 0.0
+    pos_side = "FLAT"
     equity_curve: list[dict[str, Any]] = []
     trade_list: list[dict[str, Any]] = []
     turnover = 0.0
@@ -317,7 +375,9 @@ def _run_compare_v2(
     if not benchmark_df.empty and len(benchmark_df) >= 2:
         benchmark_df = benchmark_df.copy()
         benchmark_df["d"] = benchmark_df["date"].astype(str).str[:10]
-        benchmark_df = benchmark_df[(benchmark_df["d"] >= start.isoformat()) & (benchmark_df["d"] <= end.isoformat())]
+        benchmark_df = benchmark_df[
+            (benchmark_df["d"] >= start.isoformat()) & (benchmark_df["d"] <= end.isoformat())
+        ]
         if len(benchmark_df) >= 2:
             has_benchmark = True
 
@@ -340,7 +400,7 @@ def _run_compare_v2(
 
         for i in range(20, len(w)):
             hist = w.iloc[: i + 1].copy()
-            sig = run_signal(model_id, symbol, timeframe, hist)
+            sig = _map_signal_side(run_signal(model_id, symbol, timeframe, hist), position_mode)
             today = w.iloc[i]
             trade_bar_idx = min(i + 1, len(w) - 1) if execution_mode.endswith("(next-bar)") else i
             trade_bar = w.iloc[trade_bar_idx]
@@ -353,13 +413,21 @@ def _run_compare_v2(
                 qty = int(math.floor(qty_raw / max(lot_size, 1)) * lot_size)
                 if qty <= 0:
                     continue
-                slip_bps = slippage_bps(float(qty * trade_px_raw), max(float(today.get("volume", 0.0) * trade_px_raw), 1.0), 0.01, exec_assump)
-                exec_px = mr.round_price(apply_slippage(trade_px_raw, "BUY", slip_bps), direction="up")
+                slip_bps = slippage_bps(
+                    float(qty * trade_px_raw),
+                    max(float(today.get("volume", 0.0) * trade_px_raw), 1.0),
+                    0.01,
+                    exec_assump,
+                )
+                exec_px = mr.round_price(
+                    apply_slippage(trade_px_raw, "BUY", slip_bps), direction="up"
+                )
                 notional = float(exec_px * qty)
                 fee = fees.commission(notional, settings.BROKER_NAME)
                 cash -= (notional + fee) / fixed_notional
                 pos_qty = qty
                 pos_entry_price = exec_px
+                pos_side = "LONG"
                 turnover += notional / fixed_notional
                 trade_list.append(
                     {
@@ -378,9 +446,59 @@ def _run_compare_v2(
                     }
                 )
 
+            if sig.proposed_side == "SHORT" and pos_qty == 0 and position_mode == "long_short":
+                qty_raw = fixed_notional / max(trade_px_raw, 1.0)
+                qty = int(math.floor(qty_raw / max(lot_size, 1)) * lot_size)
+                if qty <= 0:
+                    continue
+                slip_bps = slippage_bps(
+                    float(qty * trade_px_raw),
+                    max(float(today.get("volume", 0.0) * trade_px_raw), 1.0),
+                    0.01,
+                    exec_assump,
+                )
+                exec_px = mr.round_price(
+                    apply_slippage(trade_px_raw, "SELL", slip_bps), direction="down"
+                )
+                notional = float(exec_px * qty)
+                fee = fees.commission(notional, settings.BROKER_NAME)
+                cash += (notional - fee) / fixed_notional
+                pos_qty = qty
+                pos_entry_price = exec_px
+                pos_side = "LONG"
+                pos_side = "SHORT"
+                turnover += notional / fixed_notional
+
+            if sig.proposed_side == "BUY" and pos_qty > 0 and pos_side == "SHORT":
+                slip_bps = slippage_bps(
+                    float(pos_qty * trade_px_raw),
+                    max(float(today.get("volume", 0.0) * trade_px_raw), 1.0),
+                    0.01,
+                    exec_assump,
+                )
+                exec_px = mr.round_price(
+                    apply_slippage(trade_px_raw, "BUY", slip_bps), direction="up"
+                )
+                notional = float(exec_px * pos_qty)
+                fee = fees.commission(notional, settings.BROKER_NAME)
+                pnl_gross = (pos_entry_price - exec_px) * pos_qty
+                cash -= (notional + fee) / fixed_notional
+                turnover += notional / fixed_notional
+                pos_qty = 0
+                pos_entry_price = 0.0
+                pos_side = "FLAT"
+                pos_side = "FLAT"
+
             if sig.proposed_side == "SELL" and pos_qty > 0:
-                slip_bps = slippage_bps(float(pos_qty * trade_px_raw), max(float(today.get("volume", 0.0) * trade_px_raw), 1.0), 0.01, exec_assump)
-                exec_px = mr.round_price(apply_slippage(trade_px_raw, "SELL", slip_bps), direction="down")
+                slip_bps = slippage_bps(
+                    float(pos_qty * trade_px_raw),
+                    max(float(today.get("volume", 0.0) * trade_px_raw), 1.0),
+                    0.01,
+                    exec_assump,
+                )
+                exec_px = mr.round_price(
+                    apply_slippage(trade_px_raw, "SELL", slip_bps), direction="down"
+                )
                 notional = float(exec_px * pos_qty)
                 fee = fees.commission(notional, settings.BROKER_NAME)
                 tax = fees.sell_tax(notional)
@@ -396,17 +514,30 @@ def _run_compare_v2(
                             "pnl_gross": pnl_gross,
                             "fee": trade_list[-1]["fee"] + fee,
                             "tax": tax,
-                            "slippage_est": trade_list[-1]["slippage_est"] + (trade_px_raw - exec_px) * pos_qty,
+                            "slippage_est": trade_list[-1]["slippage_est"]
+                            + (trade_px_raw - exec_px) * pos_qty,
                             "pnl_net": pnl_net,
                         }
                     )
                 pos_qty = 0
                 pos_entry_price = 0.0
+                pos_side = "FLAT"
 
-            nav = cash + (pos_qty * mark_px) / fixed_notional
+            signed_mv = (
+                (pos_qty * mark_px) / fixed_notional
+                if pos_side != "SHORT"
+                else -(pos_qty * mark_px) / fixed_notional
+            )
+            nav = cash + signed_mv
             peak = max(nav, max([x["nav"] for x in equity_curve], default=nav))
             drawdown = (nav / max(peak, 1e-9)) - 1
-            equity_curve.append({"date": _safe_date(today.get("date", today.get("d", ""))), "nav": nav, "drawdown": drawdown})
+            equity_curve.append(
+                {
+                    "date": _safe_date(today.get("date", today.get("d", ""))),
+                    "nav": nav,
+                    "drawdown": drawdown,
+                }
+            )
 
     if not equity_curve:
         equity_curve = [{"date": end.isoformat(), "nav": 1.0, "drawdown": 0.0}]
@@ -417,7 +548,14 @@ def _run_compare_v2(
         rets.append((nav_series[i] / prev - 1.0) if prev > 0 else 0.0)
     mdd = min([float(x["drawdown"]) for x in equity_curve], default=0.0)
     net_return = nav_series[-1] - 1.0
-    vol = float((sum((r - (sum(rets) / max(len(rets), 1))) ** 2 for r in rets) / max(len(rets), 1)) ** 0.5) if rets else 0.0
+    vol = (
+        float(
+            (sum((r - (sum(rets) / max(len(rets), 1))) ** 2 for r in rets) / max(len(rets), 1))
+            ** 0.5
+        )
+        if rets
+        else 0.0
+    )
     sharpe = float((sum(rets) / max(len(rets), 1)) / vol * (252**0.5)) if vol > 0 else 0.0
     cagr = float((nav_series[-1]) ** (252 / max(len(nav_series), 1)) - 1)
 
@@ -429,10 +567,17 @@ def _run_compare_v2(
         "execution": execution_mode,
         "rows": combined_rows,
     }
-    config_hash = _hash_obj({k: hash_payload[k] for k in ["model_id", "symbols", "timeframe", "lookback_days", "execution"]})
+    config_hash = _hash_obj(
+        {
+            k: hash_payload[k]
+            for k in ["model_id", "symbols", "timeframe", "lookback_days", "execution"]
+        }
+    )
     dataset_hash = _hash_obj({"rows": combined_rows, "symbols": symbols})
     code_hash = "simple_mode_backtest_v2"
-    report_id = _hash_obj({"config_hash": config_hash, "dataset_hash": dataset_hash, "code_hash": code_hash})
+    report_id = _hash_obj(
+        {"config_hash": config_hash, "dataset_hash": dataset_hash, "code_hash": code_hash}
+    )
 
     out = {
         "model_id": model_id,
@@ -446,7 +591,14 @@ def _run_compare_v2(
         "dataset_hash": dataset_hash,
         "code_hash": code_hash,
         "report_id": report_id,
-        "benchmark": {"status": "ok" if has_benchmark else "không có benchmark", "net_return": (float(benchmark_df.iloc[-1]["close"]/benchmark_df.iloc[0]["close"]-1) if has_benchmark else None)},
+        "benchmark": {
+            "status": "ok" if has_benchmark else "không có benchmark",
+            "net_return": (
+                float(benchmark_df.iloc[-1]["close"] / benchmark_df.iloc[0]["close"] - 1)
+                if has_benchmark
+                else None
+            ),
+        },
     }
     if include_equity_curve:
         out["equity_curve"] = equity_curve[:MAX_POINTS_PER_CHART]
@@ -551,22 +703,43 @@ def get_dashboard(
     timeframe: str = Query(default="1D", pattern="^(1D|60m)$"),
     limit_signals: int = Query(default=10, ge=1, le=20),
     lookback_sessions: int = Query(default=252, ge=60, le=756),
+    market: str = Query(default="vn", pattern="^(vn|crypto|both)$"),
+    trading_type: str = Query(default="spot_paper", pattern="^(spot_paper|perp_paper)$"),
+    exchange: str = Query(default="binance_public"),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     settings = get_settings()
-    provider = get_provider(settings)
-    symbols = _resolve_universe_symbols(db=db, universe=universe, limit=MAX_UNIVERSE_SCAN)
+    mk = market if market != "both" else "crypto"
+    _, position_mode, normalized_trading_type = _resolve_market_mode(mk, trading_type)
+    provider = _build_provider(settings, mk, exchange)
+    symbols = (
+        _resolve_universe_symbols(db=db, universe=universe, limit=MAX_UNIVERSE_SCAN)
+        if mk == "vn"
+        else ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"]
+    )
     as_of_date = _as_of_date_for_symbols(provider, symbols, timeframe)
 
-    cache_key = f"{universe}-{timeframe}-{limit_signals}-{lookback_sessions}-{as_of_date}".replace("/", "_")
+    cache_key = f"{universe}-{timeframe}-{limit_signals}-{lookback_sessions}-{as_of_date}".replace(
+        "/", "_"
+    )
     cached = _read_dashboard_cache(cache_key)
     if cached is not None:
         return cached
 
-    buy_rows, sell_rows = _scan_signals(provider, symbols, timeframe, limit_signals)
-    leaderboard = _model_performance(provider, symbols[:max(1, min(20, len(symbols)))], timeframe, lookback_sessions)
+    buy_rows, sell_rows = _scan_signals(
+        provider, symbols, timeframe, limit_signals, position_mode=position_mode
+    )
+    leaderboard = _model_performance(
+        provider,
+        symbols[: max(1, min(20, len(symbols)))],
+        timeframe,
+        lookback_sessions,
+        position_mode=position_mode,
+    )
     payload = {
         "as_of_date": as_of_date,
+        "market": mk,
+        "trading_type": normalized_trading_type,
         "market_summary": _market_today_summary(provider, symbols, timeframe),
         "market_today_summary": _market_today_summary(provider, symbols, timeframe),
         "buy_candidates": buy_rows,
@@ -615,20 +788,32 @@ def refresh_dashboard() -> dict[str, Any]:
 def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[str, Any]:
     del db
     settings = get_settings()
-    provider = get_provider(settings)
+    mk, position_mode, normalized_trading_type = _resolve_market_mode(
+        payload.market, payload.trading_type
+    )
+    provider = _build_provider(settings, mk, payload.exchange)
     df = provider.get_ohlcv(payload.symbol, payload.timeframe)
     if len(df) > MAX_POINTS_PER_CHART:
         step = max(1, len(df) // MAX_POINTS_PER_CHART)
         df = df.iloc[::step].copy()
 
-    signal = run_signal(payload.model_id, payload.symbol, payload.timeframe, df)
+    signal = _map_signal_side(
+        run_signal(payload.model_id, payload.symbol, payload.timeframe, df), position_mode
+    )
     if not df.empty:
         df = df.copy()
         df["ema20"] = df["close"].ewm(span=20, adjust=False).mean()
         df["ema50"] = df["close"].ewm(span=50, adjust=False).mean()
     mr = MarketRules.from_yaml(settings.MARKET_RULES_PATH)
     fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
-    draft = generate_order_draft(signal=signal, market_rules=mr, fees_taxes=fees, mode=payload.mode)
+    draft = generate_order_draft(
+        signal=signal,
+        market_rules=mr,
+        fees_taxes=fees,
+        mode=payload.mode,
+        allow_short=(mk == "crypto" and normalized_trading_type == "perp_paper"),
+        has_open_position=(mk == "crypto" and normalized_trading_type == "perp_paper"),
+    )
 
     chart = []
     for _, row in df.tail(MAX_POINTS_PER_CHART).iterrows():
@@ -650,6 +835,8 @@ def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[
         "last_update": str(df.iloc[-1].get("date") if not df.empty else ""),
     }
     return {
+        "market": mk,
+        "trading_type": normalized_trading_type,
         "signal": signal.model_dump(),
         "draft": None if draft is None else draft.model_dump(),
         "data_status": data_status,
@@ -660,7 +847,10 @@ def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[
 @router.post("/run_compare")
 def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     settings = get_settings()
-    provider = get_provider(settings)
+    mk, position_mode, normalized_trading_type = _resolve_market_mode(
+        payload.market, payload.trading_type
+    )
+    provider = _build_provider(settings, mk, payload.exchange)
     end = dt.date.today()
     start = end - dt.timedelta(days=payload.lookback_days)
 
@@ -671,6 +861,8 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     compare_cache_key = _hash_obj(
         {
             "as_of_date": as_of_date,
+            "market": mk,
+            "trading_type": normalized_trading_type,
             "symbols": payload.symbols,
             "timeframe": payload.timeframe,
             "lookback_days": payload.lookback_days,
@@ -678,6 +870,8 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
             "execution": payload.execution,
             "include_equity_curve": include_equity_curve,
             "include_trades": include_trades,
+            "market": mk,
+            "trading_type": normalized_trading_type,
         }
     )
     cached_compare = _read_compare_cache(compare_cache_key)
@@ -696,12 +890,15 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
                 execution_mode=payload.execution,
                 include_equity_curve=include_equity_curve,
                 include_trades=include_trades,
+                position_mode=position_mode,
             )
         else:
             reports = []
             for symbol in payload.symbols:
                 df = provider.get_ohlcv(symbol, payload.timeframe)
-                reports.append(quick_backtest(model, symbol, df, start, end))
+                reports.append(
+                    quick_backtest(model, symbol, df, start, end, position_mode=position_mode)
+                )
             avg = {
                 "model_id": model,
                 "cagr": sum(r.cagr for r in reports) / len(reports),
@@ -713,10 +910,14 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
                 "config_hash": reports[0].config_hash,
                 "dataset_hash": reports[0].dataset_hash,
                 "code_hash": reports[0].code_hash,
+                "long_exposure": sum(r.long_exposure for r in reports) / len(reports),
+                "short_exposure": sum(r.short_exposure for r in reports) / len(reports),
             }
         rows.append(avg)
     rows.sort(key=lambda x: x["sharpe"], reverse=True)
     out = {
+        "market": mk,
+        "trading_type": normalized_trading_type,
         "leaderboard": rows,
         "warning": "CẢNH BÁO (Warning): Quá khứ không đảm bảo tương lai (Past performance is not indicative of future results); có rủi ro overfit; chi phí thực tế có thể khác mô phỏng.",
     }
@@ -731,13 +932,30 @@ class CreateDraftIn(RunSignalIn):
 @router.post("/create_order_draft")
 def create_order_draft(payload: CreateDraftIn) -> dict[str, Any]:
     settings = get_settings()
-    provider = get_provider(settings)
+    mk, position_mode, normalized_trading_type = _resolve_market_mode(
+        payload.market, payload.trading_type
+    )
+    provider = _build_provider(settings, mk, payload.exchange)
     df = provider.get_ohlcv(payload.symbol, payload.timeframe)
-    signal = run_signal(payload.model_id, payload.symbol, payload.timeframe, df)
+    signal = _map_signal_side(
+        run_signal(payload.model_id, payload.symbol, payload.timeframe, df), position_mode
+    )
     mr = MarketRules.from_yaml(settings.MARKET_RULES_PATH)
     fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
-    draft = generate_order_draft(signal=signal, market_rules=mr, fees_taxes=fees, mode=payload.mode)
-    return {"signal": signal.model_dump(), "draft": None if draft is None else draft.model_dump()}
+    draft = generate_order_draft(
+        signal=signal,
+        market_rules=mr,
+        fees_taxes=fees,
+        mode=payload.mode,
+        allow_short=(mk == "crypto" and normalized_trading_type == "perp_paper"),
+        has_open_position=(mk == "crypto" and normalized_trading_type == "perp_paper"),
+    )
+    return {
+        "market": mk,
+        "trading_type": normalized_trading_type,
+        "signal": signal.model_dump(),
+        "draft": None if draft is None else draft.model_dump(),
+    }
 
 
 @router.post("/confirm_execute")
