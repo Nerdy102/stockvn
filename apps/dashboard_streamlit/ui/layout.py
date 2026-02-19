@@ -16,6 +16,7 @@ from apps.dashboard_streamlit.ui.theme import apply_theme
 _PAGE_CONFIG_SET = "_ui_page_config_set"
 
 NAV_ORDER = [
+    "🏠 Tổng quan hôm nay",
     "Watchlists",
     "Screener",
     "Chart",
@@ -28,6 +29,7 @@ NAV_ORDER = [
 ]
 
 PAGE_PATHS = {
+    "🏠 Tổng quan hôm nay": "apps/dashboard_streamlit/pages/0_Home_Dashboard.py",
     "Watchlists": "apps/dashboard_streamlit/pages/3_Heatmap.py",
     "Screener": "apps/dashboard_streamlit/pages/1_Screener.py",
     "Chart": "apps/dashboard_streamlit/pages/2_Charting.py",
