@@ -17,3 +17,10 @@
 | Chế độ thị trường | Market regime |
 | Rủi ro | Risk |
 | Quản trị rủi ro | Risk management |
+
+- Tiền mã hoá (Crypto)
+- Giao dịch giao ngay (Spot)
+- Hợp đồng vĩnh cửu (Perpetual futures)
+- Mở vị thế mua (Long)
+- Mở vị thế bán (Short)
+- Giao dịch giấy (Paper trading)

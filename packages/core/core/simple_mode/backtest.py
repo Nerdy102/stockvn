@@ -17,12 +17,19 @@ def _hash_obj(v: object) -> str:
 
 
 def quick_backtest(
-    model_id: str, symbol: str, df: pd.DataFrame, start: dt.date, end: dt.date
+    model_id: str,
+    symbol: str,
+    df: pd.DataFrame,
+    start: dt.date,
+    end: dt.date,
+    *,
+    position_mode: str = "long_only",
 ) -> BacktestReport:
     if "date" in df.columns:
         w = df[(df["date"] >= start) & (df["date"] <= end)].copy()
     else:
         w = df.copy()
+    strat = pd.Series(dtype=float)
     if len(w) < 30:
         net = 0.0
         vol = 0.0
@@ -31,7 +38,12 @@ def quick_backtest(
     else:
         sig = run_signal(model_id, symbol, "1D", w)
         rets = w["close"].pct_change().fillna(0.0)
-        pos = 1.0 if sig.proposed_side == "BUY" else (-1.0 if sig.proposed_side == "SELL" else 0.0)
+        if sig.proposed_side == "BUY":
+            pos = 1.0
+        elif sig.proposed_side in {"SELL", "SHORT"} and position_mode == "long_short":
+            pos = -1.0
+        else:
+            pos = 0.0
         strat = rets * pos
         equity = (1 + strat).cumprod()
         peak = equity.cummax()
@@ -45,11 +57,15 @@ def quick_backtest(
     sortino = sharpe
     cagr = float((1 + net) ** (252 / max(len(w), 1)) - 1)
 
+    long_exposure = float((strat > 0).mean()) if len(w) else 0.0
+    short_exposure = float((strat < 0).mean()) if len(w) else 0.0
+
     conf = {
         "model_id": model_id,
         "symbol": symbol,
         "start": start.isoformat(),
         "end": end.isoformat(),
+        "position_mode": position_mode,
     }
     dataset_hash = _hash_obj({"rows": len(w), "head": w.head(3).to_dict(orient="records")})
     return BacktestReport(
@@ -63,6 +79,8 @@ def quick_backtest(
         sortino=sortino,
         turnover=turnover,
         net_return=net,
+        long_exposure=long_exposure,
+        short_exposure=short_exposure,
         config_hash=_hash_obj(conf),
         dataset_hash=dataset_hash,
         code_hash="simple_mode_v1",

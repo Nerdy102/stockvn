@@ -9,14 +9,16 @@ from plotly.subplots import make_subplots
 from apps.dashboard_streamlit.lib import api
 
 MAX_POINTS_PER_CHART = 300
-FONT_STACK_VI = "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+FONT_STACK_VI = 'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif'
 
 
 def _render_chart(chart_points: list[dict[str, float | str]], marker_time: str | None) -> None:
     if not chart_points:
         st.info("Chưa có dữ liệu biểu đồ tối giản (Minimal chart).")
         return
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3])
+    fig = make_subplots(
+        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3]
+    )
     x = [row["time"] for row in chart_points]
     fig.add_trace(
         go.Candlestick(
@@ -80,7 +82,9 @@ def render() -> None:
     st.caption(
         "Không phải lời khuyên đầu tư (Not investment advice) • Quá khứ không đảm bảo tương lai (Past performance is not indicative of future results) • Có thể thua lỗ (Risk of loss)."
     )
-    st.info("Kiểm tra hiển thị dấu: Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư.")
+    st.info(
+        "Kiểm tra hiển thị dấu: Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư."
+    )
 
     meta: dict[str, object] = {"live_enabled": False, "max_points_per_chart": MAX_POINTS_PER_CHART}
     api_ready = True
@@ -98,12 +102,45 @@ def render() -> None:
 
     with tab_main:
         st.subheader("Bước 1 — Chọn mã & chế độ")
-        default_symbol = str(st.session_state.get("simple_prefill_symbol", "FPT"))
-        symbol = st.text_input("Mã cổ phiếu (Symbol)", value=default_symbol).upper().strip()
-        exchange = st.selectbox("Sàn (Exchange)", ["Tự nhận diện", "HOSE", "HNX", "UPCOM"], index=0)
+        market = st.selectbox(
+            "Thị trường (Market)",
+            ["Cổ phiếu Việt Nam (VN Stocks)", "Tiền mã hoá (Crypto)"],
+            index=0,
+        )
+        is_crypto = market.startswith("Tiền mã hoá")
+        default_symbol = str(
+            st.session_state.get("simple_prefill_symbol", "BTC" if is_crypto else "FPT")
+        )
+        symbol = st.text_input("Mã giao dịch (Symbol)", value=default_symbol).upper().strip()
+        trading_type = "spot_paper"
+        if is_crypto:
+            trading_type = st.selectbox(
+                "Loại giao dịch (Trading type)",
+                ["spot_paper", "perp_paper"],
+                index=0,
+                format_func=lambda x: (
+                    "Giao ngay — giao dịch giấy (Spot paper)"
+                    if x == "spot_paper"
+                    else "Hợp đồng vĩnh cửu — giao dịch giấy (Perp paper, Long/Short)"
+                ),
+            )
+            exchange = st.selectbox(
+                "Sàn dữ liệu (Exchange)",
+                ["binance_public"],
+                index=0,
+                format_func=lambda x: "Binance công khai (Binance public)",
+            )
+        else:
+            exchange = st.selectbox(
+                "Sàn (Exchange)", ["Tự nhận diện", "HOSE", "HNX", "UPCOM"], index=0
+            )
         default_tf = str(st.session_state.get("simple_prefill_timeframe", "1D"))
         timeframe_options = ["1D", "60m"]
-        timeframe = st.selectbox("Khung thời gian (Timeframe)", timeframe_options, index=(timeframe_options.index(default_tf) if default_tf in timeframe_options else 0))
+        timeframe = st.selectbox(
+            "Khung thời gian (Timeframe)",
+            timeframe_options,
+            index=(timeframe_options.index(default_tf) if default_tf in timeframe_options else 0),
+        )
         modes = ["paper", "draft"]
         mode_labels = {
             "paper": "Giao dịch giấy (Paper trading)",
@@ -127,7 +164,9 @@ def render() -> None:
         st.subheader("Bước 2 — Chọn mô hình & chạy")
         preferred_model = st.session_state.get("simple_preferred_model", "model_1")
         model_list = ["model_1", "model_2", "model_3"]
-        default_model_index = model_list.index(preferred_model) if preferred_model in model_list else 0
+        default_model_index = (
+            model_list.index(preferred_model) if preferred_model in model_list else 0
+        )
         model = st.radio(
             "Bộ mô hình (Model Zoo)",
             model_list,
@@ -142,7 +181,15 @@ def render() -> None:
         if st.button("Chạy phân tích (Run analysis)", disabled=not api_ready):
             resp = api.post(
                 "/simple/run_signal",
-                {"symbol": symbol, "timeframe": timeframe, "model_id": model, "mode": mode},
+                {
+                    "symbol": symbol,
+                    "timeframe": timeframe,
+                    "model_id": model,
+                    "mode": mode,
+                    "market": "crypto" if is_crypto else "vn",
+                    "trading_type": trading_type,
+                    "exchange": exchange,
+                },
             )
             st.session_state["simple_last"] = resp
 
@@ -176,7 +223,9 @@ def render() -> None:
                     ]
                 )
                 st.subheader("Bước 3 — Gợi ý lệnh & xác nhận")
-                st.write(f"Hành động nháp: {'MUA (nháp)' if draft['side'] == 'BUY' else 'BÁN (nháp)'}")
+                st.write(
+                    f"Hành động nháp: {'MUA (nháp)' if draft['side'] == 'BUY' else ('Mở vị thế bán (Short) (nháp)' if draft['side'] == 'SHORT' else 'BÁN (nháp)')}"
+                )
                 st.write(
                     f"Khối lượng đề xuất: {draft['qty']} cổ phiếu • Giá giả lập: {draft['price']} • Giá trị lệnh: {draft['notional']}"
                 )
@@ -213,6 +262,34 @@ def render() -> None:
                     st.json(out)
 
     with tab_compare:
+        compare_market = st.selectbox(
+            "Thị trường so sánh (Market)",
+            ["Cổ phiếu Việt Nam (VN Stocks)", "Tiền mã hoá (Crypto)"],
+            index=0,
+            key="compare_market",
+        )
+        compare_is_crypto = compare_market.startswith("Tiền mã hoá")
+        compare_trading_type = "spot_paper"
+        compare_exchange = "binance_public"
+        if compare_is_crypto:
+            compare_trading_type = st.selectbox(
+                "Loại giao dịch so sánh (Trading type)",
+                ["spot_paper", "perp_paper"],
+                index=0,
+                key="compare_trading_type",
+                format_func=lambda x: (
+                    "Giao ngay — giao dịch giấy (Spot paper)"
+                    if x == "spot_paper"
+                    else "Hợp đồng vĩnh cửu — giao dịch giấy (Perp paper, Long/Short)"
+                ),
+            )
+            compare_exchange = st.selectbox(
+                "Sàn dữ liệu so sánh (Exchange)",
+                ["binance_public"],
+                index=0,
+                key="compare_exchange",
+                format_func=lambda x: "Binance công khai (Binance public)",
+            )
         symbols = st.text_input(
             "Danh sách mã (1 mã hoặc 5–20 mã, phân tách dấu phẩy)",
             value="FPT,VNM,VCB,MWG,HPG",
@@ -239,6 +316,9 @@ def render() -> None:
                     "include_equity_curve": detail_mode,
                     "include_trades": detail_mode,
                     "execution": execution_mode,
+                    "market": "crypto" if compare_is_crypto else "vn",
+                    "trading_type": compare_trading_type,
+                    "exchange": compare_exchange,
                 },
             )
             st.error(resp["warning"])
@@ -249,7 +329,9 @@ def render() -> None:
                     st.markdown("### Giá trị danh mục theo thời gian (Equity curve)")
                     st.line_chart(best["equity_curve"], x="date", y="nav", use_container_width=True)
                     st.markdown("### Sụt giảm (Drawdown)")
-                    st.line_chart(best["equity_curve"], x="date", y="drawdown", use_container_width=True)
+                    st.line_chart(
+                        best["equity_curve"], x="date", y="drawdown", use_container_width=True
+                    )
                 if best.get("trade_list"):
                     st.markdown("### Danh sách giao dịch (Trade list)")
                     st.dataframe(best["trade_list"], use_container_width=True)
