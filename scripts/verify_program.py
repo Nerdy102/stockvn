@@ -8,7 +8,7 @@ from pathlib import Path
 
 CHECKS: list[tuple[str, str]] = [
     ("T0_quality_gate", "make quality-gate"),
-    ("T1_ui_guardrail", "python scripts/ui_guardrail_check.py"),
+    ("T1_ui_guardrail", "make ui-guardrails"),
     (
         "T2_contract_and_bootstrap_tests",
         "PYTHONPATH=packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps pytest -q tests/test_contract_hash_stability.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py",

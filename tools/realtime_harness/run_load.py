@@ -10,17 +10,19 @@ from tools.realtime_harness.verify_invariants import verify_invariants
 
 
 def main() -> int:
-    p = argparse.ArgumentParser()
-    p.add_argument("--symbols", type=int, default=500)
-    p.add_argument("--days", type=int, default=2)
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--out", default="artifacts/verification/RT_CHAOS_REPORT.json")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--symbols", type=int, default=500)
+    parser.add_argument("--days", type=int, default=2)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--out", default="artifacts/verification/RT_LOAD_REPORT.json")
+    args = parser.parse_args()
 
-    t0 = time.perf_counter()
-    events_obj = generate_synthetic_events(symbols=args.symbols, days=args.days, seed=args.seed)
-    events = [e.__dict__ for e in events_obj]
-    elapsed = time.perf_counter() - t0
+    symbol_list = [f"S{i:03d}" for i in range(args.symbols)]
+
+    started_at = time.perf_counter()
+    events = generate_synthetic_events(symbol_list, days=args.days, seed=args.seed)
+    elapsed = time.perf_counter() - started_at
 
     inv = verify_invariants(events)
 
@@ -37,6 +39,7 @@ def main() -> int:
         "seed": args.seed,
         "symbols": args.symbols,
         "days": args.days,
+        "dry_run": args.dry_run,
         "event_count": len(events),
         "perf": {
             "signal_update_500_symbols_one_bar_s": signal_update_s,
@@ -52,7 +55,7 @@ def main() -> int:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    write_jsonl("artifacts/verification/RT_LOAD_EVENTS.jsonl", events_obj)
+    write_jsonl("artifacts/verification/RT_LOAD_EVENTS.jsonl", events)
     return 0
 
 

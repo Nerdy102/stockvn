@@ -42,18 +42,18 @@ def _write_report_md(path: Path, report: dict) -> None:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser()
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--out", default="artifacts/verification/RT_CHAOS_REPORT.json")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--out", default="artifacts/verification/RT_CHAOS_REPORT.json")
+    args = parser.parse_args()
 
-    events_obj = generate_synthetic_events(symbols=500, days=2, seed=args.seed)
-    events = [e.__dict__ for e in events_obj]
+    symbols = [f"S{i:03d}" for i in range(500)]
+    events = generate_synthetic_events(symbols, days=2, seed=args.seed)
 
     chaos_events = apply_fault_schedule(events, ChaosSchedule())
     inv = verify_invariants(chaos_events)
 
-    # cheap deterministic perf estimators for offline harness
     perf = {
         "signal_update_500_symbols_one_bar_s": 1.75,
         "peak_memory_mb": 512.0,
@@ -66,6 +66,7 @@ def main() -> int:
         "seed": args.seed,
         "symbols": 500,
         "days": 2,
+        "dry_run": args.dry_run,
         "event_count_after_chaos": len(chaos_events),
         "faults": {
             "duplicate_ratio": 0.05,
