@@ -1,0 +1,19 @@
+== Config presence ==
+FOUND configs/market_rules_vn.yaml
+FOUND configs/fees_taxes.yaml
+FOUND .env.example
+
+== Provider mapping templates ==
+configs/providers/lakehouse_mapping_template.yaml
+configs/providers/ssi_mapping.yaml
+configs/providers/ssi_template.yaml
+configs/providers/README.md
+
+== .env.example secret sanity ==
+No obvious secret literals found
+
+== Feature flags defaults ==
+44:ENABLE_REALTIME_PIPELINE=false
+45:REALTIME_GATEWAY_ENABLED=false
+46:REALTIME_BAR_BUILDER_ENABLED=false
+47:REALTIME_SIGNAL_ENGINE_ENABLED=false

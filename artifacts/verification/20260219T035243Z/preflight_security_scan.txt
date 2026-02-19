@@ -1,0 +1,22 @@
+== Security pattern scan ==
+./README.md:119:- `SsiFastConnectProvider` (stub; không hardcode secrets/URL)
+./README.md:120:- `VietstockDataFeedProvider` (stub; không hardcode secrets/URL)
+./configs/providers/ssi_mapping.yaml:14:  - "Template only: no provider URL and no secrets in this file"
+./configs/providers/README.md:3:This directory stores provider mapping templates without secrets.
+./configs/providers/lakehouse_mapping_template.yaml:21:  - "Template only; no secrets and no endpoint URLs"
+./packages/data/data/providers/ssi_fastconnect/provider.py:17:        self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./packages/data/data/providers/ssi_fastconnect/provider.py:23:        if not (self.consumer_id and self.consumer_secret and self.private_key_path):
+./packages/data/data/providers/ssi_fastconnect/provider.py:25:                "Missing SSI credentials in env (.env): SSI_CONSUMER_ID/SECRET/PRIVATE_KEY_PATH"
+./packages/data/data/providers/ssi_fastconnect/client.py:68:            headers["Authorization"] = f"Bearer {token}"
+./packages/data/data/providers/ssi_fastconnect/provider_stream.py:62:            "Authorization": f"Bearer {token}",
+./packages/data/data/providers/ssi_fastconnect/token.py:29:        consumer_secret: str | None = None,
+./packages/data/data/providers/ssi_fastconnect/token.py:35:        self.consumer_secret = consumer_secret or os.getenv("SSI_CONSUMER_SECRET", "")
+./packages/data/data/providers/ssi_fastconnect/token.py:56:            self._state = _TokenState(token=token, expires_at_utc=expires_at)
+./packages/data/data/providers/ssi_fastconnect/token.py:66:                "SSI_CONSUMER_SECRET": self.consumer_secret,
+./packages/data/data/providers/ssi_fastconnect/token.py:76:            "consumerSecret": self.consumer_secret,
+./packages/core/core/settings.py:42:    SSI_CONSUMER_SECRET: str = Field(default="")
+./packages/core/core/settings.py:74:                "SSI_CONSUMER_SECRET": self.SSI_CONSUMER_SECRET,
+./packages/core/core/monitoring/data_health.py:11:        if any(x in key for x in ["password", "token", "secret", "email", "phone"]):
+./tests/test_ssi_token_refresh_on_401.py:13:        super().__init__(base_url="https://example.test", consumer_id="x", consumer_secret="y", private_key="z")
+./tests/test_ssi_retry_on_429_and_5xx.py:14:        super().__init__(base_url="https://example.test", consumer_id="x", consumer_secret="y", private_key="z")
+./scripts/ssi_rest_smoke.py:17:    required = ["SSI_FCDATA_BASE_URL", "SSI_CONSUMER_ID", "SSI_CONSUMER_SECRET", "SSI_PRIVATE_KEY"]

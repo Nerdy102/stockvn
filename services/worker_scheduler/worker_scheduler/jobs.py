@@ -1363,7 +1363,10 @@ def run_diagnostics_v2(session: Session) -> int:
     run_id = f"diag-{dt.datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     session.add(DiagnosticsRun(run_id=run_id, model_id="ensemble_v2", config_hash="worker"))
     for k, v in metrics.items():
-        session.add(DiagnosticsMetric(run_id=run_id, metric_name=k, metric_value=float(v)))
+        metric_value = float(v)
+        if not np.isfinite(metric_value):
+            metric_value = 0.0
+        session.add(DiagnosticsMetric(run_id=run_id, metric_name=k, metric_value=metric_value))
     session.commit()
     return len(metrics)
 

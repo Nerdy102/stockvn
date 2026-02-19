@@ -1,0 +1,92 @@
+{
+  "status": "READY WITH WARNINGS",
+  "stages": {
+    "T0": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T1": {
+      "status": "PASS",
+      "notes": [
+        "300 passed, 3 skipped"
+      ]
+    },
+    "T2": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T3": {
+      "status": "WARN",
+      "notes": [
+        "docker/redis not available; realtime verified via replay/unit fallback artifacts"
+      ]
+    },
+    "T4": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T5": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T6": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T7": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T8": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T9": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T10": {
+      "status": "PASS",
+      "notes": []
+    }
+  },
+  "hashes": {
+    "bars": "t3_realtime_determinism_hash_compare.json",
+    "signals": "t3_realtime_determinism_hash_compare.json"
+  },
+  "counts": {
+    "before": {
+      "tickers": 13,
+      "prices_daily": 8951,
+      "bars_daily": 0,
+      "fundamentals": 10,
+      "factors_z": 72,
+      "indicators": 22608,
+      "signals": 3,
+      "alerts": 0,
+      "models_registry": 3,
+      "screen_runs": 0,
+      "screen_run_items": 0
+    },
+    "after": {
+      "tickers": 13,
+      "prices_daily": 8951,
+      "bars_daily": 0,
+      "fundamentals": 10,
+      "factors_z": 72,
+      "indicators": 22608,
+      "signals": 3,
+      "alerts": 0,
+      "models_registry": 4,
+      "screen_runs": 0,
+      "screen_run_items": 0
+    }
+  },
+  "timings": {},
+  "incidents": {
+    "slo": "t7_incidents_created.json"
+  },
+  "governance": {
+    "pause": "t6_governance_pause_evidence.json"
+  }
+}

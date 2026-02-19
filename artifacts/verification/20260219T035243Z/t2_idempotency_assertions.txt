@@ -1,0 +1,11 @@
+PASS tickers: before=13 after=13 delta=0
+PASS prices_daily: before=7951 after=7951 delta=0
+PASS bars_daily_weekly: before=0 after=0 delta=0
+PASS fundamentals: before=10 after=10 delta=0
+PASS factors_z: before=72 after=72 delta=0
+PASS indicators: before=16404 after=16404 delta=0
+PASS signals: before=3 after=3 delta=0
+PASS alerts: before=0 after=0 delta=0
+PASS models_registry: before=0 after=0 delta=0
+PASS screen_runs: before=0 after=0 delta=0
+PASS screen_run_items: before=0 after=0 delta=0

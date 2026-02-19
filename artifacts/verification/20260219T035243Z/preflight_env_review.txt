@@ -1,0 +1,15 @@
+== Config presence ==
+FOUND configs/market_rules_vn.yaml
+FOUND configs/fees_taxes.yaml
+FOUND .env.example
+
+== Provider mapping templates ==
+3:configs/providers/ssi_mapping.yaml
+4:configs/providers/ssi_template.yaml
+5:configs/providers/README.md
+6:configs/providers/lakehouse_mapping_template.yaml
+
+== .env.example secret sanity ==
+No obvious secret literals found
+
+== Feature flags defaults ==

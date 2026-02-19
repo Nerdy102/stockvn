@@ -1,0 +1,38 @@
+........................................................................ [ 23%]
+........................................................................ [ 47%]
+...............s.........................s...................s.......... [ 71%]
+........................................................................ [ 95%]
+...............                                                          [100%]
+=============================== warnings summary ===============================
+tests/test_alpha_v2_smoke_walkforward.py::test_alpha_v2_smoke_walkforward
+tests/test_ml_api.py::test_ml_diagnostics_persists_metrics
+tests/test_worker_v2_jobs.py::test_worker_v2_train_and_diagnostics_smoke
+  /root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/numpy/_core/fromnumeric.py:86: RuntimeWarning: overflow encountered in reduce
+    return ufunc.reduce(obj, axis, dtype, out, **passkwargs)
+
+tests/test_alpha_v2_smoke_walkforward.py::test_alpha_v2_smoke_walkforward
+tests/test_ml_api.py::test_ml_diagnostics_persists_metrics
+tests/test_worker_v2_jobs.py::test_worker_v2_train_and_diagnostics_smoke
+  /root/.pyenv/versions/3.10.19/lib/python3.10/site-packages/numpy/lib/_function_base_impl.py:4653: RuntimeWarning: invalid value encountered in subtract
+    diff_b_a = subtract(b, a)
+
+tests/test_alpha_v3_features_drop_null_pit_keys.py::test_prepare_fundamentals_pti_drops_null_symbol_or_public_date
+tests/test_point_in_time_fundamentals_public_date.py::test_point_in_time_fundamentals_public_date
+tests/test_point_in_time_fundamentals_public_date.py::test_point_in_time_fundamentals_assumed_public_date_by_statement_type
+  /workspace/stockvn/packages/core/core/alpha_v3/features.py:94: PerformanceWarning: Adding/subtracting object-dtype array to TimedeltaArray not vectorized.
+    f.loc[missing_public, "public_date"] = f.loc[missing_public, "period_end"] + pd.to_timedelta(lag_days[missing_public], unit="D")
+
+tests/test_normalization.py::test_normalization_functions_basic
+  /workspace/stockvn/packages/core/core/normalization.py:24: FutureWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+    return df.groupby(by_date_col, group_keys=False).apply(_z)
+
+tests/test_normalization.py::test_normalization_functions_basic
+  /workspace/stockvn/packages/core/core/normalization.py:37: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+    out = df["z"] - df.groupby("bin")["z"].transform("mean")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_migrations_postgres_apply.py:19: TEST_DATABASE_URL is not set
+SKIPPED [1] tests/test_partition_manager_creates_next_month_partition.py:18: TEST_DATABASE_URL is not set
+SKIPPED [1] tests/test_postgres_runtime_smoke.py:15: TEST_DATABASE_URL is not set
+300 passed, 3 skipped, 11 warnings in 652.59s (0:10:52)

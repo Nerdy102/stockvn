@@ -1,0 +1,47 @@
+# EVIDENCE INDEX
+
+- `ABSOLUTE_VERIFICATION_REPORT.json`: machine-readable final report.
+- `ABSOLUTE_VERIFICATION_REPORT.md`: human-readable final report.
+- `preflight_env_review.txt`: config and safe-flag verification.
+- `preflight_repo_tree.txt`: repo structure snapshot.
+- `preflight_security_scan.txt`: secret hardcode grep scan.
+- `t0_quality_gate.txt`: static quality gate log.
+- `t0_ui_guardrails.txt`: UI guardrails check.
+- `t10_report_export.log`: verification artifact.
+- `t10_report_manifest.json`: report pack manifest.
+- `t10_report_sections_check.txt`: report section completeness.
+- `t10_report_security_scan.txt`: report artifacts secret scan.
+- `t1_pytest.txt`: full unit/integration test results.
+- `t2_batch_pipeline_log.txt`: offline pipeline run logs.
+- `t2_idempotency_assertions.txt`: idempotency pass/fail assertions.
+- `t2_row_counts_before_after.json`: idempotency row count compare.
+- `t3_late_correction_sample.json`: late correction policy evidence.
+- `t3_realtime_determinism_hash_compare.json`: determinism hash evidence.
+- `t3_realtime_metrics_bar_builder.json`: bar builder metrics sample.
+- `t3_realtime_metrics_gateway.json`: gateway realtime metrics sample.
+- `t3_realtime_metrics_signal_engine.json`: signal engine metrics sample.
+- `t3_realtime_smoke_log.txt`: realtime replay smoke log.
+- `t4_realtime_api_bounds.txt`: realtime API bounds checks.
+- `t4_realtime_api_disabled_samples.json`: realtime-disabled fallback checks.
+- `t4_realtime_api_samples.json`: realtime API response samples.
+- `t5_ui_budget_checks.txt`: UI budget checks.
+- `t5_ui_import_smoke.txt`: UI import smoke checks.
+- `t5_ui_realtime_toggle_behavior.txt`: UI realtime toggle checks.
+- `t6_governance_pause_evidence.json`: governance pause fail-safe checks.
+- `t6_oms_idempotency.json`: OMS idempotency checks.
+- `t6_pretrade_rejections.json`: pretrade risk rejection checks.
+- `t6_reconcile_run.json`: reconciliation mismatch incident check.
+- `t7_incidents_created.json`: incident creation tests.
+- `t7_runbook_links_check.txt`: runbook/data-health checks.
+- `t7_slo_snapshots.json`: SLO snapshots tests.
+- `t8_perf_budget_summary.json`: performance budget summary.
+- `t8_rt_chaos.log`: verification artifact.
+- `t8_rt_chaos_report.json`: chaos report.
+- `t8_rt_chaos_report.md`: verification artifact.
+- `t8_rt_load_full.log`: verification artifact.
+- `t8_rt_load_report.json`: load test report.
+- `t8_rt_load_report_small.json`: verification artifact.
+- `t8_rt_load_small.log`: verification artifact.
+- `t9_calibration_metrics.json`: calibration metrics tests.
+- `t9_governance_events.json`: quant governance event tests.
+- `t9_quant_monitoring_summary.json`: quant monitoring tests.

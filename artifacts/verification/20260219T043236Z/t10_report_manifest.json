@@ -1,0 +1,31 @@
+{
+  "report_pack_version": "v3",
+  "run_id": "5b156f0227c6e5521cb67ee3c7ec815e46ac3173e8a08ae03833295c314c0254",
+  "generated_at_utc": "2026-02-19T04:58:50.790357+00:00",
+  "sections": [
+    "summary",
+    "equity",
+    "costs",
+    "risk",
+    "gates",
+    "calibration",
+    "health",
+    "assumptions"
+  ],
+  "hashes": {
+    "files": {
+      "report_v3.html": "c02f4aceb4a8951f1e93c30d60fd5a53834b64451671cb93035e21a43d97d91b",
+      "report_v3.pdf": "7f512bea94d8e16fa2dbefa5db592aa8724bef6d72caa26aa8894ace5a5cff1c"
+    },
+    "configs": {
+      "diagnostics_config_hash": null,
+      "backtest_config_hash": "6d70b4e28d0801255b7f2235186abe51ce56ab05ab8cd049859bd117a981a18c",
+      "execution_model_hash": "ce5d7002b0de306a141c38b9a8172ea7a8c04fb8f1a8610b8225efe92bc68438"
+    },
+    "model_versions_hash": "a595b5cf5fe53b6f22f803189049194adc58faf4957cd802d1e077d76aaf1548"
+  },
+  "artifacts": {
+    "html": "report_v3.html",
+    "pdf": "report_v3.pdf"
+  }
+}
