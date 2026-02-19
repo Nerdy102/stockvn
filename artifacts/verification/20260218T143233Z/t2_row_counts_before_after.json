@@ -1,0 +1,44 @@
+{
+  "before_rerun": {
+    "tickers": 11,
+    "prices_daily": 6950,
+    "bars_daily": 6950,
+    "bars_weekly": 0,
+    "fundamentals": 10,
+    "factors_z": 60,
+    "indicators": 14000,
+    "signals": 3,
+    "alerts": 0,
+    "models_registry": 0,
+    "screen_runs": 0,
+    "screen_run_items": 0
+  },
+  "after_rerun": {
+    "tickers": 11,
+    "prices_daily": 6950,
+    "bars_daily": 6950,
+    "bars_weekly": 0,
+    "fundamentals": 10,
+    "factors_z": 60,
+    "indicators": 14000,
+    "signals": 3,
+    "alerts": 0,
+    "models_registry": 0,
+    "screen_runs": 0,
+    "screen_run_items": 0
+  },
+  "delta": {
+    "tickers": 0,
+    "prices_daily": 0,
+    "bars_daily": 0,
+    "bars_weekly": 0,
+    "fundamentals": 0,
+    "factors_z": 0,
+    "indicators": 0,
+    "signals": 0,
+    "alerts": 0,
+    "models_registry": 0,
+    "screen_runs": 0,
+    "screen_run_items": 0
+  }
+}

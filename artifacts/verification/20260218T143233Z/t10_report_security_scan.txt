@@ -1,0 +1,1 @@
+Security scan of verification/report artifacts performed in preflight_security_scan.txt with no hardcoded Authorization/Bearer/token patterns in code paths under review.

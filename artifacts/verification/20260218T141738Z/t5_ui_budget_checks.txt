@@ -1,0 +1,4 @@
+Static budget/live checks
+apps/dashboard_streamlit/pages/2_Charting.py:23:LIVE_BARS_LIMIT = 200
+apps/dashboard_streamlit/pages/2_Charting.py:59:    live_refresh = st.checkbox("Live refresh", value=False, help="Fetch realtime last 200 bars only")
+apps/dashboard_streamlit/pages/2_Charting.py:62:    start = st.date_input("Start", value=end - dt.timedelta(days=365))

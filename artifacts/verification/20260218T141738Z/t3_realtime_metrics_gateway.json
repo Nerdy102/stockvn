@@ -1,0 +1,7 @@
+{
+  "source": "pytest replay/gateway tests",
+  "status": {
+    "t3_smoke": 0,
+    "t3_dettests": 0
+  }
+}

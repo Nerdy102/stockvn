@@ -1,0 +1,7 @@
+{
+  "source": "pytest bar builder tests",
+  "status": {
+    "t3_smoke": 0,
+    "t3_dettests": 0
+  }
+}

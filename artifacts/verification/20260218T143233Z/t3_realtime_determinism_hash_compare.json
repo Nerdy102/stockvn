@@ -1,0 +1,7 @@
+{
+  "run1_bars_hash": "1438a741da10a6115a0e7ca0dff388a473abad2cf4b4419ae5dd28bbc79325d9",
+  "run2_bars_hash": "1438a741da10a6115a0e7ca0dff388a473abad2cf4b4419ae5dd28bbc79325d9",
+  "hash_match": true,
+  "run1_signals_idempotent": true,
+  "run2_signals_idempotent": true
+}

@@ -1,0 +1,68 @@
+Pattern scan for potential secrets
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:2:./artifacts/verification/t0_quality_gate.txt:721:17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:3:./artifacts/verification/t0_quality_gate.txt:731:17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:4:./artifacts/verification/t0_quality_gate.txt:742:17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:5:./artifacts/verification/security_scan.txt:9:packages/data/data/providers/ssi_fastconnect/token.py:35:        self.consumer_secret = consumer_secret or os.getenv("SSI_CONSUMER_SECRET", "")
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:6:./artifacts/verification/security_scan.txt:10:packages/data/data/providers/ssi_fastconnect/token.py:66:                "SSI_CONSUMER_SECRET": self.consumer_secret,
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:7:./artifacts/verification/security_scan.txt:11:packages/data/data/providers/ssi_fastconnect/provider.py:17:        self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:8:./artifacts/verification/env_example_review.txt:28:# ===== Stub credentials (KHÔNG hardcode secrets) =====
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:9:./README.md:119:- `SsiFastConnectProvider` (stub; không hardcode secrets/URL)
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:10:./README.md:120:- `VietstockDataFeedProvider` (stub; không hardcode secrets/URL)
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:11:./configs/providers/ssi_mapping.yaml:14:  - "Template only: no provider URL and no secrets in this file"
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:12:./configs/providers/lakehouse_mapping_template.yaml:21:  - "Template only; no secrets and no endpoint URLs"
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:13:./configs/providers/README.md:3:This directory stores provider mapping templates without secrets.
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:14:./.env.example:27:# ===== Stub credentials (KHÔNG hardcode secrets) =====
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:15:./packages/core/core/monitoring/data_health.py:11:        if any(x in key for x in ["password", "token", "secret", "email", "phone"]):
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:16:./tests/test_ssi_retry_on_429_and_5xx.py:14:        super().__init__(base_url="https://example.test", consumer_id="x", consumer_secret="y", private_key="z")
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:17:./packages/data/data/providers/ssi_fastconnect/token.py:29:        consumer_secret: str | None = None,
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:18:./packages/data/data/providers/ssi_fastconnect/token.py:35:        self.consumer_secret = consumer_secret or os.getenv("SSI_CONSUMER_SECRET", "")
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:19:./packages/data/data/providers/ssi_fastconnect/token.py:56:            self._state = _TokenState(token=token, expires_at_utc=expires_at)
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:20:./packages/data/data/providers/ssi_fastconnect/token.py:66:                "SSI_CONSUMER_SECRET": self.consumer_secret,
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:21:./packages/data/data/providers/ssi_fastconnect/token.py:76:            "consumerSecret": self.consumer_secret,
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:22:./packages/data/data/providers/ssi_fastconnect/provider.py:17:        self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:23:./packages/data/data/providers/ssi_fastconnect/provider.py:23:        if not (self.consumer_id and self.consumer_secret and self.private_key_path):
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:24:./packages/data/data/providers/ssi_fastconnect/client.py:68:            headers["Authorization"] = f"Bearer {token}"
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:25:./packages/data/data/providers/ssi_fastconnect/provider_stream.py:62:            "Authorization": f"Bearer {token}",
+./artifacts/verification/20260218T140940Z/preflight_security_scan.txt:26:./tests/test_ssi_token_refresh_on_401.py:13:        super().__init__(base_url="https://example.test", consumer_id="x", consumer_secret="y", private_key="z")
+./artifacts/verification/security_scan.txt:1:Command: rg -n "(SECRET|PASSWORD|API_KEY|TOKEN|smtp://|postgres://[^$])" .env.example configs services packages apps scripts
+./artifacts/verification/security_scan.txt:2:scripts/ssi_rest_smoke.py:17:    required = ["SSI_FCDATA_BASE_URL", "SSI_CONSUMER_ID", "SSI_CONSUMER_SECRET", "SSI_PRIVATE_KEY"]
+./artifacts/verification/security_scan.txt:9:packages/data/data/providers/ssi_fastconnect/token.py:35:        self.consumer_secret = consumer_secret or os.getenv("SSI_CONSUMER_SECRET", "")
+./artifacts/verification/security_scan.txt:10:packages/data/data/providers/ssi_fastconnect/token.py:66:                "SSI_CONSUMER_SECRET": self.consumer_secret,
+./artifacts/verification/security_scan.txt:11:packages/data/data/providers/ssi_fastconnect/provider.py:17:        self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/security_scan.txt:14:packages/data/data/providers/ssi_fastconnect/provider.py:25:                "Missing SSI credentials in env (.env): SSI_CONSUMER_ID/SECRET/PRIVATE_KEY_PATH"
+./artifacts/verification/security_scan.txt:20:.env.example:37:SSI_CONSUMER_SECRET=
+./artifacts/verification/security_scan.txt:21:packages/core/core/settings.py:41:    SSI_CONSUMER_SECRET: str = Field(default="")
+./artifacts/verification/security_scan.txt:22:packages/core/core/settings.py:73:                "SSI_CONSUMER_SECRET": self.SSI_CONSUMER_SECRET,
+./artifacts/verification/20260218T140940Z/t2_batch_pipeline_log.txt:1:DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+./artifacts/verification/20260218T140940Z/t2_batch_pipeline_log.txt:71:DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+./artifacts/verification/20260218T140940Z/t10_report_security_scan.txt:1:no direct secret patterns inserted by report verification stage
+./artifacts/verification/t0_quality_gate.txt:721:17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/t0_quality_gate.txt:726:SIM112 Use capitalized environment variable `CONSUMERSECRET` instead of `consumerSecret`
+./artifacts/verification/t0_quality_gate.txt:731:17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/t0_quality_gate.txt:736:help: Replace `consumerSecret` with `CONSUMERSECRET`
+./artifacts/verification/t0_quality_gate.txt:742:17 |         self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./artifacts/verification/env_example_review.txt:28:# ===== Stub credentials (KHÔNG hardcode secrets) =====
+./artifacts/verification/env_example_review.txt:38:SSI_CONSUMER_SECRET=
+./artifacts/verification/t2_integration_log.txt:1:DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+./artifacts/verification/t2_integration_log.txt:90:DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+./configs/providers/ssi_mapping.yaml:14:  - "Template only: no provider URL and no secrets in this file"
+./configs/providers/lakehouse_mapping_template.yaml:21:  - "Template only; no secrets and no endpoint URLs"
+./configs/providers/README.md:3:This directory stores provider mapping templates without secrets.
+./scripts/ssi_rest_smoke.py:17:    required = ["SSI_FCDATA_BASE_URL", "SSI_CONSUMER_ID", "SSI_CONSUMER_SECRET", "SSI_PRIVATE_KEY"]
+./README.md:119:- `SsiFastConnectProvider` (stub; không hardcode secrets/URL)
+./README.md:120:- `VietstockDataFeedProvider` (stub; không hardcode secrets/URL)
+./packages/data/data/providers/ssi_fastconnect/client.py:68:            headers["Authorization"] = f"Bearer {token}"
+./packages/data/data/providers/ssi_fastconnect/provider.py:17:        self.consumer_secret = os.getenv("SSI_CONSUMER_SECRET", os.getenv("consumerSecret", ""))
+./packages/data/data/providers/ssi_fastconnect/provider.py:23:        if not (self.consumer_id and self.consumer_secret and self.private_key_path):
+./packages/data/data/providers/ssi_fastconnect/provider.py:25:                "Missing SSI credentials in env (.env): SSI_CONSUMER_ID/SECRET/PRIVATE_KEY_PATH"
+./packages/data/data/providers/ssi_fastconnect/token.py:29:        consumer_secret: str | None = None,
+./packages/data/data/providers/ssi_fastconnect/token.py:35:        self.consumer_secret = consumer_secret or os.getenv("SSI_CONSUMER_SECRET", "")
+./packages/data/data/providers/ssi_fastconnect/token.py:56:            self._state = _TokenState(token=token, expires_at_utc=expires_at)
+./packages/data/data/providers/ssi_fastconnect/token.py:66:                "SSI_CONSUMER_SECRET": self.consumer_secret,
+./packages/data/data/providers/ssi_fastconnect/token.py:76:            "consumerSecret": self.consumer_secret,
+./packages/data/data/providers/ssi_fastconnect/provider_stream.py:62:            "Authorization": f"Bearer {token}",
+./tests/test_ssi_retry_on_429_and_5xx.py:14:        super().__init__(base_url="https://example.test", consumer_id="x", consumer_secret="y", private_key="z")
+./tests/test_ssi_token_refresh_on_401.py:13:        super().__init__(base_url="https://example.test", consumer_id="x", consumer_secret="y", private_key="z")
+./packages/core/core/settings.py:42:    SSI_CONSUMER_SECRET: str = Field(default="")
+./packages/core/core/settings.py:74:                "SSI_CONSUMER_SECRET": self.SSI_CONSUMER_SECRET,
+./packages/core/core/monitoring/data_health.py:11:        if any(x in key for x in ["password", "token", "secret", "email", "phone"]):

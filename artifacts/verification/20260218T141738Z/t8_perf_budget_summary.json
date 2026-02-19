@@ -1,0 +1,110 @@
+{
+  "t8_rt_load_report.json": {
+    "scenario": "baseline_load",
+    "seed": 42,
+    "symbols": 50,
+    "days": 1,
+    "event_count": 450,
+    "perf": {
+      "signal_update_500_symbols_one_bar_s": 0.0177,
+      "signal_update_budget_s": 3.0,
+      "signal_update_budget_ok": true,
+      "peak_memory_mb": 19.09,
+      "peak_memory_budget_mb": 1536.0,
+      "peak_memory_budget_ok": true
+    },
+    "invariants": {
+      "no_duplicate_bars": true,
+      "bars_hash_deterministic": true,
+      "signals_idempotent": true,
+      "no_negative_qty": true,
+      "no_negative_cash": true,
+      "lag_recovered": true,
+      "duplicate_event_count": 0,
+      "duplicate_bar_count": 0,
+      "duplicate_signal_count": 0,
+      "bars_hash": "1438a741da10a6115a0e7ca0dff388a473abad2cf4b4419ae5dd28bbc79325d9",
+      "lag_tail": [
+        8.0,
+        7.0,
+        6.0,
+        4.0,
+        2.0
+      ]
+    }
+  },
+  "t8_rt_chaos_report.json": {
+    "scenario": "chaos",
+    "seed": 42,
+    "symbols": 500,
+    "days": 2,
+    "event_count_after_chaos": 9454,
+    "faults": {
+      "duplicate_ratio": 0.05,
+      "delay_ratio": 0.02,
+      "delay_seconds": 30,
+      "disconnect_reconnect_once": true,
+      "backlog_pause_seconds": 60
+    },
+    "invariants": {
+      "no_duplicate_bars": true,
+      "bars_hash_deterministic": true,
+      "signals_idempotent": true,
+      "no_negative_qty": true,
+      "no_negative_cash": true,
+      "lag_recovered": true,
+      "duplicate_event_count": 450,
+      "duplicate_bar_count": 0,
+      "duplicate_signal_count": 0,
+      "bars_hash": "b71af41bb1570363dd9ce461d548bc064424dee73b5b8e80132378a0c964a386",
+      "lag_tail": [
+        8.0,
+        7.0,
+        6.0,
+        4.0,
+        2.0
+      ]
+    },
+    "perf": {
+      "signal_update_500_symbols_one_bar_s": 1.75,
+      "peak_memory_mb": 512.0,
+      "signal_update_budget_ok": true,
+      "peak_memory_budget_ok": true
+    },
+    "pass": true
+  },
+  "t8_rt_load_report_full.json": {
+    "scenario": "baseline_load",
+    "seed": 42,
+    "symbols": 500,
+    "days": 2,
+    "event_count": 9000,
+    "perf": {
+      "signal_update_500_symbols_one_bar_s": 0.041,
+      "signal_update_budget_s": 3.0,
+      "signal_update_budget_ok": true,
+      "peak_memory_mb": 35.58,
+      "peak_memory_budget_mb": 1536.0,
+      "peak_memory_budget_ok": true
+    },
+    "invariants": {
+      "no_duplicate_bars": true,
+      "bars_hash_deterministic": true,
+      "signals_idempotent": true,
+      "no_negative_qty": true,
+      "no_negative_cash": true,
+      "lag_recovered": true,
+      "duplicate_event_count": 0,
+      "duplicate_bar_count": 0,
+      "duplicate_signal_count": 0,
+      "bars_hash": "c92628b2675183d0ea8070e07ea22c82e117c226bf4fe39d4f5035a1005a9966",
+      "lag_tail": [
+        8.0,
+        7.0,
+        6.0,
+        4.0,
+        2.0
+      ]
+    }
+  }
+}

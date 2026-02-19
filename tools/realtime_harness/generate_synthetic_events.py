@@ -31,7 +31,9 @@ def _trading_days(start: dt.date, days: int) -> list[dt.date]:
     return out
 
 
-def generate_synthetic_events(*, symbols: int = 500, days: int = 2, seed: int = 42) -> list[HarnessEvent]:
+def generate_synthetic_events(
+    *, symbols: int = 500, days: int = 2, seed: int = 42
+) -> list[HarnessEvent]:
     rng = random.Random(seed)
     cal = get_trading_calendar_vn()
     symbols_list = [f"S{i:03d}" for i in range(symbols)]

@@ -1,0 +1,5 @@
+replay-smoke
+{"status": "ok", "positions": {}, "cash": 99998994.5, "cash_ledger": {"2025-01-06": 99997997.0, "2025-01-07": 99998994.5}}
+
+replay-events dry-run
+{"replayed": 4}

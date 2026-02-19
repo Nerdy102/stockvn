@@ -14,7 +14,9 @@ class ChaosSchedule:
     backlog_pause_seconds: int = 60
 
 
-def apply_fault_schedule(events: list[dict[str, Any]], schedule: ChaosSchedule = ChaosSchedule()) -> list[dict[str, Any]]:
+def apply_fault_schedule(
+    events: list[dict[str, Any]], schedule: ChaosSchedule = ChaosSchedule()
+) -> list[dict[str, Any]]:
     n = len(events)
     dup_n = int(n * schedule.duplicate_ratio)
     delay_n = int(n * schedule.delay_ratio)
@@ -39,6 +41,13 @@ def apply_fault_schedule(events: list[dict[str, Any]], schedule: ChaosSchedule =
         out.insert(min(11, len(out)), {"event_type": "SYSTEM", "action": "REDIS_RECONNECT"})
 
     # deterministic backlog pause markers
-    out.insert(min(20, len(out)), {"event_type": "SYSTEM", "action": "PAUSE_CONSUMERS", "seconds": schedule.backlog_pause_seconds})
+    out.insert(
+        min(20, len(out)),
+        {
+            "event_type": "SYSTEM",
+            "action": "PAUSE_CONSUMERS",
+            "seconds": schedule.backlog_pause_seconds,
+        },
+    )
     out.insert(min(21, len(out)), {"event_type": "SYSTEM", "action": "RESUME_CONSUMERS"})
     return out

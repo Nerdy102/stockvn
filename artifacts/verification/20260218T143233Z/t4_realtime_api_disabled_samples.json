@@ -1,0 +1,23 @@
+{
+  "/realtime/summary": {
+    "status": 200,
+    "body": {
+      "realtime_disabled": true,
+      "message": "Realtime is disabled or unavailable."
+    }
+  },
+  "/realtime/bars": {
+    "status": 200,
+    "body": {
+      "realtime_disabled": true,
+      "message": "Realtime is disabled or unavailable."
+    }
+  },
+  "/realtime/signals": {
+    "status": 200,
+    "body": {
+      "realtime_disabled": true,
+      "message": "Realtime is disabled or unavailable."
+    }
+  }
+}
