@@ -54,17 +54,21 @@ def render_card_readiness(readiness: dict[str, Any], advanced: dict[str, Any], h
     c1.metric("Ổn định (Stability)", f"{float(readiness.get('stability_score', 0.0)):.1f}/100")
     c2.metric(
         "Kịch bản xấu nhất (Worst case)",
-        f"Net {float(readiness.get('worst_case_net_return', 0.0)):.2f} | MDD {float(readiness.get('worst_case_mdd', 0.0)):.2f}",
+        f"Lãi ròng (Net) {float(readiness.get('worst_case_net_return', 0.0)):.2f} | Sụt giảm tối đa (MDD) {float(readiness.get('worst_case_mdd', 0.0)):.2f}",
     )
-    state = "KILL-SWITCH" if readiness.get("kill_switch_state") else readiness.get("drift_state", "OK")
+    state = "Đang bật công tắc khẩn cấp (Kill-switch)" if readiness.get("kill_switch_state") else ("Bình thường" if str(readiness.get("drift_state", "OK")).upper()=="OK" else str(readiness.get("drift_state", "Tạm dừng")))
     c3.metric("Trạng thái hệ thống", state)
 
     st.caption(
-        f"DB: {'OK' if health.get('db_ok') else 'FAIL'} • Freshness: {'OK' if health.get('data_freshness_ok') else 'STALE'} • Reconcile: {health.get('last_reconcile_ts','N/A')}"
+        f"Cơ sở dữ liệu (DB): {'Tốt' if health.get('db_ok') else 'Lỗi'} • Độ mới dữ liệu: {'Tốt' if health.get('data_freshness_ok') else 'Cũ'} • Đối soát: {health.get('last_reconcile_ts','Không có')}"
     )
+    st.write(f"Tin cậy thống kê: {readiness.get('tin_cay_thong_ke', 'Thấp')}")
+    st.write(f"Rủi ro chọn nhầm mô hình (PBO): {readiness.get('pbo_bucket', 'Chưa đủ mẫu')}")
+    p_spa = readiness.get('rc_spa_p')
+    st.write(f"Kiểm định soi dữ liệu (data snooping, RC/SPA): p={('Không có' if p_spa is None else f'{float(p_spa):.3f}')} (tham khảo)")
 
-    with st.expander("Xem chi tiết (Advanced)"):
-        st.write(f"Report ID: {readiness.get('report_id','N/A')}")
+    with st.expander("Xem thêm"):
+        st.write(f"Mã báo cáo (Report ID): {readiness.get('report_id','Không có')}")
         st.json({"hashes": readiness.get("hashes", {})})
         st.write("Tóm tắt walk-forward folds")
         st.dataframe(advanced.get("walk_forward_fold_summary", []), use_container_width=True)

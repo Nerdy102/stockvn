@@ -1,4 +1,4 @@
-# Quant Trust Pack
+# Gói Niềm Tin Định Lượng (Quant Trust Pack)
 
 ## Mục tiêu
 Quant Trust Pack giúp đánh giá **độ tin cậy thống kê** của kết quả mô phỏng trước khi vận hành tiền thật.
