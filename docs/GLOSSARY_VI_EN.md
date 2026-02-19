@@ -1,32 +1,10 @@
-# Bảng thuật ngữ Việt-Anh (Glossary VI-EN)
+# Từ điển thuật ngữ Việt (English)
 
-| Tiếng Việt | English |
-|---|---|
-| Chế độ đơn giản | Simple Mode |
-| Giao dịch giấy | Paper trading |
-| Lệnh nháp | Order draft |
-| Giao dịch thật | Live trading |
-| Tín hiệu nghiên cứu | Research signal |
-| Độ tin cậy | Confidence |
-| Giả lập phí/thuế | Fee/Tax simulation |
-| Phí trượt giá | Slippage |
-| Khung thời gian | Timeframe |
-| Sàn | Exchange |
-| Đồng bộ dữ liệu | Sync data |
-| Bảng xếp hạng | Leaderboard |
-| Chế độ thị trường | Market regime |
-| Rủi ro | Risk |
-| Quản trị rủi ro | Risk management |
-
-- Tiền mã hoá (Crypto)
-- Giao dịch giao ngay (Spot)
-- Hợp đồng vĩnh cửu (Perpetual futures)
-- Mở vị thế mua (Long)
-- Mở vị thế bán (Short)
-- Giao dịch giấy (Paper trading)
-
-
-- Giao dịch thật (Live trading): Chế độ gửi lệnh tới broker thật, yêu cầu bật cờ an toàn và kiểm soát rủi ro.
-- Dừng khẩn cấp (Kill-switch): Cơ chế chặn toàn bộ lệnh live ở mức cấu hình/runtime/tự động theo rủi ro.
-- Tính idempotent (Idempotency): Gọi lặp lại cùng yêu cầu không tạo thêm lệnh trùng.
-- Nhật ký kiểm toán (Audit log): Bản ghi mọi chuyển trạng thái lệnh và lý do.
+- **Lợi nhuận ròng sau phí/thuế (Net return after fees/taxes)**: phần trăm lãi/lỗ sau khi trừ chi phí mô phỏng.
+- **Sụt giảm tệ nhất (Max drawdown)**: mức giảm lớn nhất của danh mục từ đỉnh xuống đáy.
+- **Độ tin cậy (Confidence bucket)**: mức chắc chắn định tính của tín hiệu: Thấp / Vừa / Cao.
+- **Bứt phá (Breakout)**: giá vượt vùng cao gần đây kèm dấu hiệu dòng tiền.
+- **Hồi kỹ thuật (Technical rebound)**: nhịp tăng ngắn sau giai đoạn giảm mạnh.
+- **Chế độ rủi ro-xấu (Risk-off regime)**: giai đoạn thị trường ưu tiên phòng thủ, hạn chế mạo hiểm.
+- **Lệnh nháp (Draft order)**: lệnh chưa gửi thật, dùng để xem trước và kiểm tra rủi ro.
+- **Giao dịch giấy (Paper trading)**: mô phỏng giao dịch bằng tiền giả lập.

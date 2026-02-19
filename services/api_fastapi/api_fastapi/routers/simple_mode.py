@@ -16,6 +16,7 @@ from core.fees_taxes import FeesTaxes
 from core.market_rules import MarketRules
 from core.settings import get_settings
 from core.simple_mode.backtest import quick_backtest
+from core.simple_mode.briefing import build_market_brief
 from core.simple_mode.models import MODEL_PROFILES, run_signal
 from core.simple_mode.orchestrator import build_client_order_id, generate_order_draft
 from core.simple_mode.safety import ensure_disclaimers
@@ -61,6 +62,7 @@ class RunCompareIn(BaseModel):
     market: str = Field(default="vn", pattern="^(vn|crypto)$")
     trading_type: str | None = Field(default=None, pattern="^(spot_paper|perp_paper)$")
     exchange: str | None = "binance_public"
+    include_story_mode: bool = False
 
 
 def _resolve_market_mode(market: str, trading_type: str | None) -> tuple[str, str, str]:
@@ -284,8 +286,10 @@ def _scan_signals(
                 "model": model_labels[model_id],
                 "model_id": model_id,
                 "signal": sig.signal,
-                "confidence": sig.confidence,
-                "reason": " ".join(sig.explanation[:1]),
+                "confidence": sig.confidence_bucket,
+                "reason": sig.reason_short or " ".join(sig.explanation[:1]),
+                "reason_bullets": sig.reason_bullets[:3],
+                "risk_tags": sig.risk_tags[:2],
                 "risks": sig.risks[:2],
                 "open_simple_mode": {
                     "symbol": symbol,
@@ -700,6 +704,112 @@ def get_models() -> dict[str, Any]:
     }
 
 
+def _confidence_vi(score: float) -> str:
+    if score >= 0.75:
+        return "Cao"
+    if score >= 0.5:
+        return "Vừa"
+    return "Thấp"
+
+
+def _compact_signal_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    compact: list[dict[str, Any]] = []
+    for row in rows[:limit]:
+        compact.append(
+            {
+                "symbol": str(row.get("symbol", "-")),
+                "signal": str(row.get("signal", "TRUNG TÍNH")).upper(),
+                "confidence": str(row.get("confidence", "Thấp")),
+                "reason": str(
+                    row.get("reason", "Tín hiệu được tổng hợp từ xu hướng giá và rủi ro.")
+                ),
+                "reason_bullets": list(row.get("reason_bullets", []))[:3],
+                "risk_tags": list(row.get("risk_tags", []))[:2],
+                "model_id": str(row.get("model_id", "model_1")),
+            }
+        )
+    return compact
+
+
+def _kiosk_market_text(summary: dict[str, Any], as_of_date: str) -> list[str]:
+    brief = build_market_brief(
+        as_of_date=as_of_date,
+        breadth={
+            "up": int(summary.get("breadth_up", 0)),
+            "down": int(summary.get("breadth_down", 0)),
+            "flat": int(summary.get("breadth_flat", 0)),
+        },
+        benchmark_change=float(summary.get("daily_change_pct", 0.0)),
+        volume_ratio=float(summary.get("liquidity_vs_avg20", 0.0)),
+        volatility_proxy=abs(float(summary.get("daily_change_pct", 0.0))),
+    )
+    return [line for line in brief.splitlines() if line.strip()]
+
+
+@router.get("/kiosk")
+def get_kiosk(
+    universe: str = Query(default="VN30", pattern="^(ALL|VN30|VNINDEX)$"),
+    limit_signals: int = Query(default=10, ge=1, le=20),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    settings = get_settings()
+    provider = _build_provider(settings, "vn")
+    symbols = _resolve_universe_symbols(db=db, universe=universe, limit=MAX_UNIVERSE_SCAN)
+    as_of_date = _as_of_date_for_symbols(provider, symbols, "1D")
+    market_summary = _market_today_summary(provider, symbols, "1D")
+    buy_rows, sell_rows = _scan_signals(
+        provider, symbols, "1D", limit_signals, position_mode="vn_long_only"
+    )
+    leaderboard = _model_performance(
+        provider,
+        symbols[: max(1, min(20, len(symbols)))],
+        "1D",
+        252,
+        position_mode="vn_long_only",
+    )
+    paper = _paper_portfolio_summary(db, provider, "1D")
+    cards: list[dict[str, Any]] = []
+    for idx, row in enumerate(leaderboard[:3]):
+        cards.append(
+            {
+                "name": f"Mô hình {idx + 1}",
+                "model_id": row.get("model_id", f"model_{idx + 1}"),
+                "net_return_after_fees_taxes": float(row.get("net_return", 0.0)) * 100.0,
+                "max_drawdown": float(row.get("mdd", 0.0)) * 100.0,
+            }
+        )
+    while len(cards) < 3:
+        i = len(cards) + 1
+        cards.append(
+            {
+                "name": f"Mô hình {i}",
+                "model_id": f"model_{i}",
+                "net_return_after_fees_taxes": 0.0,
+                "max_drawdown": 0.0,
+            }
+        )
+
+    return {
+        "as_of_date": as_of_date,
+        "market_today_text": _kiosk_market_text(market_summary, as_of_date),
+        "buy_candidates": _compact_signal_rows(buy_rows, limit_signals),
+        "sell_candidates": _compact_signal_rows(sell_rows, limit_signals),
+        "model_cards": cards,
+        "paper_summary": {
+            "pnl": float(paper.get("pnl", 0.0)),
+            "trades_count": int(paper.get("total_orders", 0)),
+            "cash_pct": float(paper.get("cash_ratio", 0.0)) * 100.0,
+        },
+        "disclaimers": [
+            "Đây là tín hiệu nghiên cứu (Research signal), không phải lời khuyên đầu tư (Not investment advice).",
+            "Quá khứ không đảm bảo tương lai (Past performance is not indicative of future results).",
+            "Không có giao dịch tự động; mọi giao dịch phải qua nháp và xác nhận.",
+            "Nếu dưới 18 tuổi (Under 18), chế độ Live bị khoá; chỉ dùng Draft/Paper.",
+            "Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư.",
+        ],
+    }
+
+
 @router.get("/dashboard")
 def get_dashboard(
     universe: str = Query(default="VN30", pattern="^(ALL|VN30|VNINDEX)$"),
@@ -755,8 +865,20 @@ def get_dashboard(
         "data_status": _data_status(provider, symbols, timeframe),
         "system_status": {
             "trading_env": settings.TRADING_ENV,
-            "live_status": "BẬT" if (settings.TRADING_ENV == "live" and settings.ENABLE_LIVE_TRADING) else "TẮT",
-            "kill_switch": "BẬT" if (settings.KILL_SWITCH or _runtime_kill_switch_enabled() or _db_kill_switch_enabled(db)) else "TẮT",
+            "live_status": (
+                "BẬT"
+                if (settings.TRADING_ENV == "live" and settings.ENABLE_LIVE_TRADING)
+                else "TẮT"
+            ),
+            "kill_switch": (
+                "BẬT"
+                if (
+                    settings.KILL_SWITCH
+                    or _runtime_kill_switch_enabled()
+                    or _db_kill_switch_enabled(db)
+                )
+                else "TẮT"
+            ),
             "broker_connectivity": "ok" if settings.BROKER_NAME else "error",
             "live_block_reason": _live_trading_block_reason(settings),
         },
@@ -854,6 +976,24 @@ def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[
     }
 
 
+def _story_for_model(
+    row: dict[str, Any], seed_capital: float = 10_000_000.0
+) -> tuple[str, str, str]:
+    net_return = float(row.get("net_return_after_fees_taxes", 0.0))
+    mdd = float(row.get("mdd", row.get("max_drawdown", 0.0)))
+    ending_value = seed_capital * (1.0 + net_return)
+    story_summary = (
+        f"Mô hình {row.get('model_id', '-')}: kết quả mô phỏng 1 năm là {net_return * 100:.2f}%, "
+        "chỉ dùng cho học tập, không cam kết lợi nhuận."
+    )
+    example = (
+        f"Nếu bắt đầu {seed_capital:,.0f}đ giả lập 1 năm qua, giá trị cuối kỳ khoảng {ending_value:,.0f}đ "
+        f"(đã tính phí/thuế mô phỏng)."
+    )
+    drop = f"Lúc xấu nhất danh mục giảm khoảng {abs(mdd) * 100:.2f}% so với đỉnh trước đó."
+    return story_summary, example, drop
+
+
 @router.post("/run_compare")
 def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     settings = get_settings()
@@ -923,14 +1063,22 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
                 "long_exposure": sum(r.long_exposure for r in reports) / len(reports),
                 "short_exposure": sum(r.short_exposure for r in reports) / len(reports),
             }
+        story_summary_vi, example_portfolio_vi, biggest_drop_vi = _story_for_model(avg)
+        avg["story_summary_vi"] = story_summary_vi
+        avg["example_portfolio_vi"] = example_portfolio_vi
+        avg["biggest_drop_vi"] = biggest_drop_vi
         rows.append(avg)
     rows.sort(key=lambda x: x["sharpe"], reverse=True)
     out = {
         "market": mk,
         "trading_type": normalized_trading_type,
         "leaderboard": rows,
-        "warning": "CẢNH BÁO (Warning): Quá khứ không đảm bảo tương lai (Past performance is not indicative of future results); có rủi ro overfit; chi phí thực tế có thể khác mô phỏng.",
+        "warning": "CẢNH BÁO: Quá khứ không đảm bảo tương lai; có rủi ro quá khớp dữ liệu; chi phí thực tế có thể khác mô phỏng.",
     }
+    if payload.include_story_mode and rows:
+        out["story_summary_vi"] = rows[0]["story_summary_vi"]
+        out["example_portfolio_vi"] = rows[0]["example_portfolio_vi"]
+        out["biggest_drop_vi"] = rows[0]["biggest_drop_vi"]
     _write_compare_cache(compare_cache_key, out)
     return out
 
@@ -963,7 +1111,11 @@ def _db_kill_switch_enabled(db: Session) -> bool:
     latest = db.exec(select(GovernanceState).order_by(GovernanceState.updated_at.desc())).first()
     if latest is None:
         return False
-    return str(latest.status).upper() == "PAUSED" and str(latest.source).lower() in {"killswitch", "manual_killswitch", "risk_auto"}
+    return str(latest.status).upper() == "PAUSED" and str(latest.source).lower() in {
+        "killswitch",
+        "manual_killswitch",
+        "risk_auto",
+    }
 
 
 def _risk_guardrails(draft: Any, db: Session, portfolio_id: int) -> tuple[bool, list[str]]:
@@ -977,7 +1129,9 @@ def _risk_guardrails(draft: Any, db: Session, portfolio_id: int) -> tuple[bool, 
         reasons.append("RISK_MAX_ORDERS_INVALID")
     else:
         today = dt.date.today()
-        orders_today = db.exec(select(Trade).where(Trade.portfolio_id == portfolio_id, Trade.trade_date == today)).all()
+        orders_today = db.exec(
+            select(Trade).where(Trade.portfolio_id == portfolio_id, Trade.trade_date == today)
+        ).all()
         if len(orders_today) >= max_orders_per_day:
             reasons.append("RISK_MAX_ORDERS_PER_DAY_EXCEEDED")
 
@@ -996,15 +1150,17 @@ def _idempotency_key(payload: ConfirmExecutePayload) -> str:
     token = str(payload.idempotency_token or "").strip()
     if not token:
         token = f"auto-{dt.datetime.utcnow().isoformat()}"
-    raw = "|".join([
-        str(payload.user_id),
-        str(payload.draft.symbol),
-        str(payload.draft.side),
-        str(payload.draft.qty),
-        str(payload.draft.price),
-        str(payload.mode),
-        token,
-    ])
+    raw = "|".join(
+        [
+            str(payload.user_id),
+            str(payload.draft.symbol),
+            str(payload.draft.side),
+            str(payload.draft.qty),
+            str(payload.draft.price),
+            str(payload.mode),
+            token,
+        ]
+    )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -1024,6 +1180,32 @@ def _payload_hash(payload: ConfirmExecutePayload) -> str:
     return hashlib.sha256(
         json.dumps(payload.model_dump(), sort_keys=True, default=str).encode("utf-8")
     ).hexdigest()[:16]
+
+
+def _activate_auto_kill_switch(db: Session, reason: str = "risk_auto") -> None:
+    row = GovernanceState(
+        status="PAUSED",
+        pause_reason=reason,
+        source="risk_auto",
+        updated_at=dt.datetime.utcnow(),
+    )
+    db.add(row)
+    db.commit()
+
+
+def _raise_confirm_error(
+    *,
+    reason_code: str,
+    correlation_id: str,
+    reasons: list[str] | None = None,
+    message: str | None = None,
+) -> None:
+    detail: dict[str, Any] = {"reason_code": reason_code, "correlation_id": correlation_id}
+    if reasons:
+        detail["reasons"] = reasons
+    if message:
+        detail["message"] = message
+    raise HTTPException(status_code=422, detail=detail)
 
 
 def _audit_transition(
@@ -1095,9 +1277,30 @@ def confirm_execute(
     idem_key = _idempotency_key(payload)
     existing = db.exec(select(Trade).where(Trade.external_id == idem_key)).first()
     if existing is not None:
-        return {"status": "idempotent_reuse", "trade_id": existing.id, "idempotent": True, "correlation_id": correlation_id}
+        return {
+            "status": "idempotent_reuse",
+            "trade_id": existing.id,
+            "idempotent": True,
+            "correlation_id": correlation_id,
+        }
 
-    risk_ok, risk_reasons = _risk_guardrails(payload.draft, db=db, portfolio_id=payload.portfolio_id)
+    risk_ok, risk_reasons = _risk_guardrails(
+        payload.draft, db=db, portfolio_id=payload.portfolio_id
+    )
+    if payload.mode != "draft" and bool(payload.draft.off_session):
+        _audit_transition(
+            payload=payload,
+            from_state="DRAFT",
+            to_state="ERROR",
+            reason_code="OFF_SESSION_DRAFT_ONLY",
+            broker_response={"mode": payload.mode},
+            correlation_id=correlation_id,
+        )
+        _raise_confirm_error(
+            reason_code="OFF_SESSION_DRAFT_ONLY",
+            correlation_id=correlation_id,
+            message="Ngoài giờ giao dịch: chỉ cho phép lưu lệnh nháp.",
+        )
     if payload.mode == "live":
         reason = _live_trading_block_reason(settings)
         if _runtime_kill_switch_enabled() or _db_kill_switch_enabled(db):
@@ -1111,7 +1314,7 @@ def confirm_execute(
                 broker_response={"adapter": settings.LIVE_BROKER, "status": "blocked"},
                 correlation_id=correlation_id,
             )
-            raise HTTPException(status_code=422, detail={"reason_code": reason, "correlation_id": correlation_id})
+            _raise_confirm_error(reason_code=reason, correlation_id=correlation_id)
         if not risk_ok:
             _audit_transition(
                 payload=payload,
@@ -1121,9 +1324,21 @@ def confirm_execute(
                 broker_response={"reasons": risk_reasons},
                 correlation_id=correlation_id,
             )
-            log.warning("risk_blocked", extra={"correlation_id": correlation_id, "reasons": risk_reasons})
-            raise HTTPException(status_code=422, detail={"reason_code": "RISK_BLOCKED", "reasons": risk_reasons, "correlation_id": correlation_id})
-        raise HTTPException(status_code=422, detail={"reason_code": "LIVE_BROKER_NOT_CONFIGURED", "correlation_id": correlation_id})
+            log.warning(
+                "risk_blocked", extra={"correlation_id": correlation_id, "reasons": risk_reasons}
+            )
+            if "RISK_MAX_DAILY_LOSS_EXCEEDED" in risk_reasons:
+                _activate_auto_kill_switch(db, reason="risk_max_daily_loss")
+            _raise_confirm_error(
+                reason_code="RISK_BLOCKED",
+                correlation_id=correlation_id,
+                reasons=risk_reasons,
+            )
+        _raise_confirm_error(
+            reason_code="LIVE_BROKER_NOT_CONFIGURED",
+            correlation_id=correlation_id,
+            message="Chưa cấu hình broker live hoặc broker chưa phản hồi.",
+        )
 
     portfolio = db.exec(select(Portfolio).where(Portfolio.id == payload.portfolio_id)).first()
     if portfolio is None:
@@ -1134,6 +1349,22 @@ def confirm_execute(
     client_order_id = build_client_order_id(payload.draft.symbol)
 
     if payload.mode == "paper":
+        if not risk_ok:
+            if "RISK_MAX_DAILY_LOSS_EXCEEDED" in risk_reasons:
+                _activate_auto_kill_switch(db, reason="risk_max_daily_loss")
+            _audit_transition(
+                payload=payload,
+                from_state="APPROVED",
+                to_state="ERROR",
+                reason_code="RISK_BLOCKED",
+                broker_response={"reasons": risk_reasons, "mode": "paper"},
+                correlation_id=correlation_id,
+            )
+            _raise_confirm_error(
+                reason_code="RISK_BLOCKED",
+                correlation_id=correlation_id,
+                reasons=risk_reasons,
+            )
         _audit_transition(
             payload=payload,
             from_state="DRAFT",
@@ -1251,17 +1482,15 @@ def confirm_execute(
     }
 
 
-
-
-
-
 class KillSwitchToggleIn(BaseModel):
     enabled: bool = True
     source: str = "manual_killswitch"
 
 
 @router.post("/kill_switch/toggle")
-def toggle_kill_switch(payload: KillSwitchToggleIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+def toggle_kill_switch(
+    payload: KillSwitchToggleIn, db: Session = Depends(get_db)
+) -> dict[str, Any]:
     row = GovernanceState(
         status="PAUSED" if payload.enabled else "RUNNING",
         pause_reason="manual_kill_switch" if payload.enabled else "",

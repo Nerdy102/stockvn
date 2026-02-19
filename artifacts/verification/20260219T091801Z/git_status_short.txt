@@ -1,0 +1,12 @@
+ M Makefile
+ M README.md
+ M services/api_fastapi/api_fastapi/routers/simple_mode.py
+?? apps/web_kiosk/
+?? artifacts/audit/
+?? artifacts/cache/
+?? artifacts/verification/20260219T091801Z/
+?? docs/KIOSK_GUIDE.md
+?? tests/test_api_kiosk_bounds.py
+?? tests/test_api_kiosk_smoke.py
+?? tests/test_ui_kiosk_import.py
+?? tests/test_ui_kiosk_vietnamese_text_smoke.py

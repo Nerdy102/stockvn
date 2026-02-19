@@ -21,6 +21,24 @@ make run-worker   # ingest+compute+alerts
 make run-ui       # http://localhost:8501
 ```
 
+## Quickstart Kiosk (5 lệnh, offline demo)
+
+```bash
+cp .env.example .env
+make setup
+make run-api
+make run-ui-kiosk
+make verify-offline
+```
+
+- Kiosk: http://localhost:8502
+- Dashboard nâng cao (Advanced): chỉ bật khi `ENABLE_ADVANCED_UI=true`.
+- Từ điển thuật ngữ Việt (English): `docs/GLOSSARY_VI_EN.md`.
+- Hướng dẫn an toàn giao dịch: `docs/SAFE_TRADING_GUIDE.md`.
+- Hardening định lượng: `docs/QUANT_CORE_HARDENING.md`.
+- Backtest v2: `docs/BACKTEST_V2_GUIDE.md`.
+- Tối ưu rủi ro vận hành: `docs/RISK_OPTIMIZATION_GUIDE.md`.
+
 ## Quickstart (Docker)
 
 ```bash

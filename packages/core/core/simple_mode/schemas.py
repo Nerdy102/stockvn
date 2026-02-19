@@ -19,8 +19,13 @@ class SignalResult(BaseModel):
     confidence: ConfidenceLabel
     proposed_side: Literal["BUY", "SELL", "SHORT", "HOLD"] = "HOLD"
     explanation: list[str] = Field(default_factory=list)
+    reason_short: str = ""
+    reason_bullets: list[str] = Field(default_factory=list)
+    risk_tags: list[str] = Field(default_factory=list, max_length=2)
+    confidence_bucket: Literal["Thấp", "Vừa", "Cao"] = "Thấp"
     risks: list[str] = Field(default_factory=list)
     indicators: dict[str, float] = Field(default_factory=dict)
+    debug_fields: dict[str, float | str | None] = Field(default_factory=dict)
     latest_price: float = 0.0
     marker_time: str | None = None
 

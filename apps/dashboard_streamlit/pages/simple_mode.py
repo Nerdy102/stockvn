@@ -86,7 +86,9 @@ def render() -> None:
         "Kiểm tra hiển thị dấu: Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư."
     )
     if "session_id" not in st.session_state:
-        st.session_state["session_id"] = f"streamlit-{pd.Timestamp.utcnow().strftime('%Y%m%d%H%M%S')}"
+        st.session_state["session_id"] = (
+            f"streamlit-{pd.Timestamp.utcnow().strftime('%Y%m%d%H%M%S')}"
+        )
     if "session_user_id" not in st.session_state:
         st.session_state["session_user_id"] = "streamlit-user"
     if "idempotency_token" not in st.session_state:
@@ -157,7 +159,9 @@ def render() -> None:
             modes.append("live")
         mode = st.selectbox("Chế độ chạy (Mode)", modes, format_func=lambda x: mode_labels[x])
         if mode == "live":
-            st.warning("Bạn đang ở chế độ giao dịch thật (Live trading). Luôn kiểm tra hạn mức rủi ro trước khi xác nhận.")
+            st.warning(
+                "Bạn đang ở chế độ giao dịch thật (Live trading). Luôn kiểm tra hạn mức rủi ro trước khi xác nhận."
+            )
             cks1, cks2 = st.columns(2)
             with cks1:
                 if st.button("DỪNG KHẨN CẤP (Kill-switch)", disabled=not api_ready):
@@ -269,8 +273,15 @@ def render() -> None:
                 else:
                     age = None
 
+                st.markdown("**Bạn sắp làm gì**")
+                st.write(
+                    f"- Bạn sẽ {'MUA' if draft['side'] == 'BUY' else ('BÁN' if draft['side'] == 'SELL' else 'MỞ VỊ THẾ BÁN')} (nháp) mã {draft['symbol']}"
+                )
+                st.write(f"- Khối lượng: {draft['qty']} • Giá dự kiến: {draft['price']}")
+                st.write(f"- Ước tính phí/thuế/trượt giá: {draft['fee_tax']['total_cost']}")
+
                 ack1 = st.checkbox(
-                    "Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư (Not investment advice)"
+                    "Tôi hiểu đây không phải lời khuyên đầu tư (Not investment advice)"
                 )
                 ack2 = st.checkbox("Tôi hiểu có thể thua lỗ (Risk of loss)")
                 ack_live = (
@@ -280,23 +291,32 @@ def render() -> None:
                     if mode == "live"
                     else False
                 )
-                if st.button("XÁC NHẬN THỰC HIỆN (Confirm execute)", disabled=not api_ready):
-                    out = api.post(
-                        "/simple/confirm_execute",
-                        {
-                            "portfolio_id": 1,
-                            "user_id": str(st.session_state.get("session_user_id", "streamlit-user")),
-                            "session_id": str(st.session_state.get("session_id", "streamlit-session")),
-                            "idempotency_token": str(st.session_state.get("idempotency_token", "")),
-                            "mode": mode,
-                            "acknowledged_educational": ack1,
-                            "acknowledged_loss": ack2,
-                            "acknowledged_live_eligibility": ack_live,
-                            "age": age,
-                            "draft": draft,
-                        },
-                    )
-                    st.json(out)
+                if st.button("Xác nhận thực hiện (Confirm execute)", disabled=not api_ready):
+                    try:
+                        out = api.post(
+                            "/simple/confirm_execute",
+                            {
+                                "portfolio_id": 1,
+                                "user_id": str(
+                                    st.session_state.get("session_user_id", "streamlit-user")
+                                ),
+                                "session_id": str(
+                                    st.session_state.get("session_id", "streamlit-session")
+                                ),
+                                "idempotency_token": str(
+                                    st.session_state.get("idempotency_token", "")
+                                ),
+                                "mode": mode,
+                                "acknowledged_educational": ack1,
+                                "acknowledged_loss": ack2,
+                                "acknowledged_live_eligibility": ack_live,
+                                "age": age,
+                                "draft": draft,
+                            },
+                        )
+                        st.json(out)
+                    except Exception as exc:
+                        st.error(f"Không thể thực hiện lệnh. Lý do: {exc}")
 
     with tab_compare:
         compare_market = st.selectbox(
@@ -332,7 +352,7 @@ def render() -> None:
             value="FPT,VNM,VCB,MWG,HPG",
         )
         lookback = st.slider("Khoảng backtest (mặc định 1 năm / 252 phiên)", 60, 756, 252)
-        detail_mode = st.checkbox("Xem chi tiết (Detailed)", value=False)
+        detail_mode = st.checkbox("Xem chi tiết nâng cao (Advanced)", value=False)
         execution_mode = st.selectbox(
             "Kiểu khớp lệnh (Execution)",
             ["giá đóng cửa (close)", "thanh nến kế tiếp (next-bar)"],
@@ -356,10 +376,24 @@ def render() -> None:
                     "market": "crypto" if compare_is_crypto else "vn",
                     "trading_type": compare_trading_type,
                     "exchange": compare_exchange,
+                    "include_story_mode": True,
                 },
             )
             st.error(resp["warning"])
-            st.dataframe(resp["leaderboard"], use_container_width=True)
+            if resp.get("story_summary_vi"):
+                st.info(resp["story_summary_vi"])
+                st.write(resp.get("example_portfolio_vi", ""))
+                st.write(resp.get("biggest_drop_vi", ""))
+
+            cards = st.columns(max(1, min(3, len(resp.get("leaderboard", [])))))
+            for idx, row in enumerate(resp.get("leaderboard", [])[:3]):
+                with cards[idx]:
+                    st.markdown(f"**{row.get('model_id', '-')}**")
+                    st.write(row.get("example_portfolio_vi", ""))
+                    st.write(row.get("biggest_drop_vi", ""))
+
+            with st.expander("Xem chi tiết nâng cao (Advanced)", expanded=False):
+                st.dataframe(resp["leaderboard"], use_container_width=True)
             if detail_mode and resp.get("leaderboard"):
                 best = resp["leaderboard"][0]
                 if best.get("equity_curve"):
