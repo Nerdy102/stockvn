@@ -1,0 +1,47 @@
+# EVIDENCE INDEX
+
+- `ABSOLUTE_VERIFICATION_REPORT.json`: machine-readable final readiness report.
+- `ABSOLUTE_VERIFICATION_REPORT.md`: human-readable final readiness report.
+- `preflight_env_review.txt`: config + env flag safety verification.
+- `preflight_repo_tree.txt`: repo tree snapshot for structural sanity.
+- `preflight_security_scan.txt`: offline grep scan for hardcoded secrets/tokens.
+- `t0_quality_gate.txt`: static gate pass (ruff/black/mypy/tests/quality_gate).
+- `t0_ui_guardrails.txt`: UI page-side-effect guardrail pass.
+- `t10_report_export.log`: verification artifact.
+- `t10_report_manifest.json`: exported report-pack manifest with hashes.
+- `t10_report_sections_check.txt`: required report section presence checks.
+- `t10_report_security_scan.txt`: secret scan on report artifacts.
+- `t1_pytest.txt`: full unit/integration suite execution summary.
+- `t2_batch_pipeline_log.txt`: offline demo batch pipeline execution logs.
+- `t2_idempotency_assertions.txt`: idempotency assertions for key tables.
+- `t2_row_counts_before_after.json`: idempotency row counts before/after rerun.
+- `t3_late_correction_sample.json`: late-event correction policy evidence.
+- `t3_realtime_determinism_hash_compare.json`: determinism test output for hash stability.
+- `t3_realtime_metrics_bar_builder.json`: bar builder metrics capture note/snapshot source.
+- `t3_realtime_metrics_gateway.json`: gateway metrics capture note/snapshot source.
+- `t3_realtime_metrics_signal_engine.json`: signal engine metrics capture note/snapshot source.
+- `t3_realtime_smoke_log.txt`: realtime replay smoke execution and environment notes.
+- `t4_realtime_api_bounds.txt`: bounded-limit enforcement tests.
+- `t4_realtime_api_disabled_samples.json`: graceful realtime-disabled fallback tests.
+- `t4_realtime_api_samples.json`: sample realtime API responses.
+- `t5_ui_budget_checks.txt`: UI budget/bounded query checks.
+- `t5_ui_import_smoke.txt`: headless page import smoke pass.
+- `t5_ui_realtime_toggle_behavior.txt`: live toggle default/throttle behavior checks.
+- `t6_governance_pause_evidence.json`: PAUSE fail-safe enforcement evidence.
+- `t6_oms_idempotency.json`: OMS idempotent submit check.
+- `t6_pretrade_rejections.json`: risk pretrade rejection evidence.
+- `t6_reconcile_run.json`: reconcile mismatch incident evidence.
+- `t7_incidents_created.json`: incident creation/runbook validation checks.
+- `t7_runbook_links_check.txt`: data health realtime ops schema/runbook checks.
+- `t7_slo_snapshots.json`: SLO percentile/metrics computation checks.
+- `t8_perf_budget_summary.json`: aggregated load/chaos budget summary.
+- `t8_rt_chaos.log`: verification artifact.
+- `t8_rt_chaos_report.json`: deterministic chaos test report.
+- `t8_rt_chaos_report.md`: verification artifact.
+- `t8_rt_load_full.log`: verification artifact.
+- `t8_rt_load_report.json`: deterministic load test full report.
+- `t8_rt_load_report_small.json`: verification artifact.
+- `t8_rt_load_small.log`: verification artifact.
+- `t9_calibration_metrics.json`: calibration metrics checks.
+- `t9_governance_events.json`: governance/drift event checks.
+- `t9_quant_monitoring_summary.json`: quant monitoring checks (listnet/prob/conformal).

@@ -1,0 +1,28 @@
+{
+  "before": {
+    "tickers": 13,
+    "prices_daily": 7951,
+    "bars_daily_weekly": 0,
+    "fundamentals": 10,
+    "factors_z": 72,
+    "indicators": 16404,
+    "signals": 3,
+    "alerts": 0,
+    "models_registry": 0,
+    "screen_runs": 0,
+    "screen_run_items": 0
+  },
+  "after": {
+    "tickers": 13,
+    "prices_daily": 7951,
+    "bars_daily_weekly": 0,
+    "fundamentals": 10,
+    "factors_z": 72,
+    "indicators": 16404,
+    "signals": 3,
+    "alerts": 0,
+    "models_registry": 0,
+    "screen_runs": 0,
+    "screen_run_items": 0
+  }
+}

@@ -1,0 +1,45 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+5 0 obj << /Length 1197 >> stream
+BT
+/F1 11 Tf
+1 0 0 1 40 790 Tm (Report Pack v3) Tj
+1 0 0 1 40 776 Tm (run_id: 5b156f0227c6e5521cb67ee3c7ec815e46ac3173e8a08ae03833295c314c0254) Tj
+1 0 0 1 40 762 Tm ( ) Tj
+1 0 0 1 40 748 Tm (SUMMARY) Tj
+1 0 0 1 40 734 Tm (- {"backtest_run_id": 7, "diagnostics_metrics": 0, "equity_points": 0, "generated_at_utc": "2026-02-19T04:58:50.) Tj
+1 0 0 1 40 720 Tm ( ) Tj
+1 0 0 1 40 706 Tm (EQUITY) Tj
+1 0 0 1 40 692 Tm (- No data) Tj
+1 0 0 1 40 678 Tm (COSTS) Tj
+1 0 0 1 40 664 Tm (- No data) Tj
+1 0 0 1 40 650 Tm (RISK) Tj
+1 0 0 1 40 636 Tm (- No data) Tj
+1 0 0 1 40 622 Tm (GATES) Tj
+1 0 0 1 40 608 Tm (- {"dsr": 0.0, "gate_details": {"reasons": ["DSR 0.0000 < 0.9500", "PBO 1.0000 > 0.1000", "PSR 0.0000 < 0.9500",) Tj
+1 0 0 1 40 594 Tm ( ) Tj
+1 0 0 1 40 580 Tm (CALIBRATION) Tj
+1 0 0 1 40 566 Tm (- No data) Tj
+1 0 0 1 40 552 Tm (HEALTH) Tj
+1 0 0 1 40 538 Tm (- {"created_at": "2026-02-19 04:22:27.163013", "details_json": {"sample_payload_redacted": {"close": 12647.87655) Tj
+1 0 0 1 40 524 Tm ( ) Tj
+1 0 0 1 40 510 Tm (ASSUMPTIONS) Tj
+1 0 0 1 40 496 Tm (- {"backtest_config": {"mode": "v2", "tag": "stress"}, "backtest_config_hash": "6d70b4e28d0801255b7f2235186abe51) Tj
+1 0 0 1 40 482 Tm ( ) Tj
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+1560
+%%EOF

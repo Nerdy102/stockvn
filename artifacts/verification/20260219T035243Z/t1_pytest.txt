@@ -1,0 +1,236 @@
+.. [ 71%]
+..................................................................................... [ 23%]
+............................................................................................................................... [ 47%]
+...............s.... [ 95%]
+.....................                                                          [100%]
+=================================== FAILURES ===================================
+_____________________ test_duckdb_fast_path_equals_db_path _____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-1/test_duckdb_fast_path_equals_d0')
+
+    @pytest.mark.skipif(__import__("importlib").util.find_spec("duckdb") is None, reason="duckdb not installed")
+    def test_duckdb_fast_path_equals_db_path(tmp_path: Path) -> None:
+        db_path = tmp_path / "t.db"
+        engine = get_engine(f"sqlite:///{db_path}")
+        SQLModel.metadata.create_all(engine)
+        day = dt.date(2025, 2, 14)
+    
+        base_settings = Settings(DATABASE_URL=f"sqlite:///{db_path}", PARQUET_LAKE_ROOT=str(tmp_path / "lake"))
+    
+        with Session(engine) as session:
+            _seed(session, day)
+            export_partitioned_parquet_for_day(session, settings=base_settings, as_of_date=day)
+    
+            db_df = load_table_df(
+                session,
+                model=PriceOHLCV,
+                table_name="prices_ohlcv",
+                date_col="timestamp",
+                settings=Settings(DATABASE_URL=f"sqlite:///{db_path}", PARQUET_LAKE_ROOT=str(tmp_path / "lake"), ENABLE_DUCKDB_FAST_PATH=False),
+                start_date=day,
+                end_date=day,
+                symbols=["AAA"],
+            )
+>           dd_df = load_table_df(
+                session,
+                model=PriceOHLCV,
+                table_name="prices_ohlcv",
+                date_col="timestamp",
+                settings=Settings(DATABASE_URL=f"sqlite:///{db_path}", PARQUET_LAKE_ROOT=str(tmp_path / "lake"), ENABLE_DUCKDB_FAST_PATH=True),
+                start_date=day,
+                end_date=day,
+                symbols=["AAA"],
+            )
+
+tests/test_parquet_export_and_duckdb_fastpath.py:111: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+packages/core/core/data_lake/feature_source.py:23: in load_table_df
+    df = _load_with_duckdb(table_name, date_col, settings, start_date, end_date, symbols)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+table_name = 'prices_ohlcv', date_col = 'timestamp'
+settings = Settings(APP_ENV='local', DEV_MODE=True, LOG_LEVEL='INFO', DATA_PROVIDER='csv', DEMO_DATA_DIR='data_demo', DATABASE_UR...est-1/test_duckdb_fast_path_equals_d0/lake', DUCKDB_PATH='artifacts/duckdb/cache.duckdb', ENABLE_DUCKDB_FAST_PATH=True)
+start_date = datetime.date(2025, 2, 14), end_date = datetime.date(2025, 2, 14)
+symbols = ['AAA']
+
+    def _load_with_duckdb(
+        table_name: str,
+        date_col: str,
+        settings: Settings,
+        start_date: dt.date | None,
+        end_date: dt.date | None,
+        symbols: list[str] | None,
+    ) -> pd.DataFrame | None:
+        try:
+            import duckdb
+        except Exception:
+            return None
+    
+        root = Path(settings.PARQUET_LAKE_ROOT) / table_name
+        if not root.exists():
+            return None
+    
+>       con = duckdb.connect(database=settings.DUCKDB_PATH)
+E       _duckdb.IOException: IO Error: Cannot open file "/workspace/stockvn/artifacts/duckdb/cache.duckdb": No such file or directory
+
+packages/core/core/data_lake/feature_source.py:46: IOException
+----------------------------- Captured stderr call -----------------------------
+{"ts": 1771473355220, "level": "WARNING", "logger": "core.settings", "message": "DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH", "module": "settings"}
+{"ts": 1771473355275, "level": "WARNING", "logger": "core.settings", "message": "DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH", "module": "settings"}
+{"ts": 1771473355279, "level": "WARNING", "logger": "core.settings", "message": "DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH", "module": "settings"}
+------------------------------ Captured log call -------------------------------
+WARNING  core.settings:settings.py:88 DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+WARNING  core.settings:settings.py:88 DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+WARNING  core.settings:settings.py:88 DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+_________________ test_parquet_or_db_query_perf_smoke_small_ci _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-1/test_parquet_or_db_query_perf_0')
+
+    def test_parquet_or_db_query_perf_smoke_small_ci(tmp_path: Path) -> None:
+        budget_sec = float(os.getenv("PARQUET_QUERY_PERF_BUDGET_SEC", "2.5"))
+        mem_budget_mb = float(os.getenv("PARQUET_QUERY_MEM_BUDGET_MB", "512"))
+    
+        db_path = tmp_path / "perf.db"
+        engine = get_engine(f"sqlite:///{db_path}")
+        SQLModel.metadata.create_all(engine)
+    
+        start = dt.date(2023, 1, 1)
+        symbols = [f"S{i:03d}" for i in range(80)]
+        days = [start + dt.timedelta(days=i) for i in range(140)]
+    
+        with Session(engine) as s:
+            for sym in symbols:
+                s.add(Ticker(symbol=sym, name=sym, exchange="HOSE", sector="T", industry="I"))
+                for i, day in enumerate(days):
+                    c = 10.0 + i * 0.01
+                    s.add(
+                        PriceOHLCV(
+                            symbol=sym,
+                            timeframe="1D",
+                            timestamp=dt.datetime.combine(day, dt.time(0, 0)),
+                            open=c,
+                            high=c * 1.01,
+                            low=c * 0.99,
+                            close=c,
+                            volume=1000 + i,
+                            value_vnd=(1000 + i) * c,
+                        )
+                    )
+            s.commit()
+    
+            settings = Settings(DATABASE_URL=f"sqlite:///{db_path}", PARQUET_LAKE_ROOT=str(tmp_path / "lake"))
+            for day in days[-30:]:
+                export_partitioned_parquet_for_day(s, settings=settings, as_of_date=day)
+    
+            tracemalloc.start()
+            t0 = time.perf_counter()
+>           out = load_table_df(
+                s,
+                model=PriceOHLCV,
+                table_name="prices_ohlcv",
+                date_col="timestamp",
+                settings=settings,
+                start_date=days[-30],
+                end_date=days[-1],
+                symbols=symbols[:40],
+            )
+
+tests/test_parquet_query_perf_smoke.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+packages/core/core/data_lake/feature_source.py:23: in load_table_df
+    df = _load_with_duckdb(table_name, date_col, settings, start_date, end_date, symbols)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+table_name = 'prices_ohlcv', date_col = 'timestamp'
+settings = Settings(APP_ENV='local', DEV_MODE=True, LOG_LEVEL='INFO', DATA_PROVIDER='csv', DEMO_DATA_DIR='data_demo', DATABASE_UR...est-1/test_parquet_or_db_query_perf_0/lake', DUCKDB_PATH='artifacts/duckdb/cache.duckdb', ENABLE_DUCKDB_FAST_PATH=True)
+start_date = datetime.date(2023, 4, 21), end_date = datetime.date(2023, 5, 20)
+symbols = ['S000', 'S001', 'S002', 'S003', 'S004', 'S005', ...]
+
+    def _load_with_duckdb(
+        table_name: str,
+        date_col: str,
+        settings: Settings,
+        start_date: dt.date | None,
+        end_date: dt.date | None,
+        symbols: list[str] | None,
+    ) -> pd.DataFrame | None:
+        try:
+            import duckdb
+        except Exception:
+            return None
+    
+        root = Path(settings.PARQUET_LAKE_ROOT) / table_name
+        if not root.exists():
+            return None
+    
+>       con = duckdb.connect(database=settings.DUCKDB_PATH)
+E       _duckdb.IOException: IO Error: Cannot open file "/workspace/stockvn/artifacts/duckdb/cache.duckdb": No such file or directory
+
+packages/core/core/data_lake/feature_source.py:46: IOException
+----------------------------- Captured stderr call -----------------------------
+{"ts": 1771473360140, "level": "WARNING", "logger": "core.settings", "message": "DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH", "module": "settings"}
+------------------------------ Captured log call -------------------------------
+WARNING  core.settings:settings.py:88 DEV_MODE=true and SSI credentials are missing; SSI live provider will be disabled. Missing: SSI_CONSUMER_ID, SSI_CONSUMER_SECRET, SSI_PRIVATE_KEY_PATH
+__________________ test_performance_smoke_ml_features_200x500 __________________
+
+    def test_performance_smoke_ml_features_200x500() -> None:
+        rows = []
+        base = dt.datetime(2020, 1, 1)
+        for si in range(200):
+            sym = f"S{si:04d}"
+            for d in range(500):
+                ts = base + dt.timedelta(days=d)
+                px = 10 + (d % 37) * 0.1 + si * 0.001
+                rows.append(
+                    {
+                        "symbol": sym,
+                        "timestamp": ts,
+                        "open": px * 0.99,
+                        "high": px * 1.01,
+                        "low": px * 0.98,
+                        "close": px,
+                        "volume": 1_000_000 + d,
+                        "value_vnd": px * (1_000_000 + d),
+                        "exchange": "HOSE",
+                        "sector": "TECH",
+                    }
+                )
+        df = pd.DataFrame(rows)
+    
+        t0 = time.perf_counter()
+        feat = build_ml_features(df)
+        elapsed = time.perf_counter() - t0
+    
+        assert not feat.empty
+>       assert elapsed < 8.0
+E       assert 28.26259560799997 < 8.0
+
+tests/test_performance_smoke.py:40: AssertionError
+=============================== warnings summary ===============================
+tests/test_alpha_v3_features_drop_null_pit_keys.py::test_prepare_fundamentals_pti_drops_null_symbol_or_public_date
+tests/test_point_in_time_fundamentals_public_date.py::test_point_in_time_fundamentals_public_date
+tests/test_point_in_time_fundamentals_public_date.py::test_point_in_time_fundamentals_assumed_public_date_by_statement_type
+  /workspace/stockvn/packages/core/core/alpha_v3/features.py:94: PerformanceWarning: Adding/subtracting object-dtype array to TimedeltaArray not vectorized.
+    f.loc[missing_public, "public_date"] = f.loc[missing_public, "period_end"] + pd.to_timedelta(lag_days[missing_public], unit="D")
+
+tests/test_normalization.py::test_normalization_functions_basic
+  /workspace/stockvn/packages/core/core/normalization.py:24: FutureWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+    return df.groupby(by_date_col, group_keys=False).apply(_z)
+
+tests/test_normalization.py::test_normalization_functions_basic
+  /workspace/stockvn/packages/core/core/normalization.py:37: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+    out = df["z"] - df.groupby("bin")["z"].transform("mean")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_migrations_postgres_apply.py:19: TEST_DATABASE_URL is not set
+SKIPPED [1] tests/test_partition_manager_creates_next_month_partition.py:18: TEST_DATABASE_URL is not set
+SKIPPED [1] tests/test_postgres_runtime_smoke.py:15: TEST_DATABASE_URL is not set
+FAILED tests/test_parquet_export_and_duckdb_fastpath.py::test_duckdb_fast_path_equals_db_path
+FAILED tests/test_parquet_query_perf_smoke.py::test_parquet_or_db_query_perf_smoke_small_ci
+FAILED tests/test_performance_smoke.py::test_performance_smoke_ml_features_200x500
+3 failed, 297 passed, 3 skipped, 5 warnings in 309.54s (0:05:09)
+.................FFs..F................s.......... [ 71%]
+........................................................................ [ 95%]
+..............
+[NOTE] Full pytest exceeded practical runtime in this environment and was manually stopped after >5m. See partial progress above.

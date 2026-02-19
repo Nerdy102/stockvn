@@ -1,0 +1,101 @@
+{
+  "status": "READY_WITH_WARNINGS",
+  "stages": {
+    "T0": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T1": {
+      "status": "WARN",
+      "notes": [
+        "issues in t1_pytest.txt",
+        "pytest interrupted"
+      ]
+    },
+    "T2": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T3": {
+      "status": "WARN",
+      "notes": [
+        "service metrics captured via offline tests only"
+      ]
+    },
+    "T4": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T5": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T6": {
+      "status": "FAIL",
+      "notes": [
+        "issues in t6_pretrade_rejections.json",
+        "issues in t6_reconcile_run.json",
+        "issues in t6_governance_pause_evidence.json"
+      ]
+    },
+    "T7": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T8": {
+      "status": "PASS",
+      "notes": []
+    },
+    "T9": {
+      "status": "FAIL",
+      "notes": [
+        "issues in t9_quant_monitoring_summary.json",
+        "issues in t9_governance_events.json"
+      ]
+    },
+    "T10": {
+      "status": "FAIL",
+      "notes": [
+        "issues in t10_report_manifest.json"
+      ]
+    }
+  },
+  "hashes": {
+    "determinism_file": "t3_realtime_determinism_hash_compare.json"
+  },
+  "counts": {
+    "before": {
+      "tickers": 13,
+      "prices_daily": 7951,
+      "bars_daily_weekly": 0,
+      "fundamentals": 10,
+      "factors_z": 72,
+      "indicators": 16404,
+      "signals": 3,
+      "alerts": 0,
+      "models_registry": 0,
+      "screen_runs": 0,
+      "screen_run_items": 0
+    },
+    "after": {
+      "tickers": 13,
+      "prices_daily": 7951,
+      "bars_daily_weekly": 0,
+      "fundamentals": 10,
+      "factors_z": 72,
+      "indicators": 16404,
+      "signals": 3,
+      "alerts": 0,
+      "models_registry": 0,
+      "screen_runs": 0,
+      "screen_run_items": 0
+    }
+  },
+  "timings": {},
+  "incidents": {
+    "slo": "t7_incidents_created.json"
+  },
+  "governance": {
+    "pause_evidence": "t6_governance_pause_evidence.json"
+  }
+}

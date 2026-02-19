@@ -1,0 +1,30 @@
+{
+  "/realtime/summary": {
+    "status": 200,
+    "body": {
+      "realtime_disabled": true,
+      "message": "Realtime is disabled or unavailable."
+    }
+  },
+  "/realtime/bars?symbol=VNM&tf=15m&limit=200": {
+    "status": 200,
+    "body": {
+      "realtime_disabled": true,
+      "message": "Realtime is disabled or unavailable."
+    }
+  },
+  "/realtime/signals?symbol=VNM&tf=15m&limit=200": {
+    "status": 200,
+    "body": {
+      "realtime_disabled": true,
+      "message": "Realtime is disabled or unavailable."
+    }
+  },
+  "/realtime/hot/top_movers?tf=15m&limit=30": {
+    "status": 200,
+    "body": {
+      "realtime_disabled": true,
+      "message": "Realtime is disabled or unavailable."
+    }
+  }
+}
