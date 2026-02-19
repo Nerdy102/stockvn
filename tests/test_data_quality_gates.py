@@ -18,4 +18,4 @@ def _bad_df() -> pd.DataFrame:
 def test_data_quality_gate_fail_neutral_signal() -> None:
     sig = run_signal("model_1", "FPT", "1D", _bad_df())
     assert sig.signal == "TRUNG_TINH"
-    assert "Thiếu dữ liệu để phân tích" in sig.reason_short
+    assert "Thiếu/không hợp lệ dữ liệu để phân tích" in sig.reason_short

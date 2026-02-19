@@ -1,0 +1,24 @@
+ M packages/core/core/simple_mode/models.py
+ M packages/core/core/simple_mode/schemas.py
+ M packages/data/data/quality/__init__.py
+ M packages/data/data/quality/gates.py
+ M services/api_fastapi/api_fastapi/routers/simple_mode.py
+ M tests/test_data_quality_gates.py
+ M tests/test_model_rules_smoke.py
+ M tests/test_no_lookahead_breakout.py
+?? artifacts/audit/
+?? artifacts/cache/
+?? artifacts/evidence/git_head_before.txt
+?? artifacts/evidence/git_status_porcelain.txt
+?? artifacts/evidence/python_version.txt
+?? packages/core/core/features/compute_features.py
+?? packages/core/core/simple_mode/audit_models.py
+?? packages/core/core/simple_mode/confidence_v2.py
+?? packages/data/data/contracts/
+?? packages/data/data/quality/models.py
+?? tests/test_breakout_uses_shift1.py
+?? tests/test_confidence_score_bucket_thresholds.py
+?? tests/test_gates_fail_returns_neutral.py
+?? tests/test_reason_short_length.py
+?? tests/test_risk_tags_max_2.py
+?? tests/test_signal_audit_written.py

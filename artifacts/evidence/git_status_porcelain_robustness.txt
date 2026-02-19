@@ -1,0 +1,9 @@
+ M artifacts/evidence/git_status_porcelain_robustness.txt
+ M artifacts/evidence/verify_offline_robustness.log
+ M packages/core/core/monitoring/drift_monitor.py
+ M packages/core/core/validation/stress_suite.py
+ M services/api_fastapi/api_fastapi/routers/simple_mode.py
+ M tests/test_execute_blocked_on_high_drift.py
+?? artifacts/audit/
+?? artifacts/cache/
+?? artifacts/evidence/git_head_before_robustness_fix.txt

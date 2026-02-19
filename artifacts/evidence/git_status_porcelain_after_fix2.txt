@@ -1,0 +1,7 @@
+ M artifacts/evidence/verify_offline_robustness.log
+ M packages/data/data/contracts/bars.py
+?? artifacts/audit/
+?? artifacts/cache/
+?? artifacts/evidence/git_head_after_fix2.txt
+?? artifacts/evidence/git_status_porcelain_after_fix2.txt
+?? tests/test_bar_contract_timestamp_normalization.py
