@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from api_fastapi.main import app
@@ -31,4 +33,7 @@ def test_confirm_execute_paper_updates_ledger() -> None:
         },
     )
     assert r.status_code == 200
-    assert r.json()["status"] == "paper_filled"
+    body = r.json()
+    assert body["status"] == "paper_filled"
+    assert body["audit_id"].startswith("simple-audit-")
+    assert Path("artifacts/audit/simple_mode_audit.jsonl").exists()

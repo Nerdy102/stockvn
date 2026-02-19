@@ -1,39 +1,144 @@
 from __future__ import annotations
 
+import httpx
+import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from apps.dashboard_streamlit.lib import api
 
 MAX_POINTS_PER_CHART = 300
+FONT_STACK_VI = "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+
+
+def _render_chart(chart_points: list[dict[str, float | str]], marker_time: str | None) -> None:
+    if not chart_points:
+        st.info("Chưa có dữ liệu biểu đồ tối giản (Minimal chart).")
+        return
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3])
+    x = [row["time"] for row in chart_points]
+    fig.add_trace(
+        go.Candlestick(
+            x=x,
+            open=[row["open"] for row in chart_points],
+            high=[row["high"] for row in chart_points],
+            low=[row["low"] for row in chart_points],
+            close=[row["close"] for row in chart_points],
+            name="Nến (Candlestick)",
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(x=x, y=[row["ema20"] for row in chart_points], name="EMA20", mode="lines"),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(x=x, y=[row["ema50"] for row in chart_points], name="EMA50", mode="lines"),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Bar(x=x, y=[row["volume"] for row in chart_points], name="Khối lượng (Volume)"),
+        row=2,
+        col=1,
+    )
+    if marker_time:
+        marker_row = next(
+            (row for row in chart_points if str(row["time"]) == str(marker_time)),
+            chart_points[-1],
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[marker_row["time"]],
+                y=[marker_row["close"]],
+                mode="markers",
+                marker={"size": 12, "symbol": "diamond"},
+                name="Điểm tín hiệu gần nhất (Signal marker)",
+            ),
+            row=1,
+            col=1,
+        )
+    fig.update_layout(height=620, xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def render() -> None:
-    st.title("🚀 Giao dịch đơn giản")
-    st.caption("Công cụ giáo dục: không phải lời khuyên đầu tư, có thể thua lỗ.")
+    st.markdown(
+        f"""
+        <style>
+        html, body, [class*="css"], [data-testid="stAppViewContainer"] {{
+            font-family: {FONT_STACK_VI};
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.title("🚀 Giao dịch đơn giản (Simple Trading)")
+    st.caption(
+        "Không phải lời khuyên đầu tư (Not investment advice) • Quá khứ không đảm bảo tương lai (Past performance is not indicative of future results) • Có thể thua lỗ (Risk of loss)."
+    )
+    st.info("Kiểm tra hiển thị dấu: Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư.")
 
-    tab_main, tab_compare = st.tabs(["Wizard 3 bước", "📊 So sánh Model 1/2/3"])
+    meta: dict[str, object] = {"live_enabled": False, "max_points_per_chart": MAX_POINTS_PER_CHART}
+    api_ready = True
+    try:
+        meta = api.get("/simple/models")
+    except (httpx.HTTPError, ValueError):
+        api_ready = False
+        st.warning(
+            "Chưa kết nối được API Simple Mode. Bạn vẫn có thể xem giao diện; hãy chạy API để thực hiện phân tích."
+        )
+
+    tab_main, tab_compare = st.tabs(
+        ["Luồng 3 bước (3-step wizard)", "📊 So sánh Mô hình 1/2/3 (Model comparison)"]
+    )
 
     with tab_main:
         st.subheader("Bước 1 — Chọn mã & chế độ")
-        symbol = st.text_input("Mã cổ phiếu", value="FPT").upper().strip()
-        timeframe = st.selectbox("Timeframe", ["1D", "60m"], index=0)
-        mode = st.selectbox("Chế độ chạy", ["paper", "draft"])
-        if st.button("Đồng bộ dữ liệu"):
+        default_symbol = str(st.session_state.get("simple_prefill_symbol", "FPT"))
+        symbol = st.text_input("Mã cổ phiếu (Symbol)", value=default_symbol).upper().strip()
+        exchange = st.selectbox("Sàn (Exchange)", ["Tự nhận diện", "HOSE", "HNX", "UPCOM"], index=0)
+        default_tf = str(st.session_state.get("simple_prefill_timeframe", "1D"))
+        timeframe_options = ["1D", "60m"]
+        timeframe = st.selectbox("Khung thời gian (Timeframe)", timeframe_options, index=(timeframe_options.index(default_tf) if default_tf in timeframe_options else 0))
+        modes = ["paper", "draft"]
+        mode_labels = {
+            "paper": "Giao dịch giấy (Paper trading)",
+            "draft": "Lệnh nháp (Order draft)",
+            "live": "Giao dịch thật (Live trading)",
+        }
+        if bool(meta.get("live_enabled")):
+            modes.append("live")
+        mode = st.selectbox("Chế độ chạy (Mode)", modes, format_func=lambda x: mode_labels[x])
+        if st.button("Đồng bộ dữ liệu (Sync data)") and api_ready:
             status = api.get("/simple/sync_status", {"symbol": symbol, "timeframe": timeframe})
-            st.json(status)
+            st.write(
+                f"Trạng thái dữ liệu: {status['rows']} thanh giá (bars) • Cập nhật gần nhất: {status['last_update'] or 'Không có (N/A)'}"
+            )
+            if status.get("missing"):
+                st.warning(status["missing"])
+        st.caption(
+            f"Sàn mặc định khi không nhận diện được: {exchange if exchange != 'Tự nhận diện' else 'HOSE'}"
+        )
 
-        st.subheader("Bước 2 — Chọn model & chạy")
+        st.subheader("Bước 2 — Chọn mô hình & chạy")
+        preferred_model = st.session_state.get("simple_preferred_model", "model_1")
+        model_list = ["model_1", "model_2", "model_3"]
+        default_model_index = model_list.index(preferred_model) if preferred_model in model_list else 0
         model = st.radio(
-            "Model",
-            ["model_1", "model_2", "model_3"],
+            "Bộ mô hình (Model Zoo)",
+            model_list,
+            index=default_model_index,
             format_func=lambda x: {
-                "model_1": "Model 1 — Xu hướng",
-                "model_2": "Model 2 — Hồi quy về trung bình",
-                "model_3": "Model 3 — Kết hợp Factor + Regime",
+                "model_1": "Mô hình 1 — Xu hướng (Trend-following)",
+                "model_2": "Mô hình 2 — Hồi quy về trung bình (Mean-reversion)",
+                "model_3": "Mô hình 3 — Kết hợp nhân tố + chế độ thị trường (Factor + Regime)",
             }[x],
         )
 
-        if st.button("Chạy phân tích"):
+        if st.button("Chạy phân tích (Run analysis)", disabled=not api_ready):
             resp = api.post(
                 "/simple/run_signal",
                 {"symbol": symbol, "timeframe": timeframe, "model_id": model, "mode": mode},
@@ -44,19 +149,55 @@ def render() -> None:
         if last:
             signal = last["signal"]
             draft = last.get("draft")
-            st.success(f"Tín hiệu: {signal['signal']} | Độ tin cậy: {signal['confidence']}")
-            st.write("Giải thích ngắn:")
+            st.success(
+                f"Kết luận hiện tại (Current view) — Tín hiệu (Signal): {signal['signal']} | Độ tin cậy (Confidence): {signal['confidence']}"
+            )
+            st.write("Giải thích ngắn (Short explanation):")
             for line in signal["explanation"]:
                 st.write(f"- {line}")
-            st.write("Rủi ro:")
+            st.write("Rủi ro (Risks):")
             for line in signal["risks"]:
                 st.write(f"- {line}")
+            st.write(
+                f"Ngân sách biểu đồ: tối đa {MAX_POINTS_PER_CHART} điểm (MAX_POINTS_PER_CHART), API trả về {last.get('data_status', {}).get('rows', 0)} điểm."
+            )
+            _render_chart(last.get("chart", []), signal.get("marker_time"))
             if draft:
+                st.subheader("Giả lập phí/thuế (Fee/Tax simulation)")
+                st.table(
+                    [
+                        {
+                            "Phí giao dịch (Commission)": draft["fee_tax"]["commission"],
+                            "Thuế bán (Sell tax)": draft["fee_tax"]["sell_tax"],
+                            "Phí trượt giá (Slippage)": draft["fee_tax"]["slippage_est"],
+                            "Tổng chi phí (Total cost)": draft["fee_tax"]["total_cost"],
+                        }
+                    ]
+                )
                 st.subheader("Bước 3 — Gợi ý lệnh & xác nhận")
-                st.json(draft)
-                ack1 = st.checkbox("Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư")
-                ack2 = st.checkbox("Tôi hiểu có thể thua lỗ")
-                if st.button("XÁC NHẬN THỰC HIỆN"):
+                st.write(f"Hành động nháp: {'MUA (nháp)' if draft['side'] == 'BUY' else 'BÁN (nháp)'}")
+                st.write(
+                    f"Khối lượng đề xuất: {draft['qty']} cổ phiếu • Giá giả lập: {draft['price']} • Giá trị lệnh: {draft['notional']}"
+                )
+                st.write("Lý do (Rules triggered):")
+                for reason in draft["reasons"]:
+                    st.write(f"- {reason}")
+                st.write("Rủi ro giao dịch (Trading risks):")
+                for risk in draft["risks"]:
+                    st.write(f"- {risk}")
+
+                ack1 = st.checkbox(
+                    "Tôi hiểu đây là công cụ giáo dục, không phải lời khuyên đầu tư (Not investment advice)"
+                )
+                ack2 = st.checkbox("Tôi hiểu có thể thua lỗ (Risk of loss)")
+                ack_live = (
+                    st.checkbox(
+                        "Tôi đủ điều kiện theo quy định và không yêu cầu hướng dẫn lách luật (Eligibility)"
+                    )
+                    if mode == "live"
+                    else False
+                )
+                if st.button("XÁC NHẬN THỰC HIỆN (Confirm execute)", disabled=not api_ready):
                     out = api.post(
                         "/simple/confirm_execute",
                         {
@@ -64,22 +205,36 @@ def render() -> None:
                             "mode": mode,
                             "acknowledged_educational": ack1,
                             "acknowledged_loss": ack2,
+                            "acknowledged_live_eligibility": ack_live,
                             "draft": draft,
                         },
                     )
                     st.json(out)
 
     with tab_compare:
-        symbols = st.text_input("Danh sách mã (phân tách dấu phẩy)", value="FPT,VNM,VCB")
-        lookback = st.slider("Số phiên backtest", 60, 756, 252)
-        if st.button("Chạy so sánh"):
+        symbols = st.text_input(
+            "Danh sách mã (1 mã hoặc 5–20 mã, phân tách dấu phẩy)",
+            value="FPT,VNM,VCB,MWG,HPG",
+        )
+        lookback = st.slider("Khoảng backtest (mặc định 1 năm / 252 phiên)", 60, 756, 252)
+        if st.button("Chạy so sánh (Run comparison)", disabled=not api_ready):
             rows = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+            if len(rows) != 1 and not (5 <= len(rows) <= 20):
+                st.error("Vui lòng nhập đúng 1 mã hoặc từ 5 đến 20 mã để so sánh.")
+                return
             resp = api.post(
                 "/simple/run_compare",
                 {"symbols": rows, "lookback_days": lookback, "timeframe": "1D"},
             )
-            st.warning(resp["warning"])
+            st.error(resp["warning"])
             st.dataframe(resp["leaderboard"], use_container_width=True)
+            chosen = st.selectbox(
+                "Dùng mô hình này cho bước 2 (Use this model)",
+                [row["model_id"] for row in resp["leaderboard"]],
+            )
+            if st.button("Áp dụng lựa chọn mô hình"):
+                st.session_state["simple_preferred_model"] = chosen
+                st.success(f"Đã lưu lựa chọn: {chosen}. Lưu ý: không tự động giao dịch.")
 
 
 def main() -> None:
