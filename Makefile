@@ -1,6 +1,6 @@
 .PHONY: setup run-api run-worker run-ui run-ui-kiosk run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke verify-regression
 
-PYTHONPATH := packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
+PYTHONPATH := .:services:packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
 PY := $(VENV)/bin/python
 PY_RUNTIME := $(shell [ -x $(PY) ] && echo $(PY) || echo python)
