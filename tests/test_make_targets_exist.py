@@ -7,6 +7,7 @@ def test_required_make_targets_exist() -> None:
     text = Path("Makefile").read_text(encoding="utf-8")
     required = {
         "quality-gate:",
+        "ui-guardrails:",
         "run-api:",
         "run-worker:",
         "run-ui:",

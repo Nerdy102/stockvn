@@ -1,4 +1,4 @@
-.PHONY: setup run-api run-worker run-ui run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate bronze-verify bronze-cleanup replay-smoke
+.PHONY: setup run-api run-worker run-ui run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke
 
 PYTHONPATH := packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
@@ -57,6 +57,9 @@ quality-gate:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_contract_hash_stability.py tests/test_schema_registry_versioning.py tests/test_bronze_to_silver_deterministic.py tests/test_silver_validations_reject_invalid.py tests/test_lineage_preserved.py tests/test_schema_monitor_detects_key_change.py tests/test_ci_forbidden_strings_guardrail.py tests/test_make_targets_exist.py tests/test_rt_harness.py tests/test_gateway_event_id_deterministic.py tests/test_gateway_dedup_skips_duplicates.py tests/test_event_log_rotation_checksum_verify.py tests/test_replay_publishes_ordered.py tests/test_bar_alignment_lunch_split.py tests/test_bar_hash_deterministic.py tests/test_late_event_correction_policy.py tests/test_redis_hot_cache_rolls_last_200.py tests/test_incremental_matches_batch.py tests/test_trend_definition_exact.py tests/test_intraday_cooldown_26_bars.py tests/test_alert_dsl_eval_on_bar_close.py tests/test_signal_idempotent.py
 	$(PY_RUNTIME) scripts/quality_gate.py
 
+ui-guardrails:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.ui_guardrail_check
+
 bronze-verify:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.bronze_verify
 
@@ -67,10 +70,10 @@ replay-smoke:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.replay_smoke
 
 rt-load-test:
-	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_load --symbols 500 --days 2 --seed 42 --out artifacts/verification/RT_LOAD_REPORT.json
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_load --symbols 500 --days 2 --seed 42 --dry-run --out artifacts/verification/RT_LOAD_REPORT.json
 
 rt-chaos-test:
-	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_chaos --seed 42 --out artifacts/verification/RT_CHAOS_REPORT.json
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.run_chaos --seed 42 --dry-run --out artifacts/verification/RT_CHAOS_REPORT.json
 
 rt-verify: rt-load-test rt-chaos-test
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m tools.realtime_harness.verify_invariants --events artifacts/verification/RT_LOAD_EVENTS.jsonl --out artifacts/verification/RT_VERIFY_REPORT.json
