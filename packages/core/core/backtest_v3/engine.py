@@ -146,6 +146,43 @@ def _slippage_bps(order_notional: float, dollar_volume: float, atr_pct: float, m
     return base_bps + k_atr * (atr_pct * 10000.0) + k_part * (order_notional / max(dollar_volume, 1.0))
 
 
+
+
+def _load_corp_actions_cfg(path: str = "configs/corp_actions.yaml") -> dict[str, Any]:
+    p = Path(path)
+    if not p.exists():
+        return {"enabled": False, "data_is_adjusted": "unknown", "apply_cash_dividend": True, "apply_split": True}
+    with p.open("r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def _load_corp_actions_for_symbol(symbol: str) -> list[dict[str, Any]]:
+    base = Path("data_drop/corporate_actions")
+    if not base.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for fp in sorted(base.glob("*.csv")):
+        try:
+            rows = pd.read_csv(fp)
+        except Exception:
+            continue
+        for _, r in rows.iterrows():
+            if str(r.get("symbol", "")).upper() != symbol.upper():
+                continue
+            out.append({
+                "symbol": str(r.get("symbol", "")).upper(),
+                "ex_date": str(r.get("ex_date", ""))[:10],
+                "action_type": str(r.get("action_type", "")).strip().lower(),
+                "amount": float(r.get("amount", 0.0) or 0.0),
+            })
+    out.sort(key=lambda x: (x.get("ex_date", ""), x.get("action_type", "")))
+    return out
+
+
+def _bar_date_str(row: pd.Series) -> str:
+    v = row.get("timestamp") or row.get("date")
+    return str(v)[:10]
+
 def _simulate_fill(order: OrderIntent, row: pd.Series, atr_pct: float, next_open: float | None, cfg: BacktestV3Config, fee_cfg: dict[str, Any], tax_rate: float) -> Fill:
     volume = float(row.get("volume", 0.0))
     max_fill_qty = int(math.floor(volume * cfg.participation_rate))
@@ -252,9 +289,23 @@ def run_backtest_v3(
     navs: list[float] = [cash]
 
     funding_map = {str(x.ts): float(x.funding_rate) for x in (funding_rates or [])}
+    ca_cfg = _load_corp_actions_cfg()
+    ca_events = _load_corp_actions_for_symbol(symbol) if bool(ca_cfg.get("enabled", False)) else []
 
     for i in range(len(w)):
         row = w.iloc[i]
+        row_date = _bar_date_str(row)
+        if ca_events and position > 0 and qty > 0:
+            for ev in [x for x in ca_events if x.get("ex_date") == row_date]:
+                a_type = str(ev.get("action_type", "")).lower()
+                amount = float(ev.get("amount", 0.0) or 0.0)
+                data_adj = str(ca_cfg.get("data_is_adjusted", "unknown")).lower()
+                if a_type == "cash_dividend" and bool(ca_cfg.get("apply_cash_dividend", True)):
+                    cash += float(qty) * amount
+                if a_type == "split" and bool(ca_cfg.get("apply_split", True)) and data_adj == "unadjusted":
+                    if amount > 0:
+                        qty = int(round(float(qty) * amount))
+                        entry_price = float(entry_price) / amount
         hist = w.iloc[: i + 1].copy()
         signal = signal_fn(hist)
         desired = _desired_position(signal, config.position_mode)

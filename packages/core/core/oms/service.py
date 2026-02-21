@@ -11,6 +11,7 @@ from core.brokers.live_stub import LiveBrokerStub
 from core.brokers.paper import PaperBroker
 from core.brokers.sandbox import SandboxBroker
 from core.oms.models import Fill, Order, OrderEvent, PortfolioSnapshot
+from core.tca.service import compute_tca_for_order
 from core.risk.gate import evaluate_pretrade
 from core.settings import Settings
 from fastapi import HTTPException
@@ -77,6 +78,13 @@ def _transition(session: Session, order: Order, to_status: str, event_type: str,
     session.add(event)
 
 
+
+
+def _normalize_execution_pref(v: Any) -> str:
+    t = str(v or "close").strip().lower()
+    if "next" in t:
+        return "next_bar"
+    return "close"
 def create_draft(order_draft_request: dict[str, Any], session: Session) -> Order:
     idem = build_idempotency_key(order_draft_request)
     existing = session.exec(select(Order).where(Order.idempotency_key == idem)).first()
@@ -90,6 +98,7 @@ def create_draft(order_draft_request: dict[str, Any], session: Session) -> Order
         timeframe=str(order_draft_request.get("timeframe", "1D")),
         mode=str(order_draft_request.get("mode", "paper")),
         order_type=str(order_draft_request.get("order_type", "market")),
+        execution_pref=_normalize_execution_pref(order_draft_request.get("execution_pref") or order_draft_request.get("execution")),
         side=str(order_draft_request["side"]).upper(),
         qty=float(order_draft_request["qty"]),
         price=order_draft_request.get("price"),
@@ -223,6 +232,8 @@ def handle_fill(order_id: str, fill: dict[str, Any], session: Session) -> Order:
     )
     session.commit()
     session.refresh(order)
+    if order.status == "FILLED":
+        compute_tca_for_order(session, order_id)
     return order
 
 
@@ -244,4 +255,7 @@ def cancel(order_id: str, session: Session) -> Order:
     _transition(session, order, "CANCELLED", "CANCEL", {"cancel": True})
     session.commit()
     session.refresh(order)
+    prev_events = session.exec(select(OrderEvent).where(OrderEvent.order_id == order_id).order_by(OrderEvent.ts.asc())).all()
+    if any(e.to_status == "PARTIAL_FILLED" for e in prev_events):
+        compute_tca_for_order(session, order_id)
     return order

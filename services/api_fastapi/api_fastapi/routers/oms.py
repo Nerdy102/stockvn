@@ -48,6 +48,7 @@ class OrderDraftIn(BaseModel):
     config_hash: str = ""
     dataset_hash: str = ""
     code_hash: str = ""
+    execution_pref: str = Field(default="giá đóng cửa (close)", pattern=r"^(giá đóng cửa \(close\)|thanh nến kế tiếp \(next-bar\)|close|next_bar)$")
     ts_bucket: str | None = None
 
 

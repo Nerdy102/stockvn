@@ -36,6 +36,7 @@ from core.quant_validation_advanced import compute_cscv_pbo, compute_rc_spa
 from core.portfolio_alloc.allocators import hrp as alloc_hrp, inverse_vol
 from core.risk_tail.var_es import es_historical, var_historical
 from core.universe.manager import UniverseManager
+from core.tca.models import OrderTCA
 from data.providers.factory import get_provider
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
@@ -64,7 +65,7 @@ class RunSignalIn(BaseModel):
 
 
 class RunCompareIn(BaseModel):
-    symbols: list[str] = Field(default_factory=list, min_length=1, max_length=50)
+    symbols: list[str] = Field(default_factory=list, min_length=0, max_length=50)
     timeframe: str = "1D"
     lookback_days: int = Field(default=252, ge=60, le=756)
     detail_level: str = Field(default="tóm tắt", pattern="^(tóm tắt|chi tiết)$")
@@ -81,6 +82,7 @@ class RunCompareIn(BaseModel):
     engine_version: str = Field(default="v2", pattern="^(v2|v3)$")
     lookback_sessions: int = Field(default=252, ge=60, le=756)
     universe_size: int = Field(default=20, ge=1, le=50)
+    universe: str = Field(default="VN30", pattern="^(ALL|VN30|VNINDEX)$")
     enable_bootstrap: bool = False
     bootstrap_n_iter: int = Field(default=200, ge=10)
     bootstrap_b: int = Field(default=300, ge=50, le=500)
@@ -217,10 +219,10 @@ def _as_of_date_for_symbols(provider: Any, symbols: list[str], timeframe: str) -
 
 
 def _resolve_universe_symbols(
-    db: Session, universe: str, limit: int = MAX_UNIVERSE_SCAN
+    db: Session, universe: str, limit: int = MAX_UNIVERSE_SCAN, as_of: dt.date | None = None
 ) -> list[str]:
     manager = UniverseManager(db)
-    as_of = dt.date.today()
+    as_of = as_of or dt.date.today()
     symbols, _ = manager.universe(date=as_of, name=universe)
     out = sorted(set(symbols))[:limit]
     if not out:
@@ -858,6 +860,20 @@ def _system_health_summary_for_kiosk(db: Session, as_of_date: str) -> dict[str, 
         "drift_state": "PAUSED" if str(control.paused_reason_code or "").upper() in {"DRIFT_PAUSED", "PAUSED_BY_SYSTEM"} else "OK",
     }
 
+
+
+def _execution_quality_from_tca(db: Session) -> str:
+    rows = db.exec(select(OrderTCA).order_by(OrderTCA.created_at.desc()).limit(50)).all()
+    if not rows:
+        return "Vừa"
+    vals = sorted(float(r.is_bps_total) for r in rows)
+    med = vals[len(vals)//2]
+    if med <= 10:
+        return "Tốt"
+    if med <= 30:
+        return "Vừa"
+    return "Xấu"
+
 def _kiosk_market_text(summary: dict[str, Any], as_of_date: str) -> list[str]:
     brief = build_market_brief(
         as_of_date=as_of_date,
@@ -904,9 +920,10 @@ def get_kiosk_v3(
         include_trades=False,
         enable_bootstrap=False,
     )
-    compare_out = run_compare_api(compare_payload)
+    compare_out = _run_compare_impl(compare_payload, db)
     best = (compare_out.get("leaderboard") or [{}])[0]
     readiness_summary = {
+        "execution_quality": _execution_quality_from_tca(db),
         "stability_score": readiness["stability_score"],
         "worst_case_net_return": readiness["worst_case_net_return"],
         "worst_case_mdd": readiness["worst_case_mdd"],
@@ -1300,8 +1317,7 @@ def _story_for_model(
     return story_summary, example, drop
 
 
-@router.post("/run_compare")
-def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
+def _run_compare_impl(payload: RunCompareIn, db: Session) -> dict[str, Any]:
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
@@ -1321,7 +1337,10 @@ def run_compare_api(payload: RunCompareIn) -> dict[str, Any]:
     bootstrap_n_iter = min(max(int(payload.bootstrap_n_iter), 10), 500)
     include_equity_curve = payload.include_equity_curve or is_detail
     include_trades = payload.include_trades or is_detail
+    start_date = end - dt.timedelta(days=payload.lookback_days)
     symbols = payload.symbols[: payload.universe_size]
+    if not symbols:
+        symbols = _resolve_universe_symbols(db=db, universe=payload.universe, limit=payload.universe_size, as_of=start_date)
     n_trials_expected = len(symbols) * 3
     if n_trials_expected > 60:
         raise HTTPException(status_code=422, detail={"message": "quá nhiều trial, tối đa 60", "reason_code": "TOO_MANY_TRIALS"})
@@ -1693,6 +1712,12 @@ def create_order_draft(payload: CreateDraftIn) -> dict[str, Any]:
         "signal": signal.model_dump(),
         "draft": None if draft is None else draft.model_dump(),
     }
+
+
+
+@router.post("/run_compare")
+def run_compare_api(payload: RunCompareIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    return _run_compare_impl(payload, db)
 
 
 @router.post("/confirm_execute")

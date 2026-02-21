@@ -1,0 +1,4 @@
+enabled: false
+data_is_adjusted: unknown
+apply_cash_dividend: true
+apply_split: true

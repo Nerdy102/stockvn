@@ -62,6 +62,7 @@ def render_card_readiness(readiness: dict[str, Any], advanced: dict[str, Any], h
     st.caption(
         f"Cơ sở dữ liệu (DB): {'Tốt' if health.get('db_ok') else 'Lỗi'} • Độ mới dữ liệu: {'Tốt' if health.get('data_freshness_ok') else 'Cũ'} • Đối soát: {health.get('last_reconcile_ts','Không có')}"
     )
+    st.write(f"Chất lượng khớp lệnh (Execution quality): {readiness.get('execution_quality', 'Vừa')}")
     st.write(f"Tin cậy thống kê: {readiness.get('tin_cay_thong_ke', 'Thấp')}")
     st.write(f"Rủi ro chọn nhầm mô hình (PBO): {readiness.get('pbo_bucket', 'Chưa đủ mẫu')}")
     p_spa = readiness.get('rc_spa_p')

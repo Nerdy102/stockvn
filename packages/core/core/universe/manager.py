@@ -6,7 +6,7 @@ import pandas as pd
 from sqlmodel import Session, select
 
 from core.calendar_vn import get_trading_calendar_vn
-from core.db.models import IndexMembership, PriceOHLCV, TickerLifecycle, UniverseAudit
+from core.db.models import IndexMembership, PriceOHLCV, TickerLifecycle, UniverseAudit, UniverseSnapshot
 
 
 class UniverseManager:
@@ -41,12 +41,31 @@ class UniverseManager:
             return {str(symbol).upper() for symbol in rows}
 
         if preset in {"VNINDEX", "VN30"}:
+            snap = self._snapshot_members_at(date=date, universe_name=preset)
+            if snap:
+                return snap
             members = self._members_at(date=date, index_code=preset)
             if preset == "VN30" and not members:
                 return self._members_at(date=date, index_code="VNINDEX")
             return members
 
         return set()
+
+
+    def _snapshot_members_at(self, date: dt.date, universe_name: str) -> set[str]:
+        row = self.db.exec(
+            select(UniverseSnapshot)
+            .where(UniverseSnapshot.universe_name == universe_name)
+            .where(UniverseSnapshot.snapshot_date <= date)
+            .order_by(UniverseSnapshot.snapshot_date.desc())
+        ).first()
+        if row is None:
+            return set()
+        if isinstance(row.symbols_json, dict):
+            symbols = row.symbols_json.get("symbols", [])
+        else:
+            symbols = []
+        return {str(s).upper() for s in symbols}
 
     def _members_at(self, date: dt.date, index_code: str) -> set[str]:
         rows = self.db.exec(
