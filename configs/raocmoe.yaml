@@ -1,0 +1,137 @@
+timeframes: ["15m", "60m", "1D"]
+primary_tf_realtime: "15m"
+alpha_target_horizons:
+  - name: "h1"
+    steps: 1
+    target_miscoverage: 0.10
+  - name: "h5"
+    steps: 5
+    target_miscoverage: 0.10
+max_history_bars_state: 200
+random_seed: 42
+cpd:
+  enabled: true
+  detectors:
+    mean_shift:
+      statistic: "cusum_mean"
+      robust_clip: 5.0
+      threshold_base: 8.0
+      alpha_budget: 0.25
+    vol_shift:
+      statistic: "cusum_var"
+      robust_clip: 5.0
+      threshold_base: 10.0
+      alpha_budget: 0.25
+    corr_shift:
+      statistic: "cusum_corr_index"
+      robust_clip: 5.0
+      threshold_base: 9.0
+      alpha_budget: 0.25
+    liq_shift:
+      statistic: "cusum_liquidity"
+      robust_clip: 5.0
+      threshold_base: 9.0
+      alpha_budget: 0.25
+  grid:
+    geometric_base: 2
+    max_candidates: 64
+  cooldown_bars_after_cp: 8
+regime:
+  states: ["TREND_UP", "SIDEWAYS", "RISK_OFF", "PANIC_VOL"]
+  hysteresis:
+    p_on: 0.65
+    p_off: 0.45
+    cooldown_bars: 8
+  transition_matrix:
+    TREND_UP: {TREND_UP: 0.85, SIDEWAYS: 0.10, RISK_OFF: 0.04, PANIC_VOL: 0.01}
+    SIDEWAYS: {TREND_UP: 0.12, SIDEWAYS: 0.75, RISK_OFF: 0.10, PANIC_VOL: 0.03}
+    RISK_OFF: {TREND_UP: 0.05, SIDEWAYS: 0.15, RISK_OFF: 0.70, PANIC_VOL: 0.10}
+    PANIC_VOL: {TREND_UP: 0.03, SIDEWAYS: 0.07, RISK_OFF: 0.20, PANIC_VOL: 0.70}
+  feature_weights:
+    TREND_UP: {trend_strength: 2.0, realized_vol: -0.5, corr_index: -0.5, liq_stress: -0.5, cpd_score: -0.2}
+    SIDEWAYS: {trend_strength: -0.2, realized_vol: -0.2, corr_index: 0.0, liq_stress: 0.0, cpd_score: -0.1}
+    RISK_OFF: {trend_strength: -0.8, realized_vol: 1.0, corr_index: 1.2, liq_stress: 1.0, cpd_score: 0.5}
+    PANIC_VOL: {trend_strength: -1.0, realized_vol: 2.0, corr_index: 1.6, liq_stress: 2.0, cpd_score: 1.0}
+uq:
+  enabled: true
+  score:
+    type: "abs_residual"
+    scale_by_vol: true
+  aci:
+    gamma_base: 0.02
+    gamma_min: 0.005
+    gamma_max: 0.08
+    adaptive_gamma:
+      enabled: true
+      psi_weight: 0.25
+      cpd_weight: 0.25
+  pooling:
+    mode: "sector_conservative_max"
+    sector_map_source: "tickers"
+    min_pool_size: 200
+  regime_calibrators:
+    enabled: true
+    warm_start_scores: 50
+    max_scores_per_pool: 2000
+  coverage_monitor:
+    rolling_window: 300
+    undercoverage_tolerance: 0.03
+    consecutive_breaches_to_pause: 3
+moe:
+  enabled: true
+  experts: ["FACTOR_ML", "TREND_TECH", "MEANREV_VWAP", "DEFENSIVE_LOWVOL"]
+  routing:
+    eta: 0.25
+    loss_clip: 5.0
+    per_regime_weights: true
+    init_weights: "uniform"
+  outputs:
+    mu_clip: 0.10
+portfolio:
+  long_only: true
+  target_cash_min: 0.10
+  max_single_weight: 0.10
+  max_sector_weight: 0.25
+  turnover_cap_l1: 0.25
+  no_trade_band_abs: 0.002
+  liquidity:
+    participation_limit: 0.05
+    days_to_exit: 3
+  risk:
+    vol_target_annual: 0.18
+    drawdown_guard:
+      enabled: true
+      max_dd_pause: 0.10
+      max_daily_loss_pause: 0.03
+  robust:
+    enabled: true
+    uncertainty_penalty_lambda: 0.35
+    uncertainty_set: "box"
+    worst_case: true
+execution:
+  use_market_rules: true
+  use_cost_model_cfg: true
+  tca:
+    enabled: true
+    model: "online_huber_regression"
+    huber_delta: 1.5
+    lr: 0.05
+    features: ["participation", "atr_pct", "spread_proxy", "session_flag", "regime_id", "limit_distance_ticks"]
+  tca_cpd:
+    enabled: true
+    detector: "cusum_mean"
+    threshold_base: 8.5
+    cooldown_bars: 12
+  limit_fill_penalty:
+    buy_at_upper_limit_mult: 0.2
+    sell_at_lower_limit_mult: 0.2
+gov:
+  enabled: true
+  paused_default: false
+  reasons: ["UQ_UNDERCOVERAGE", "DRIFT_HIGH", "TCA_REGIME_SHIFT", "DATA_STALE", "RECONCILE_MISMATCH"]
+  actions:
+    on_pause: "TARGET_CASH_ONLY"
+    on_derisk: "SCALE_DOWN"
+  derisk_scale:
+    risk_off: 0.5
+    panic_vol: 0.0
