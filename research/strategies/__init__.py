@@ -5,6 +5,10 @@ from . import (
     baseline_mom20,
     raocmoe_adapter,
     user_strategy_adapter,
+    user_v0_current,
+    user_v1_stability_pack,
+    user_v2_cost_aware,
+    user_v3_regime_uq_gated,
 )
 
 __all__ = [
@@ -14,4 +18,8 @@ __all__ = [
     "baseline_mom20",
     "raocmoe_adapter",
     "user_strategy_adapter",
+    "user_v0_current",
+    "user_v1_stability_pack",
+    "user_v2_cost_aware",
+    "user_v3_regime_uq_gated",
 ]

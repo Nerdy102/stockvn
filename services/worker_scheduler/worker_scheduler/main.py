@@ -32,6 +32,7 @@ from worker_scheduler.jobs import (
     ingest_prices_job,
     job_alert_sla_escalation_daily,
     job_alert_digest_daily,
+    job_run_pending_interactive_runs,
 )
 
 settings = get_settings()
@@ -117,6 +118,13 @@ def main() -> None:
         job_log.info("worker_job_completed", extra={"event": "worker_job"})
 
 
+    def job_interactive_runs() -> None:
+        job_log = get_logger(__name__, job_id="interactive_runs")
+        with Session(engine) as session:
+            processed = job_run_pending_interactive_runs(session)
+        if processed:
+            job_log.info("worker_job_completed", extra={"event": "worker_job", "processed": processed})
+
     def job_alert_ops() -> None:
         job_log = get_logger(__name__, job_id="alerts_ops")
         with Session(engine) as session:
@@ -141,6 +149,7 @@ def main() -> None:
         job_nightly_parquet_export()
         job_alert_ops()
         job_bronze_cleanup()
+        job_interactive_runs()
         return
 
     scheduler = BlockingScheduler(timezone="UTC")
@@ -222,6 +231,14 @@ def main() -> None:
         minute=10,
         id="bronze_retention_cleanup",
         replace_existing=True,
+    )
+    scheduler.add_job(
+        job_interactive_runs,
+        "interval",
+        seconds=3,
+        id="interactive_runs",
+        replace_existing=True,
+        max_instances=1,
     )
 
     log.info("worker_started", extra={"event": "worker_startup"})

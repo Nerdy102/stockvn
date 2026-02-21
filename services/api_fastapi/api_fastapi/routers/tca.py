@@ -4,7 +4,8 @@ import datetime as dt
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select
+from sqlalchemy.exc import OperationalError
+from sqlmodel import SQLModel, Session, select
 
 from api_fastapi.deps import get_db
 from core.tca.models import OrderTCA
@@ -14,10 +15,25 @@ router = APIRouter(prefix="/tca", tags=["tca"])
 
 
 @router.get("/summary")
-def tca_summary(limit: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)) -> dict[str, Any]:
-    rows = db.exec(select(OrderTCA).order_by(OrderTCA.created_at.desc()).limit(limit)).all()
+def tca_summary(
+    limit: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)
+) -> dict[str, Any]:
+    try:
+        SQLModel.metadata.create_all(db.get_bind(), tables=[OrderTCA.__table__])
+        rows = db.exec(select(OrderTCA).order_by(OrderTCA.created_at.desc()).limit(limit)).all()
+    except OperationalError:
+        rows = []
     if not rows:
-        return {"overall": {"median_is_bps": 0.0, "p95_is_bps": 0.0, "good_rate": 0.0, "last_updated": None}, "by_model": {}, "by_market": {}}
+        return {
+            "overall": {
+                "median_is_bps": 0.0,
+                "p95_is_bps": 0.0,
+                "good_rate": 0.0,
+                "last_updated": None,
+            },
+            "by_model": {},
+            "by_market": {},
+        }
     bps = sorted(float(r.is_bps_total) for r in rows)
     median = bps[len(bps) // 2]
     p95 = bps[min(len(bps) - 1, int(0.95 * (len(bps) - 1)))]
@@ -45,7 +61,14 @@ def tca_summary(limit: int = Query(default=50, ge=1, le=200), db: Session = Depe
 
 @router.get("/orders/{order_id}")
 def tca_order_detail(order_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
-    row = db.exec(select(OrderTCA).where(OrderTCA.order_id == order_id)).first()
+    try:
+        SQLModel.metadata.create_all(db.get_bind(), tables=[OrderTCA.__table__])
+        row = db.exec(select(OrderTCA).where(OrderTCA.order_id == order_id)).first()
+    except OperationalError:
+        row = None
     if row is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy TCA cho lệnh.", "reason_code": "TCA_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy TCA cho lệnh.", "reason_code": "TCA_NOT_FOUND"},
+        )
     return {"item": row.model_dump()}

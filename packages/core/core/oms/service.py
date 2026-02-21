@@ -62,9 +62,17 @@ def _confirm_token(order_id: str, created_at: dt.datetime) -> str:
     return hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
 
 
-def _transition(session: Session, order: Order, to_status: str, event_type: str, payload: dict[str, Any]) -> None:
+def _transition(
+    session: Session, order: Order, to_status: str, event_type: str, payload: dict[str, Any]
+) -> None:
     if to_status not in _ALLOWED_TRANSITIONS.get(order.status, set()):
-        raise HTTPException(status_code=409, detail={"message": "Chuyển trạng thái không hợp lệ.", "reason_code": "INVALID_STATE_TRANSITION"})
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Chuyển trạng thái không hợp lệ.",
+                "reason_code": "INVALID_STATE_TRANSITION",
+            },
+        )
     event = OrderEvent(
         order_id=order.id,
         from_status=order.status,
@@ -78,13 +86,13 @@ def _transition(session: Session, order: Order, to_status: str, event_type: str,
     session.add(event)
 
 
-
-
 def _normalize_execution_pref(v: Any) -> str:
     t = str(v or "close").strip().lower()
     if "next" in t:
         return "next_bar"
     return "close"
+
+
 def create_draft(order_draft_request: dict[str, Any], session: Session) -> Order:
     idem = build_idempotency_key(order_draft_request)
     existing = session.exec(select(Order).where(Order.idempotency_key == idem)).first()
@@ -98,7 +106,9 @@ def create_draft(order_draft_request: dict[str, Any], session: Session) -> Order
         timeframe=str(order_draft_request.get("timeframe", "1D")),
         mode=str(order_draft_request.get("mode", "paper")),
         order_type=str(order_draft_request.get("order_type", "market")),
-        execution_pref=_normalize_execution_pref(order_draft_request.get("execution_pref") or order_draft_request.get("execution")),
+        execution_pref=_normalize_execution_pref(
+            order_draft_request.get("execution_pref") or order_draft_request.get("execution")
+        ),
         side=str(order_draft_request["side"]).upper(),
         qty=float(order_draft_request["qty"]),
         price=order_draft_request.get("price"),
@@ -133,16 +143,33 @@ def create_draft(order_draft_request: dict[str, Any], session: Session) -> Order
     return order
 
 
-def approve(order_id: str, confirm_token: str, checkboxes: dict[str, bool], session: Session) -> Order:
+def approve(
+    order_id: str, confirm_token: str, checkboxes: dict[str, bool], session: Session
+) -> Order:
     order = session.get(Order, order_id)
     if order is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"},
+        )
     if order.confirm_used_at is not None:
-        raise HTTPException(status_code=409, detail={"message": "Token xác nhận đã dùng.", "reason_code": "CONFIRM_ALREADY_USED"})
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "Token xác nhận đã dùng.", "reason_code": "CONFIRM_ALREADY_USED"},
+        )
     if confirm_token != order.confirm_token:
-        raise HTTPException(status_code=403, detail={"message": "Token xác nhận không hợp lệ.", "reason_code": "CONFIRM_INVALID"})
+        raise HTTPException(
+            status_code=403,
+            detail={"message": "Token xác nhận không hợp lệ.", "reason_code": "CONFIRM_INVALID"},
+        )
     if not all(bool(v) for v in checkboxes.values()):
-        raise HTTPException(status_code=400, detail={"message": "Cần tích đầy đủ checkbox xác nhận.", "reason_code": "CONFIRM_CHECKBOX_REQUIRED"})
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Cần tích đầy đủ checkbox xác nhận.",
+                "reason_code": "CONFIRM_CHECKBOX_REQUIRED",
+            },
+        )
 
     _transition(session, order, "APPROVED", "APPROVE", {"checkboxes": checkboxes})
     order.confirm_used_at = dt.datetime.utcnow()
@@ -153,10 +180,21 @@ def approve(order_id: str, confirm_token: str, checkboxes: dict[str, bool], sess
 
 def _pick_broker(settings: Settings, mode: str, risk_input: dict[str, Any]):
     if mode == "live":
-        if not settings.ENABLE_LIVE_TRADING:
-            raise HTTPException(status_code=403, detail={"message": "Live trading đang tắt.", "reason_code": "LIVE_DISABLED"})
-        if settings.REQUIRE_SANDBOX_PASS_BEFORE_LIVE and not bool(risk_input.get("sandbox_passed", False)):
-            raise HTTPException(status_code=403, detail={"message": "Sandbox chưa PASS, chưa được bật live.", "reason_code": "SANDBOX_REQUIRED"})
+        if (not settings.ENABLE_LIVE_TRADING) or settings.TRADING_ENV != "live":
+            raise HTTPException(
+                status_code=403,
+                detail={"message": "Live trading đang tắt.", "reason_code": "LIVE_DISABLED"},
+            )
+        if settings.REQUIRE_SANDBOX_PASS_BEFORE_LIVE and not bool(
+            risk_input.get("sandbox_passed", False)
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "message": "Sandbox chưa PASS, chưa được bật live.",
+                    "reason_code": "SANDBOX_REQUIRED",
+                },
+            )
         return LiveBrokerStub()
     if mode == "paper":
         return PaperBroker()
@@ -166,7 +204,10 @@ def _pick_broker(settings: Settings, mode: str, risk_input: dict[str, Any]):
 def send(order_id: str, session: Session, settings: Settings, risk_input: dict[str, Any]) -> Order:
     order = session.get(Order, order_id)
     if order is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"},
+        )
 
     order_payload = order.model_dump()
     order_payload.update(risk_input.get("order_overrides") or {})
@@ -177,7 +218,9 @@ def send(order_id: str, session: Session, settings: Settings, risk_input: dict[s
         drift_alerts=risk_input.get("drift_alerts") or {},
     )
     if not allowed:
-        raise HTTPException(status_code=403, detail={"message": message_vi, "reason_code": reason_code})
+        raise HTTPException(
+            status_code=403, detail={"message": message_vi, "reason_code": reason_code}
+        )
 
     broker = _pick_broker(settings, order.mode, risk_input)
     _transition(session, order, "SENT", "SEND", {"mode": order.mode})
@@ -191,8 +234,13 @@ def send(order_id: str, session: Session, settings: Settings, risk_input: dict[s
 def handle_ack(order_id: str, broker_resp: dict[str, Any], session: Session) -> Order:
     order = session.get(Order, order_id)
     if order is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"})
-    _transition(session, order, "ACKED", "ACK", {"broker_resp": {"status": broker_resp.get("status")}})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"},
+        )
+    _transition(
+        session, order, "ACKED", "ACK", {"broker_resp": {"status": broker_resp.get("status")}}
+    )
     session.commit()
     session.refresh(order)
     return order
@@ -201,7 +249,10 @@ def handle_ack(order_id: str, broker_resp: dict[str, Any], session: Session) -> 
 def handle_fill(order_id: str, fill: dict[str, Any], session: Session) -> Order:
     order = session.get(Order, order_id)
     if order is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"},
+        )
 
     fill_qty = float(fill.get("fill_qty", 0.0))
     session.add(
@@ -240,7 +291,10 @@ def handle_fill(order_id: str, fill: dict[str, Any], session: Session) -> Order:
 def handle_reject(order_id: str, reason: str, session: Session) -> Order:
     order = session.get(Order, order_id)
     if order is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"},
+        )
     _transition(session, order, "REJECTED", "REJECT", {"reason": reason})
     order.reason_short = reason
     session.commit()
@@ -251,11 +305,16 @@ def handle_reject(order_id: str, reason: str, session: Session) -> Order:
 def cancel(order_id: str, session: Session) -> Order:
     order = session.get(Order, order_id)
     if order is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"},
+        )
     _transition(session, order, "CANCELLED", "CANCEL", {"cancel": True})
     session.commit()
     session.refresh(order)
-    prev_events = session.exec(select(OrderEvent).where(OrderEvent.order_id == order_id).order_by(OrderEvent.ts.asc())).all()
+    prev_events = session.exec(
+        select(OrderEvent).where(OrderEvent.order_id == order_id).order_by(OrderEvent.ts.asc())
+    ).all()
     if any(e.to_status == "PARTIAL_FILLED" for e in prev_events):
         compute_tca_for_order(session, order_id)
     return order

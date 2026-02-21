@@ -16,6 +16,13 @@ _PAGE_FILES = [
     "8_Data_Health.py",
     "9_Settings.py",
     "10_New_Orders.py",
+    "11_Quant_Console.py",
+    "12_RAOCMOE_Lab.py",
+    "13_Eval_Lab.py",
+    "14_Run_Manager.py",
+    "15_Data_Manager.py",
+    "16_Config_Editor.py",
+    "17_Realtime_Console.py",
 ]
 
 

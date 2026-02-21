@@ -660,6 +660,29 @@ class JobRun(SQLModel, table=True):
     rows_out: int = 0
 
 
+class InteractiveRun(SQLModel, table=True):
+    __tablename__ = "interactive_runs"
+    __table_args__ = (
+        Index("ix_interactive_runs_created", "created_at"),
+        Index("ix_interactive_runs_type_status", "run_type", "status"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True, unique=True)
+    run_type: str = Field(index=True)
+    status: str = Field(default="PENDING", index=True)
+    created_at: dt.datetime = Field(default_factory=utcnow, index=True)
+    started_at: dt.datetime | None = None
+    finished_at: dt.datetime | None = None
+    params_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+    dataset_hash: str = Field(default="")
+    config_hash: str = Field(default="")
+    code_hash: str = Field(default="")
+    artifacts_dir: str = Field(default="")
+    error_message: str | None = None
+    tags: str | None = None
+
+
 class DataQualityMetric(SQLModel, table=True):
     __tablename__ = "data_quality_metrics"
     __table_args__ = (Index("ix_dq_date_provider", "metric_date", "provider"),)

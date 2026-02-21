@@ -1,16 +1,24 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from api_fastapi.main import create_app
 from data.etl.pipeline import ingest_from_fixtures
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from core.db.session import get_engine
+from core.db.session import create_db_and_tables, get_engine
 from worker_scheduler.jobs import compute_indicators_incremental
 
 
-def test_integration_ingest_compute_train_backtest_smoke() -> None:
-    engine = get_engine("sqlite:///./vn_invest.db")
+def test_integration_ingest_compute_train_backtest_smoke(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_url = f"sqlite:///{tmp_path / 'integration_ml_pipeline.db'}"
+    monkeypatch.setenv("DATABASE_URL", db_url)
+    create_db_and_tables(db_url)
+    engine = get_engine(db_url)
     with Session(engine) as s:
         ingest_from_fixtures(s)
         compute_indicators_incremental(s)
