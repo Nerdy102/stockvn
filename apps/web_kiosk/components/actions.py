@@ -18,6 +18,19 @@ def _suggestion_from_reason(reason_code: str) -> str:
     return mapping.get(reason_code, "Gợi ý: xem audit và điều chỉnh cấu hình rủi ro.")
 
 
+def _extract_error_detail(exc: Exception) -> tuple[str, str]:
+    reason_code = "UNKNOWN"
+    detail = str(exc)
+    if hasattr(exc, "response") and getattr(exc, "response", None) is not None:
+        try:
+            body = exc.response.json()
+            detail = str(body)
+            reason_code = str((body.get("detail") or {}).get("reason_code", "UNKNOWN"))
+        except Exception:
+            pass
+    return detail, reason_code
+
+
 def render_action_bar(as_of_date: str) -> None:
     st.subheader("Thanh hành động (Action bar)")
     signal = st.session_state.get("selected_signal")
@@ -40,9 +53,14 @@ def render_action_bar(as_of_date: str) -> None:
             "reason_short": signal.get("reason_short", ""),
             "risk_tags_json": {"risk_tags": signal.get("risk_tags", [])},
         }
-        out = api.post("/oms/draft", payload)
-        st.session_state["oms_draft"] = out.get("order")
-        st.success("Tạo lệnh nháp thành công.")
+        try:
+            out = api.post("/oms/draft", payload)
+            st.session_state["oms_draft"] = out.get("order")
+            st.success("Tạo lệnh nháp thành công.")
+        except Exception as exc:
+            detail, reason_code = _extract_error_detail(exc)
+            st.error(f"Không thể tạo lệnh nháp: {detail}")
+            st.warning(_suggestion_from_reason(reason_code))
 
     draft = st.session_state.get("oms_draft")
     ack_loss = st.checkbox("Tôi hiểu có thể thua lỗ (Risk of loss)", key="kiosk_v3_ack_loss")
@@ -78,14 +96,6 @@ def render_action_bar(as_of_date: str) -> None:
             st.caption(f"Audit: /oms/audit • Order ID: {draft['id']}")
             st.json({"approve": approve, "execute": execute})
         except Exception as exc:
-            reason_code = "UNKNOWN"
-            detail = str(exc)
-            if hasattr(exc, "response") and getattr(exc, "response", None) is not None:
-                try:
-                    body = exc.response.json()
-                    detail = str(body)
-                    reason_code = str((body.get("detail") or {}).get("reason_code", "UNKNOWN"))
-                except Exception:
-                    pass
+            detail, reason_code = _extract_error_detail(exc)
             st.error(f"Bị chặn/thất bại: {detail}")
             st.warning(_suggestion_from_reason(reason_code))

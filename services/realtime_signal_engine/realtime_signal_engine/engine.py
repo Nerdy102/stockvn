@@ -30,8 +30,31 @@ class RealtimeSignalEngine:
         self._signal_latency_s = RollingSLO()
 
     def _read_bar_close_stream(self, tf: str) -> list[dict[str, Any]]:
-        rows = self.redis.xrange(f"stream:bar_close:{tf}")
+        stream = f"stream:bar_close:{tf}"
+        cursor_key = f"cursor:bar_close:{tf}"
         out: list[dict[str, Any]] = []
+
+        if (
+            hasattr(self.redis, "xread")
+            and hasattr(self.redis, "get")
+            and hasattr(self.redis, "set")
+        ):
+            last_id = self.redis.get(cursor_key) or "0-0"
+            items = self.redis.xread({stream: last_id}, block=1000, count=1000)
+            if not items:
+                return out
+            _, rows = items[0]
+            for _, fields in rows:
+                payload = fields.get("payload")
+                if isinstance(payload, str):
+                    out.append(json.loads(payload))
+                elif isinstance(payload, dict):
+                    out.append(payload)
+            if rows:
+                self.redis.set(cursor_key, rows[-1][0])
+            return out
+
+        rows = self.redis.xrange(stream)
         for _, fields in rows:
             payload = fields.get("payload")
             if isinstance(payload, str):
@@ -97,7 +120,9 @@ class RealtimeSignalEngine:
                 setups = evaluate_setups(hdf, indicators)
                 paused = governance_paused_flag(self.config)
                 signal_ts = dt.datetime.utcnow()
-                lag_signal_s = max(0.0, (signal_ts.replace(tzinfo=end_ts.tzinfo) - end_ts).total_seconds())
+                lag_signal_s = max(
+                    0.0, (signal_ts.replace(tzinfo=end_ts.tzinfo) - end_ts).total_seconds()
+                )
                 self._signal_latency_s.add(lag_signal_s)
 
                 snapshot = {
@@ -139,12 +164,18 @@ class RealtimeSignalEngine:
                     if setups.get("volume_spike", False):
                         self.state.push_hot("volume_spike", payload)
 
-        slo = build_slo_snapshot(service="signal_engine", signal_latency=self._signal_latency_s.snapshot())
-        self.state.set_ops_summary({"last_update": now.isoformat() + "Z", "lag": 0, **metrics, "slo": slo})
+        slo = build_slo_snapshot(
+            service="signal_engine", signal_latency=self._signal_latency_s.snapshot()
+        )
+        self.state.set_ops_summary(
+            {"last_update": now.isoformat() + "Z", "lag": 0, **metrics, "slo": slo}
+        )
         return metrics
 
     def metrics_view(self) -> dict[str, Any]:
-        snap = build_slo_snapshot(service="signal_engine", signal_latency=self._signal_latency_s.snapshot())
+        snap = build_slo_snapshot(
+            service="signal_engine", signal_latency=self._signal_latency_s.snapshot()
+        )
         out: dict[str, Any] = {}
         out.update(snapshot_to_metrics_json(snap))
         return out

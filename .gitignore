@@ -26,3 +26,5 @@ evidence/
 
 data_drop/corporate_actions/
 data_drop/universe_snapshots/
+
+configs/secrets_local.py
