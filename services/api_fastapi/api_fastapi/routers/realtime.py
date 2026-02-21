@@ -43,22 +43,6 @@ def _safe_json_loads(raw: Any, default: Any) -> Any:
         return default
 
 
-def _redis_get(redis_client: Any, key: str) -> Any:
-    if hasattr(redis_client, "get"):
-        return redis_client.get(key)
-    return getattr(redis_client, "_kv", {}).get(key)
-
-
-def _redis_list(redis_client: Any, key: str, limit: int) -> list[Any]:
-    if hasattr(redis_client, "lrange"):
-        return redis_client.lrange(key, -limit, -1)
-    if key.startswith("realtime:bars:"):
-        arr = list(getattr(redis_client, "_bar_cache", {}).get(key, []))
-    else:
-        arr = list(getattr(redis_client, "_hot", {}).get(key, []))
-    return arr[-limit:]
-
-
 def _redis_is_disabled(redis_client: Any) -> bool:
     return isinstance(redis_client, _DisabledRealtime)
 
@@ -67,10 +51,8 @@ def _redis_is_disabled(redis_client: Any) -> bool:
 def get_realtime_summary(redis_client: Any = Depends(get_realtime_client)) -> dict[str, Any]:
     if _redis_is_disabled(redis_client):
         return _disabled_payload("Realtime is disabled or unavailable.")
-    payload = _safe_json_loads(_redis_get(redis_client, "realtime:ops:summary"), default={})
-    if not isinstance(payload, dict):
-        return {}
-    return payload
+    payload = _safe_json_loads(redis_client.get("realtime:ops:summary"), default={})
+    return payload if isinstance(payload, dict) else {}
 
 
 @router.get("/bars")
@@ -83,7 +65,7 @@ def get_realtime_bars(
     if _redis_is_disabled(redis_client):
         return _disabled_payload("Realtime is disabled or unavailable.")
     key = f"realtime:bars:{symbol}:{tf}"
-    rows = [_safe_json_loads(x, default=x) for x in _redis_list(redis_client, key, limit)]
+    rows = [_safe_json_loads(x, default=x) for x in redis_client.lrange(key, -limit, -1)]
     return {"symbol": symbol, "tf": tf, "rows": rows}
 
 
@@ -96,9 +78,7 @@ def get_realtime_signals(
 ) -> dict[str, Any]:
     if _redis_is_disabled(redis_client):
         return _disabled_payload("Realtime is disabled or unavailable.")
-    key = f"realtime:signals:{symbol}:{tf}"
-    raw = _redis_get(redis_client, key)
-    payload = _safe_json_loads(raw, default={})
+    payload = _safe_json_loads(redis_client.get(f"realtime:signals:{symbol}:{tf}"), default={})
     if isinstance(payload, list):
         payload = payload[-limit:]
     return {"symbol": symbol, "tf": tf, "rows": payload if isinstance(payload, list) else [payload]}
@@ -113,7 +93,10 @@ def get_hot_top_movers(
     del tf
     if _redis_is_disabled(redis_client):
         return _disabled_payload("Realtime is disabled or unavailable.")
-    rows = [_safe_json_loads(x, default=x) for x in _redis_list(redis_client, "realtime:hot:top_movers", limit)]
+    rows = [
+        _safe_json_loads(x, default=x)
+        for x in redis_client.lrange("realtime:hot:top_movers", -limit, -1)
+    ]
     return {"rows": rows}
 
 
@@ -128,6 +111,6 @@ def get_hot_volume_spikes(
         return _disabled_payload("Realtime is disabled or unavailable.")
     rows = [
         _safe_json_loads(x, default=x)
-        for x in _redis_list(redis_client, "realtime:hot:volume_spike", limit)
+        for x in redis_client.lrange("realtime:hot:volume_spike", -limit, -1)
     ]
     return {"rows": rows}

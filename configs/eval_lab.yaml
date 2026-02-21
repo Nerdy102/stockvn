@@ -1,0 +1,28 @@
+random_seed: 42
+label_horizon_max: 5
+protocols:
+  single_split:
+    train_ratio: 0.70
+  walk_forward:
+    train_days: 252
+    test_days: 63
+    step_days: 63
+  purged_cv:
+    k_folds: 8
+    embargo_days: 5
+execution:
+  commission_bps: 15.0
+  sell_tax_bps: 10.0
+  slippage_bps: 10.0
+stress:
+  commission_mult: [1.0, 2.0, 3.0]
+  slippage_mult: [1.0, 2.0, 3.0]
+  liquidity_mult: [1.0, 0.5, 0.25]
+  turnover_caps: [0.25, 0.15, 0.08]
+  limit_penalty: [true, false]
+bootstrap:
+  samples: 2000
+  block_daily: 10
+  block_intraday_15m: 48
+fdr:
+  q: 0.10

@@ -2751,3 +2751,15 @@ def job_realtime_incident_monitor(
 
     session.commit()
     return {"snapshots": len(snapshots), "candidates": len(candidates), "incidents_created": created}
+
+
+def job_raocmoe_daily_feature_snapshot(session: Session) -> dict[str, int]:
+    del session
+    log.info("job_raocmoe_daily_feature_snapshot started")
+    return {"rows": 0, "status": 1}
+
+
+def job_raocmoe_governance_metrics(session: Session) -> dict[str, float]:
+    del session
+    log.info("job_raocmoe_governance_metrics started")
+    return {"psi": 0.0, "undercoverage": 0.0}

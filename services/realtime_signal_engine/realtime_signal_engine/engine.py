@@ -11,6 +11,7 @@ from core.observability.slo import RollingSLO, build_slo_snapshot, snapshot_to_m
 from indicators.incremental import IndicatorState, update_indicators_state
 
 from .evaluator import evaluate_alert_dsl_on_bar_close, evaluate_setups, governance_paused_flag
+from .raocmoe_overlay import RAOCMOEOverlay
 from .state_store import StateStore
 from .storage import SignalStorage
 
@@ -28,39 +29,46 @@ class RealtimeSignalEngine:
         self.state = StateStore(redis_client)
         self.config = config or {}
         self._signal_latency_s = RollingSLO()
+        self.raocmoe = (
+            RAOCMOEOverlay(redis_client)
+            if self.config.get("raocmoe_overlay_enabled", True)
+            else None
+        )
+
+    def _redis_get(self, key: str) -> str | None:
+        if hasattr(self.redis, "get"):
+            return self.redis.get(key)
+        return getattr(self.redis, "_kv", {}).get(key)
+
+    def _redis_set(self, key: str, value: str) -> None:
+        if hasattr(self.redis, "set"):
+            self.redis.set(key, value)
+            return
+        if not hasattr(self.redis, "_kv"):
+            self.redis._kv = {}
+        self.redis._kv[key] = value
 
     def _read_bar_close_stream(self, tf: str) -> list[dict[str, Any]]:
         stream = f"stream:bar_close:{tf}"
         cursor_key = f"cursor:bar_close:{tf}"
         out: list[dict[str, Any]] = []
 
-        if (
-            hasattr(self.redis, "xread")
-            and hasattr(self.redis, "get")
-            and hasattr(self.redis, "set")
-        ):
-            last_id = self.redis.get(cursor_key) or "0-0"
+        last_id = self._redis_get(cursor_key) or "0-0"
+        if hasattr(self.redis, "xread"):
             items = self.redis.xread({stream: last_id}, block=1000, count=1000)
             if not items:
                 return out
             _, rows = items[0]
-            for _, fields in rows:
-                payload = fields.get("payload")
-                if isinstance(payload, str):
-                    out.append(json.loads(payload))
-                elif isinstance(payload, dict):
-                    out.append(payload)
-            if rows:
-                self.redis.set(cursor_key, rows[-1][0])
-            return out
-
-        rows = self.redis.xrange(stream)
+        else:
+            rows = self.redis.xrange(stream)
         for _, fields in rows:
             payload = fields.get("payload")
             if isinstance(payload, str):
                 out.append(json.loads(payload))
             elif isinstance(payload, dict):
                 out.append(payload)
+        if rows:
+            self._redis_set(cursor_key, rows[-1][0])
         return out
 
     def _bootstrap_history(
@@ -143,6 +151,8 @@ class RealtimeSignalEngine:
                 if self.storage.upsert_signal(snapshot):
                     metrics["signals"] += 1
                 self.state.set_signal_snapshot(symbol, tf, snapshot)
+                if self.raocmoe is not None:
+                    self.raocmoe.on_bar_close(symbol, tf, histories[symbol])
 
                 expression = str(self.config.get("alert_expression", "close > EMA20"))
                 eval_df = hdf.copy()
