@@ -1,4 +1,4 @@
-.PHONY: setup run-api run-worker run-ui run-ui-kiosk run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke verify-regression fetch-vn10 bootstrap-vn10 eval-vn10 redis rt-btc-ingest rt-btc-bars rt-btc-signals rt-btc-demo-order
+.PHONY: setup run-api run-worker run-ui run-ui-kiosk run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke verify-regression fetch-vn10 bootstrap-vn10 eval-vn10 eval-chat model-chat redis rt-btc-ingest rt-btc-bars rt-btc-signals rt-btc-demo-order
 
 PYTHONPATH := .:services:packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
@@ -107,6 +107,11 @@ bootstrap-vn10:
 eval-vn10:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m research.evaluate_model_vn10
 
+eval-chat:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) scripts/print_eval_chat.py
+
+model-chat:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) scripts/print_model_snapshot_chat.py
 
 redis:
 	docker run --name stockvn-redis -p 6379:6379 -d redis:7-alpine || docker start stockvn-redis

@@ -273,6 +273,9 @@ def _metrics_from_eq(
     gross_minus_net = gross_end - net_end
     total_cost_total = gross_minus_net
     abs_err = abs(gross_minus_net - total_cost_total)
+    cost_drag_vs_traded = (
+        total_cost_total / traded_notional_total if traded_notional_total > 1e-12 else float("nan")
+    )
     perf.update(
         {
             "days": days,
@@ -289,7 +292,7 @@ def _metrics_from_eq(
             "total_cost_total": total_cost_total,
             "component_cost_total": component_cost_total,
             "cost_drag_vs_gross": total_cost_total / max(1e-8, gross_end),
-            "cost_drag_vs_traded": total_cost_total / max(1e-8, traded_notional_total),
+            "cost_drag_vs_traded": cost_drag_vs_traded,
             "gross_total_return": gross_end - 1.0,
         }
     )
@@ -316,6 +319,84 @@ def _metrics_from_eq(
         "abs_err": abs_err,
     }
     return perf, checks, identity
+
+
+def _build_model_outputs(
+    strategy: str,
+    frame: pd.DataFrame,
+    weights: pd.DataFrame,
+    test_dates: set[str],
+    out_dir: Path,
+    commission_bps: float,
+    sell_tax_bps: float,
+    slippage_bps: float,
+) -> None:
+    model_dir = out_dir / "model_outputs"
+    model_dir.mkdir(parents=True, exist_ok=True)
+
+    merged = frame.sort_values(["date", "symbol"]).copy()
+    merged["next_open"] = merged.groupby("symbol")["open"].shift(-1)
+    merged["next_close"] = merged.groupby("symbol")["close"].shift(-1)
+    merged = merged.merge(weights, on=["date", "symbol"], how="left")
+    merged["weight"] = merged["weight"].fillna(0.0)
+
+    prev = {s: 0.0 for s in merged["symbol"].astype(str).unique()}
+    rows: list[dict[str, Any]] = []
+    dates = sorted(merged["date"].unique())[:-1]
+    for d in dates:
+        decision_date = pd.Timestamp(d).date().isoformat()
+        day = merged[merged["date"] == d]
+        targets = {str(r.symbol): float(r.weight) for r in day.itertuples()}
+        symbols = sorted(set(prev) | set(targets))
+        for symbol in symbols:
+            prev_w = float(prev.get(symbol, 0.0))
+            target_w = float(targets.get(symbol, 0.0))
+            delta_w = target_w - prev_w
+            side = "BUY" if delta_w > 1e-12 else ("SELL" if delta_w < -1e-12 else "HOLD")
+            cost_mult = abs(delta_w) / 10000.0
+            est_cost_bps = float(
+                (commission_bps + slippage_bps + (sell_tax_bps if delta_w < 0 else 0.0))
+            )
+            symbol_row = day[day["symbol"].astype(str) == symbol]
+            exec_price = (
+                float(symbol_row["next_open"].iloc[0]) if not symbol_row.empty else float("nan")
+            )
+            realized_return_next = (
+                float(
+                    (symbol_row["next_close"].iloc[0] - symbol_row["next_open"].iloc[0])
+                    / symbol_row["next_open"].iloc[0]
+                )
+                if not symbol_row.empty
+                and pd.notna(symbol_row["next_open"].iloc[0])
+                and pd.notna(symbol_row["next_close"].iloc[0])
+                else float("nan")
+            )
+            rows.append(
+                {
+                    "decision_date": decision_date,
+                    "exec_date": (pd.Timestamp(d) + pd.Timedelta(days=1)).date().isoformat(),
+                    "symbol": symbol,
+                    "score_raw": target_w,
+                    "score_used": target_w,
+                    "mu": realized_return_next,
+                    "uncert": abs(realized_return_next) if pd.notna(realized_return_next) else 0.0,
+                    "regime": "NORMAL",
+                    "prev_w": prev_w,
+                    "target_w": target_w,
+                    "delta_w": delta_w,
+                    "side": side,
+                    "exec_price": exec_price,
+                    "est_cost_bps": est_cost_bps,
+                    "realized_cost_bps": est_cost_bps * cost_mult,
+                    "realized_return_next": realized_return_next,
+                    "notes": "test_window" if decision_date in test_dates else "train_window",
+                }
+            )
+        prev = targets
+
+    model_df = pd.DataFrame(rows)
+    model_df = model_df[model_df["decision_date"].isin(test_dates)].copy()
+    model_df.to_csv(model_dir / f"{strategy}.csv", index=False)
 
 
 def _stress_fragility(
@@ -362,6 +443,12 @@ def run_eval_lab(params: dict, outdir: Path) -> dict:
     cfg = _load_cfg()
     seed = int(cfg["random_seed"])
     prices = _load_prices(dataset)
+    date_start = params.get("date_start")
+    date_end = params.get("date_end")
+    if date_start:
+        prices = prices[prices["date"] >= pd.to_datetime(str(date_start))].copy()
+    if date_end:
+        prices = prices[prices["date"] <= pd.to_datetime(str(date_end))].copy()
     universe = _choose_universe(prices)
     prices = prices[prices["symbol"].isin(universe)].copy()
     window, test_dates = _evaluation_window(prices, cfg, protocol)
@@ -372,7 +459,7 @@ def run_eval_lab(params: dict, outdir: Path) -> dict:
             sort_keys=True,
         )
     )[:16]
-    out = Path(outdir)
+    out = Path("reports/eval_lab") / run_id if str(outdir).endswith("manual") else Path(outdir)
     (out / "equity_curves").mkdir(parents=True, exist_ok=True)
     (out / "window_metrics").mkdir(parents=True, exist_ok=True)
     (out / "stats" / "bootstrap_samples").mkdir(parents=True, exist_ok=True)
@@ -413,6 +500,16 @@ def run_eval_lab(params: dict, outdir: Path) -> dict:
         eq = eq[eq["date"].isin(test_dates)].copy()
         eq.to_csv(out / "equity_curves" / f"{spec.name}.csv", index=False)
         eq_by_name[spec.name] = eq
+        _build_model_outputs(
+            strategy=spec.name,
+            frame=prices,
+            weights=w,
+            test_dates=test_dates,
+            out_dir=out,
+            commission_bps=float(cfg["execution"]["commission_bps"]),
+            sell_tax_bps=float(cfg["execution"]["sell_tax_bps"]),
+            slippage_bps=float(cfg["execution"]["slippage_bps"]),
+        )
 
         met, checks, identity = _metrics_from_eq(eq)
         if spec.name.startswith("USER_V"):
@@ -504,14 +601,52 @@ def run_eval_lab(params: dict, outdir: Path) -> dict:
         lambda x: dsr(float(x), int(max(3, res["days"].max() if not res.empty else 3)), trials)
     )
     res["mintrl"] = res["sharpe"].apply(lambda x: min_trl(float(x), 0.0))
+    res["objective_score"] = res.apply(
+        lambda r: float(r["sharpe"])
+        - 0.5 * float(r["stress_fragility_score"])
+        - 0.05 * float(r["turnover_l1_annualized"])
+        - 0.2 * abs(float(r["mdd"])),
+        axis=1,
+    )
+    sig_ok = (rc_p <= 0.10) or (spa_p <= 0.10)
+    res["variant_pass"] = res.apply(
+        lambda r: int(
+            str(r["strategy"]).startswith("USER_V")
+            and int(r["consistency_ok"]) == 1
+            and float(r["days"]) >= float(r["mintrl"])
+            and pbo <= 0.4
+            and float(r["stress_fragility_score"]) <= 0.5
+            and (sig_ok or float(r["dsr"]) >= 0.95)
+        ),
+        axis=1,
+    )
     res.to_csv(out / "results_table.csv", index=False)
 
     user_name = "USER_V0" if "USER_V0" in set(res["strategy"]) else "Strategy_USER"
     user = res[res["strategy"] == user_name].iloc[0]
+    user_variants = res[res["strategy"].astype(str).str.startswith("USER_V")].copy()
+    pass_variants = user_variants[user_variants["variant_pass"] == 1].copy()
+    chosen_pool = pass_variants if not pass_variants.empty else user_variants
+    chosen_default = (
+        str(
+            chosen_pool.sort_values(["objective_score", "strategy"], ascending=[False, True]).iloc[
+                0
+            ]["strategy"]
+        )
+        if not chosen_pool.empty
+        else user_name
+    )
+    why_chosen = (
+        "best objective among reliability PASS variants"
+        if not pass_variants.empty
+        else "fallback to best objective among USER variants (no PASS variant)"
+    )
     bh = res[res["strategy"] == "Baseline_BH_EW"].iloc[0]
     alpha = float(user["total_return"] - bh["total_return"])
     ir = float(user["sharpe"] - bh["sharpe"])
 
+    mean_daily_net = float(eq_by_name[user_name]["equity_net"].pct_change().fillna(0.0).mean())
+    std_daily_net = float(eq_by_name[user_name]["equity_net"].pct_change().fillna(0.0).std(ddof=0))
     reasons: list[str] = []
     if str(audit.get("data_health_score", "FAIL")) != "PASS":
         reasons.append("data_audit_FAIL")
@@ -523,6 +658,12 @@ def run_eval_lab(params: dict, outdir: Path) -> dict:
         reasons.append("PBO_gt_0_4")
     if float(user["stress_fragility_score"]) > 0.5 or float(user["stress_worst_sharpe"]) < -0.25:
         reasons.append("stress_fragility_high")
+    if float(identity_user["abs_err"]) >= 1e-6:
+        reasons.append("identity_abs_err")
+    if float(user["total_return"]) > 0 and mean_daily_net < -1e-12:
+        reasons.append("sharpe_sign_sanity")
+    if float(user["total_return"]) < 0 and mean_daily_net > 1e-12:
+        reasons.append("sharpe_sign_sanity")
     if not (rc_p <= 0.10 or spa_p <= 0.10 or float(user["dsr"]) >= 0.95):
         reasons.append("significance_gate_failed")
     verdict = "PASS" if not reasons else "FAIL"
@@ -556,6 +697,13 @@ def run_eval_lab(params: dict, outdir: Path) -> dict:
         "bootstrap_B": B,
         "identity": identity_user,
         "user": user.to_dict(),
+        "chosen_default": chosen_default,
+        "why_chosen": why_chosen,
+        "sharpe_sanity": {
+            "mean_daily_net": mean_daily_net,
+            "std_daily_net": std_daily_net,
+            "annual_factor": 252.0,
+        },
         "user_vs_bh": {
             "alpha": alpha,
             "ir": ir,
@@ -590,6 +738,8 @@ def run_eval_lab(params: dict, outdir: Path) -> dict:
         f"- IDENTITY: gross_end={identity_user['gross_end']:.6f}, net_end={identity_user['net_end']:.6f}, total_cost_total={identity_user['total_cost_total']:.6f}, gross_minus_net={identity_user['gross_minus_net']:.6f}, abs_err={identity_user['abs_err']:.6e}",
         f"- USER Test: net_total_return={user['total_return']:.6f}, gross_total_return={user['gross_total_return']:.6f}, Sharpe={user['sharpe']:.6f}, turnover_l1_total={user['turnover_l1_total']:.6f}, turnover_l1_daily_avg={user['turnover_l1_daily_avg']:.6f}, turnover_l1_annualized={user['turnover_l1_annualized']:.6f}, traded_notional_total={user['traded_notional_total']:.6f}, traded_notional_over_nav={user['traded_notional_over_nav']:.6f}, avg_holding_period_days={user['avg_holding_period_days']:.6f}, commission_cost_total={user['commission_cost_total']:.6f}, sell_tax_cost_total={user['sell_tax_cost_total']:.6f}, slippage_cost_total={user['slippage_cost_total']:.6f}, total_cost_total={user['total_cost_total']:.6f}, cost_drag_vs_gross={user['cost_drag_vs_gross']:.6f}, cost_drag_vs_traded={user['cost_drag_vs_traded']:.6f}",
         f"- USER vs Baseline_BH_EW: alpha={alpha:.6f}, IR={ir:.6f}, RC={mt['rc_p_print']}, SPA={mt['spa_p_print']}, DSR={float(user['dsr']):.6f}, PBO={pbo:.6f}, MinTRL={int(user['mintrl'])}, bootstrap_B={B}",
+        f"- CHOSEN_DEFAULT: {chosen_default}",
+        f"- WHY_CHOSEN: {why_chosen}",
         f"- RELIABILITY: {verdict} ({'; '.join(reasons) if reasons else 'all checks passed'})",
     ]
     (out / "summary.md").write_text("\n".join(summary_md), encoding="utf-8")
@@ -629,6 +779,8 @@ def run_eval_lab(params: dict, outdir: Path) -> dict:
         f"alpha={alpha:.6f}, IR={ir:.6f}, RC={mt['rc_p_print']}, SPA={mt['spa_p_print']}, "
         f"DSR={float(user['dsr']):.6f}, PBO={pbo:.6f}, MinTRL={int(user['mintrl'])}, bootstrap_B={B}"
     )
+    print(f"CHOSEN_DEFAULT: {chosen_default}")
+    print(f"WHY_CHOSEN: {why_chosen}")
     print(f"RELIABILITY: {verdict} with reasons: {', '.join(reasons) if reasons else 'none'}")
 
     return {

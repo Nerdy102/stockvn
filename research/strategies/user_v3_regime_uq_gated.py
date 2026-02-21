@@ -17,7 +17,8 @@ def _avg_pairwise_corr(wide: pd.DataFrame) -> pd.Series:
         else:
             m = c.values
             triu = m[np.triu_indices_from(m, k=1)]
-            vals.append(float(np.nanmean(triu)) if len(triu) else 0.0)
+            finite = triu[np.isfinite(triu)]
+            vals.append(float(finite.mean()) if finite.size else 0.0)
         idx.append(wide.index[i])
     return pd.Series(vals, index=idx)
 
@@ -37,7 +38,6 @@ def generate_weights(frame: pd.DataFrame, universe: list[str]) -> pd.DataFrame:
     for d, day in w.groupby("date"):
         weights = {str(r.symbol): float(r.weight) for r in day.itertuples()}
         hist_vol = vol20.loc[:d]
-        hist_corr = corr20.loc[:d]
         vol = float(vol20.get(d, 0.0))
         corr = float(corr20.get(d, 0.0))
         panic = vol > float(hist_vol.quantile(0.9)) or corr > 0.75
@@ -50,9 +50,13 @@ def generate_weights(frame: pd.DataFrame, universe: list[str]) -> pd.DataFrame:
         else:
             scale = 1.0
 
-        cov = pivot.loc[:d].tail(20).cov().fillna(0.0)
+        cov_window = pivot.loc[:d].tail(20)
+        if len(cov_window) >= 2:
+            cov = cov_window.cov().fillna(0.0)
+            cov_arr = cov.reindex(index=universe, columns=universe, fill_value=0.0).values
+        else:
+            cov_arr = np.zeros((len(universe), len(universe)), dtype=float)
         w_vec = np.asarray([weights.get(s, 0.0) for s in universe], dtype=float)
-        cov_arr = cov.reindex(index=universe, columns=universe, fill_value=0.0).values
         port_vol_ann = float(np.sqrt(max(0.0, w_vec @ cov_arr @ w_vec.T)) * np.sqrt(252.0))
         vol_target_scale = min(1.0, 0.18 / max(1e-8, port_vol_ann))
 
