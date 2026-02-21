@@ -2763,3 +2763,67 @@ def job_raocmoe_governance_metrics(session: Session) -> dict[str, float]:
     del session
     log.info("job_raocmoe_governance_metrics started")
     return {"psi": 0.0, "undercoverage": 0.0}
+
+
+def job_run_pending_interactive_runs(session: Session) -> int:
+    from core.db.models import InteractiveRun
+    from scripts.ingest_data_drop import main as ingest_data_drop_main
+    from scripts.run_eval_lab import run_eval_lab
+    from scripts.run_raocmoe_backtest import run_raocmoe_backtest
+    from core.settings import get_settings
+    from data.providers.factory import get_provider
+
+    row = session.exec(
+        select(InteractiveRun)
+        .where(InteractiveRun.status == "PENDING")
+        .order_by(InteractiveRun.created_at.asc())
+    ).first()
+    if row is None:
+        return 0
+
+    row.status = "RUNNING"
+    row.started_at = dt.datetime.utcnow()
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+
+    outdir = Path(row.artifacts_dir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    log_path = outdir / "run.log"
+
+    try:
+        with log_path.open("a", encoding="utf-8") as logf:
+            logf.write(f"start {row.run_type} {row.run_id}\n")
+            if row.run_type == "RAOCMOE_BACKTEST":
+                summary = run_raocmoe_backtest(dict(row.params_json or {}), outdir)
+            elif row.run_type == "EVAL_LAB":
+                summary = run_eval_lab(dict(row.params_json or {}), outdir)
+            elif row.run_type == "DATA_INGEST":
+                ingest_data_drop_main()
+                summary = {"status": "ok"}
+            elif row.run_type == "SEED_DB":
+                settings = get_settings()
+                provider = get_provider(settings)
+                ensure_seeded(session, provider, settings)
+                summary = {"status": "ok"}
+            else:
+                raise RuntimeError(f"unsupported run type: {row.run_type}")
+            logf.write(json.dumps(summary, default=str) + "\n")
+
+        row.status = "SUCCEEDED"
+        row.finished_at = dt.datetime.utcnow()
+        row.dataset_hash = str(summary.get("dataset_hash", ""))
+        row.config_hash = str(summary.get("config_hash", row.config_hash))
+        row.code_hash = str(summary.get("code_hash", row.code_hash))
+        session.add(row)
+        session.commit()
+        return 1
+    except Exception as exc:
+        with log_path.open("a", encoding="utf-8") as logf:
+            logf.write(f"error: {exc}\n")
+        row.status = "FAILED"
+        row.error_message = str(exc)
+        row.finished_at = dt.datetime.utcnow()
+        session.add(row)
+        session.commit()
+        return 1

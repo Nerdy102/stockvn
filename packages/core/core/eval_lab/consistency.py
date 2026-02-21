@@ -3,8 +3,14 @@ from __future__ import annotations
 import numpy as np
 
 
+STRICT_TOL = 1e-6
+
+
 def check_equity_identity(
-    equity_gross: list[float], equity_net: list[float], cum_cost: list[float]
+    equity_gross: list[float],
+    equity_net: list[float],
+    cum_cost: list[float],
+    tol: float = STRICT_TOL,
 ) -> bool:
     if not equity_gross:
         return True
@@ -12,7 +18,13 @@ def check_equity_identity(
     n = np.asarray(equity_net, dtype=float)
     c = np.asarray(cum_cost, dtype=float)
     err = np.max(np.abs((g - n) - c))
-    return bool(err < 1e-6)
+    return bool(err < tol)
+
+
+def check_end_identity(
+    gross_end: float, net_end: float, total_cost_total: float, tol: float = STRICT_TOL
+) -> bool:
+    return abs((float(gross_end) - float(net_end)) - float(total_cost_total)) < tol
 
 
 def check_return_identity(equity_net: list[float], total_return_reported: float) -> bool:

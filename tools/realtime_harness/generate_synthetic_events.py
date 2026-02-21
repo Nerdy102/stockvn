@@ -49,18 +49,25 @@ def _normalize_events(
 
 
 def generate_synthetic_events(
-    symbols: list[str],
+    symbols: list[str] | int,
     days: int,
     seed: int,
     *,
     start_date: str | None = None,
     exchange: str = "HOSE",
-) -> list[dict[str, Any]]:
+) -> list[Any]:
     del start_date
-    if not symbols:
+    if isinstance(symbols, int):
+        if symbols <= 0:
+            return []
+        # Backward-compatible mode used by some tests: return SyntheticEvent objects.
+        return list(generate_events(seed=seed, symbols=symbols, days=days))
+
+    symbol_list = list(symbols)
+    if not symbol_list:
         return []
-    events = generate_events(seed=seed, symbols=len(symbols), days=days)
-    normalized = _normalize_events(events, symbols=symbols, exchange=exchange)
+    events = generate_events(seed=seed, symbols=len(symbol_list), days=days)
+    normalized = _normalize_events(events, symbols=symbol_list, exchange=exchange)
     return normalized
 
 

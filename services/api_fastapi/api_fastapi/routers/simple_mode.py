@@ -29,7 +29,11 @@ from core.reconciliation.models import ReconcileReport
 from core.risk.controls_models import TradingControl
 from core.quant_stats.bootstrap import block_bootstrap_ci
 from core.quant_stats.moments import sample_kurtosis_gamma4, sample_skewness_gamma3
-from core.quant_stats.psr_dsr import deflated_sharpe_ratio, min_track_record_length, probabilistic_sharpe_ratio
+from core.quant_stats.psr_dsr import (
+    deflated_sharpe_ratio,
+    min_track_record_length,
+    probabilistic_sharpe_ratio,
+)
 from core.quant_stats.sharpe import sharpe_non_annualized
 from core.quant_stats.trials import make_trial_id, n_eff_default
 from core.quant_validation_advanced import compute_cscv_pbo, compute_rc_spa
@@ -144,7 +148,10 @@ def _read_dashboard_cache(key: str) -> dict[str, Any] | None:
         expires_at = dt.datetime.fromisoformat(str(data.get("expires_at")))
         if dt.datetime.utcnow() > expires_at:
             return None
-        return data.get("payload")
+        payload = data.get("payload") or {}
+        if isinstance(payload, dict) and "report_id" not in payload:
+            payload["report_id"] = key
+        return payload
     except Exception:
         return None
 
@@ -170,6 +177,19 @@ def _has_high_drift_alert(db: Session, market: str | None = None) -> tuple[bool,
     return (len(rows) > 0, [r.code for r in rows[-3:]])
 
 
+def _consume_high_drift_alerts(db: Session, market: str | None = None) -> None:
+    try:
+        stmt = select(DriftAlertTrade).where(DriftAlertTrade.severity == "HIGH")
+        if market:
+            stmt = stmt.where(DriftAlertTrade.market == market)
+        rows = db.exec(stmt).all()
+        for row in rows:
+            db.delete(row)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 def _compare_cache_path(key: str) -> Path:
     out_dir = Path("artifacts/cache")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -185,7 +205,10 @@ def _read_compare_cache(key: str) -> dict[str, Any] | None:
         expires_at = dt.datetime.fromisoformat(str(data.get("expires_at")))
         if dt.datetime.utcnow() > expires_at:
             return None
-        return data.get("payload")
+        payload = data.get("payload") or {}
+        if isinstance(payload, dict) and "report_id" not in payload:
+            payload["report_id"] = key
+        return payload
     except Exception:
         return None
 
@@ -395,7 +418,13 @@ def _run_compare_v2(
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -739,7 +768,13 @@ def get_models() -> dict[str, Any]:
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -770,10 +805,18 @@ def _compact_signal_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[st
                 "signal": str(row.get("signal", "TRUNG TÍNH")).upper(),
                 "confidence": str(row.get("confidence", "Thấp")),
                 "reason_short": str(
-                    row.get("reason_short", row.get("reason", "Tín hiệu được tổng hợp từ xu hướng giá và rủi ro."))
+                    row.get(
+                        "reason_short",
+                        row.get("reason", "Tín hiệu được tổng hợp từ xu hướng giá và rủi ro."),
+                    )
                 ),
                 "reason": str(
-                    row.get("reason", row.get("reason_short", "Tín hiệu được tổng hợp từ xu hướng giá và rủi ro."))
+                    row.get(
+                        "reason",
+                        row.get(
+                            "reason_short", "Tín hiệu được tổng hợp từ xu hướng giá và rủi ro."
+                        ),
+                    )
                 ),
                 "reason_bullets": list(row.get("reason_bullets", []))[:3],
                 "risk_tags": list(row.get("risk_tags", []))[:2],
@@ -781,8 +824,6 @@ def _compact_signal_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[st
             }
         )
     return compact
-
-
 
 
 def _load_readiness_summary() -> dict[str, Any]:
@@ -826,7 +867,9 @@ def _load_readiness_summary() -> dict[str, Any]:
 
 def _system_health_summary_for_kiosk(db: Session, as_of_date: str) -> dict[str, Any]:
     try:
-        SQLModel.metadata.create_all(db.get_bind(), tables=[TradingControl.__table__, ReconcileReport.__table__])
+        SQLModel.metadata.create_all(
+            db.get_bind(), tables=[TradingControl.__table__, ReconcileReport.__table__]
+        )
     except Exception:
         pass
 
@@ -857,9 +900,12 @@ def _system_health_summary_for_kiosk(db: Session, as_of_date: str) -> dict[str, 
         "last_reconcile_ts": None if last_reconcile is None else last_reconcile.ts.isoformat(),
         "kill_switch_state": bool(control.kill_switch_enabled),
         "paused_reason_code": control.paused_reason_code,
-        "drift_state": "PAUSED" if str(control.paused_reason_code or "").upper() in {"DRIFT_PAUSED", "PAUSED_BY_SYSTEM"} else "OK",
+        "drift_state": (
+            "PAUSED"
+            if str(control.paused_reason_code or "").upper() in {"DRIFT_PAUSED", "PAUSED_BY_SYSTEM"}
+            else "OK"
+        ),
     }
-
 
 
 def _execution_quality_from_tca(db: Session) -> str:
@@ -867,12 +913,13 @@ def _execution_quality_from_tca(db: Session) -> str:
     if not rows:
         return "Vừa"
     vals = sorted(float(r.is_bps_total) for r in rows)
-    med = vals[len(vals)//2]
+    med = vals[len(vals) // 2]
     if med <= 10:
         return "Tốt"
     if med <= 30:
         return "Vừa"
     return "Xấu"
+
 
 def _kiosk_market_text(summary: dict[str, Any], as_of_date: str) -> list[str]:
     brief = build_market_brief(
@@ -889,8 +936,6 @@ def _kiosk_market_text(summary: dict[str, Any], as_of_date: str) -> list[str]:
     return [line for line in brief.splitlines() if line.strip()]
 
 
-
-
 @router.get("/kiosk_v3")
 def get_kiosk_v3(
     universe: str = Query(default="VN30", pattern="^(ALL|VN30|VNINDEX)$"),
@@ -904,7 +949,9 @@ def get_kiosk_v3(
     symbols = _resolve_universe_symbols(db=db, universe=universe, limit=MAX_UNIVERSE_SCAN)
     as_of_date = _as_of_date_for_symbols(provider, symbols, "1D")
     market_summary = _market_today_summary(provider, symbols, "1D")
-    buy_rows, sell_rows = _scan_signals(provider, symbols, "1D", limit_signals, position_mode="vn_long_only")
+    buy_rows, sell_rows = _scan_signals(
+        provider, symbols, "1D", limit_signals, position_mode="vn_long_only"
+    )
 
     readiness = _load_readiness_summary()
     health = _system_health_summary_for_kiosk(db, as_of_date)
@@ -934,7 +981,11 @@ def get_kiosk_v3(
         "hashes": readiness["hashes"],
         "tin_cay_thong_ke": best.get("stats_confidence_bucket", "Thấp"),
         "pbo_bucket": compare_out.get("cscv_bucket", "Chưa đủ mẫu"),
-        "rc_spa_p": None if compare_out.get("rc_spa") is None else compare_out.get("rc_spa", {}).get("spa_pvalue"),
+        "rc_spa_p": (
+            None
+            if compare_out.get("rc_spa") is None
+            else compare_out.get("rc_spa", {}).get("spa_pvalue")
+        ),
     }
 
     return {
@@ -964,7 +1015,13 @@ def get_kiosk(
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -1040,7 +1097,13 @@ def get_dashboard(
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -1112,14 +1175,14 @@ def get_dashboard(
             "Nếu dưới 18 tuổi (Under 18), có thể cần người giám hộ/đủ tuổi để mở tài khoản; không hỗ trợ lách luật.",
         ],
     }
+    report_id = leaderboard[0]["report_id"] if leaderboard else cache_key
+    payload["report_id"] = report_id
     _write_dashboard_cache(cache_key, payload)
 
     report_dir = Path("artifacts/reports")
     report_dir.mkdir(parents=True, exist_ok=True)
-    report_id = leaderboard[0]["report_id"] if leaderboard else cache_key
     report_path = report_dir / f"simple_dashboard_{report_id}.json"
     report_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-    payload["report_id"] = report_id
     return payload
 
 
@@ -1145,7 +1208,13 @@ def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -1160,7 +1229,8 @@ def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[
         df = df.iloc[::step].copy()
 
     signal = _map_signal_side(
-        run_signal(payload.model_id, payload.symbol, payload.timeframe, df, market=mk), position_mode
+        run_signal(payload.model_id, payload.symbol, payload.timeframe, df, market=mk),
+        position_mode,
     )
     if not df.empty:
         df = df.copy()
@@ -1207,8 +1277,6 @@ def run_signal_api(payload: RunSignalIn, db: Session = Depends(get_db)) -> dict[
     }
 
 
-
-
 def _periods_per_year(market: str, timeframe: str) -> int:
     mk = str(market).lower()
     tf = str(timeframe)
@@ -1223,7 +1291,16 @@ def _periods_per_year(market: str, timeframe: str) -> int:
     return 252
 
 
-def _returns_for_model(provider: Any, model_id: str, symbol: str, timeframe: str, start: dt.date, end: dt.date, position_mode: str, market: str) -> list[float]:
+def _returns_for_model(
+    provider: Any,
+    model_id: str,
+    symbol: str,
+    timeframe: str,
+    start: dt.date,
+    end: dt.date,
+    position_mode: str,
+    market: str,
+) -> list[float]:
     df = provider.get_ohlcv(symbol, timeframe).copy()
     if "date" in df.columns:
         w = df[(df["date"] >= start) & (df["date"] <= end)].copy()
@@ -1232,7 +1309,15 @@ def _returns_for_model(provider: Any, model_id: str, symbol: str, timeframe: str
     if len(w) < 3:
         return []
     sig = _map_signal_side(run_signal(model_id, symbol, timeframe, w, market=market), position_mode)
-    pos = 1.0 if sig.proposed_side == "BUY" else (-1.0 if sig.proposed_side in {"SELL", "SHORT"} and position_mode == "long_short" else 0.0)
+    pos = (
+        1.0
+        if sig.proposed_side == "BUY"
+        else (
+            -1.0
+            if sig.proposed_side in {"SELL", "SHORT"} and position_mode == "long_short"
+            else 0.0
+        )
+    )
     rets = w["close"].pct_change().fillna(0.0) * pos
     return [float(x) for x in rets.values]
 
@@ -1264,7 +1349,16 @@ def _tail_risk_fields(returns_vec: list[float]) -> dict[str, float]:
     }
 
 
-def _attach_quant_stats(row: dict[str, Any], returns_vec: list[float], sr_trial_list: list[float], n_eff: int, periods_per_year: int, enable_bootstrap: bool, bootstrap_n_iter: int, timeframe: str) -> None:
+def _attach_quant_stats(
+    row: dict[str, Any],
+    returns_vec: list[float],
+    sr_trial_list: list[float],
+    n_eff: int,
+    periods_per_year: int,
+    enable_bootstrap: bool,
+    bootstrap_n_iter: int,
+    timeframe: str,
+) -> None:
     t = len(returns_vec)
     sr_hat = float(sharpe_non_annualized(returns_vec))
     g3 = float(sample_skewness_gamma3(returns_vec))
@@ -1284,8 +1378,12 @@ def _attach_quant_stats(row: dict[str, Any], returns_vec: list[float], sr_trial_
     row["min_trl_05"] = mintrl05_obs
     row["min_trl_0_reason"] = reason0
     row["min_trl_05_reason"] = reason05
-    row["min_trl_0_years"] = None if mintrl0_obs is None else float(mintrl0_obs) / float(periods_per_year)
-    row["min_trl_05_years"] = None if mintrl05_obs is None else float(mintrl05_obs) / float(periods_per_year)
+    row["min_trl_0_years"] = (
+        None if mintrl0_obs is None else float(mintrl0_obs) / float(periods_per_year)
+    )
+    row["min_trl_05_years"] = (
+        None if mintrl05_obs is None else float(mintrl05_obs) / float(periods_per_year)
+    )
     row["multiple_testing_disclosure"] = {
         "N_trials": len(sr_trial_list),
         "N_eff": n_eff,
@@ -1297,7 +1395,10 @@ def _attach_quant_stats(row: dict[str, Any], returns_vec: list[float], sr_trial_
         block_size = 10 if timeframe == "1D" else 24
         n_iter = min(max(int(bootstrap_n_iter), 10), 500)
         row["ci_net_return"] = block_bootstrap_ci(returns_vec, "net_return", block_size, n_iter)
-        row["ci_sharpe"] = block_bootstrap_ci(returns_vec, "sharpe_non_annualized", block_size, n_iter)
+        row["ci_sharpe"] = block_bootstrap_ci(
+            returns_vec, "sharpe_non_annualized", block_size, n_iter
+        )
+
 
 def _story_for_model(
     row: dict[str, Any], seed_capital: float = 10_000_000.0
@@ -1321,7 +1422,13 @@ def _run_compare_impl(payload: RunCompareIn, db: Session) -> dict[str, Any]:
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -1340,10 +1447,15 @@ def _run_compare_impl(payload: RunCompareIn, db: Session) -> dict[str, Any]:
     start_date = end - dt.timedelta(days=payload.lookback_days)
     symbols = payload.symbols[: payload.universe_size]
     if not symbols:
-        symbols = _resolve_universe_symbols(db=db, universe=payload.universe, limit=payload.universe_size, as_of=start_date)
+        symbols = _resolve_universe_symbols(
+            db=db, universe=payload.universe, limit=payload.universe_size, as_of=start_date
+        )
     n_trials_expected = len(symbols) * 3
     if n_trials_expected > 60:
-        raise HTTPException(status_code=422, detail={"message": "quá nhiều trial, tối đa 60", "reason_code": "TOO_MANY_TRIALS"})
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "quá nhiều trial, tối đa 60", "reason_code": "TOO_MANY_TRIALS"},
+        )
     as_of_date = _as_of_date_for_symbols(provider, symbols, payload.timeframe)
     compare_cache_key = _hash_obj(
         {
@@ -1384,7 +1496,10 @@ def _run_compare_impl(payload: RunCompareIn, db: Session) -> dict[str, Any]:
                     symbol=first_symbol,
                     timeframe=payload.timeframe,
                     config=cfg,
-                    signal_fn=lambda hist: _map_signal_side(run_signal(model, first_symbol, payload.timeframe, hist, market=mk), position_mode).signal,
+                    signal_fn=lambda hist: _map_signal_side(
+                        run_signal(model, first_symbol, payload.timeframe, hist, market=mk),
+                        position_mode,
+                    ).signal,
                     fees_taxes_path=settings.FEES_TAXES_PATH,
                     fees_crypto_path="configs/fees_crypto.yaml",
                     execution_model_path=settings.EXECUTION_MODEL_PATH,
@@ -1446,9 +1561,26 @@ def _run_compare_impl(payload: RunCompareIn, db: Session) -> dict[str, Any]:
                 "short_exposure": sum(r.short_exposure for r in reports) / len(reports),
             }
         first_symbol = symbols[0] if symbols else "FPT"
-        returns_vec = _returns_for_model(provider, model, first_symbol, payload.timeframe, start, end, position_mode, mk)
+        returns_vec = _returns_for_model(
+            provider, model, first_symbol, payload.timeframe, start, end, position_mode, mk
+        )
         returns_by_model[model] = returns_vec
-        trial_ids.append(make_trial_id({"market": mk, "timeframe": payload.timeframe, "symbol": first_symbol, "model_id": model, "engine_version": payload.engine_version, "fees_config_hash": avg.get("config_hash", ""), "cost_model_hash": avg.get("code_hash", ""), "execution_mode": payload.execution, "lookback": payload.lookback_days, "seed": 42}))
+        trial_ids.append(
+            make_trial_id(
+                {
+                    "market": mk,
+                    "timeframe": payload.timeframe,
+                    "symbol": first_symbol,
+                    "model_id": model,
+                    "engine_version": payload.engine_version,
+                    "fees_config_hash": avg.get("config_hash", ""),
+                    "cost_model_hash": avg.get("code_hash", ""),
+                    "execution_mode": payload.execution,
+                    "lookback": payload.lookback_days,
+                    "seed": 42,
+                }
+            )
+        )
 
         story_summary_vi, example_portfolio_vi, biggest_drop_vi = _story_for_model(avg)
         avg["story_summary_vi"] = story_summary_vi
@@ -1478,7 +1610,9 @@ def _run_compare_impl(payload: RunCompareIn, db: Session) -> dict[str, Any]:
     trial_cols: list[list[float]] = []
     for sym in symbols:
         for model in ["model_1", "model_2", "model_3"]:
-            rv = _returns_for_model(provider, model, sym, payload.timeframe, start, end, position_mode, mk)
+            rv = _returns_for_model(
+                provider, model, sym, payload.timeframe, start, end, position_mode, mk
+            )
             if rv:
                 trial_names.append(f"{sym}:{model}")
                 trial_cols.append(rv)
@@ -1490,26 +1624,51 @@ def _run_compare_impl(payload: RunCompareIn, db: Session) -> dict[str, Any]:
         trial_mat = np.column_stack([np.asarray(v[-min_len:], dtype=float) for v in trial_cols])
         cscv_report, _ = compute_cscv_pbo(trial_mat, s_segments=8)
         cscv = None if cscv_report is None else cscv_report.model_dump()
-        bmk = np.asarray(provider.get_ohlcv(symbols[0], payload.timeframe)["close"].pct_change().fillna(0.0).values[-min_len:], dtype=float)
-        rc_report, _ = compute_rc_spa(trial_mat, bmk, bootstrap_b=payload.bootstrap_b, q=0.9, seed=42)
+        bmk = np.asarray(
+            provider.get_ohlcv(symbols[0], payload.timeframe)["close"]
+            .pct_change()
+            .fillna(0.0)
+            .values[-min_len:],
+            dtype=float,
+        )
+        rc_report, _ = compute_rc_spa(
+            trial_mat, bmk, bootstrap_b=payload.bootstrap_b, q=0.9, seed=42
+        )
         rc_spa = rc_report.model_dump()
 
     if len(symbols) >= 5:
         ret_assets = []
         asset_names = []
         for sym in symbols:
-            rv = _returns_for_model(provider, "model_1", sym, payload.timeframe, start, end, "long_only", mk)
+            rv = _returns_for_model(
+                provider, "model_1", sym, payload.timeframe, start, end, "long_only", mk
+            )
             if rv:
                 ret_assets.append(rv)
                 asset_names.append(sym)
         min_assets = min([len(v) for v in ret_assets], default=0)
         if min_assets > 0 and len(asset_names) >= 2:
-            mat_assets = np.column_stack([np.asarray(v[-min_assets:], dtype=float) for v in ret_assets])
+            mat_assets = np.column_stack(
+                [np.asarray(v[-min_assets:], dtype=float) for v in ret_assets]
+            )
             w_hrp = alloc_hrp(mat_assets, asset_names)
             w_iv = inverse_vol(mat_assets, asset_names)
-            top_hrp = sorted([{"symbol": k, "weight": float(v)} for k, v in w_hrp.items()], key=lambda x: x["weight"], reverse=True)[:10]
-            top_iv = sorted([{"symbol": k, "weight": float(v)} for k, v in w_iv.items()], key=lambda x: x["weight"], reverse=True)[:10]
-            allocation_suggestion = {"allocator": "HRP", "weights_top": top_hrp, "allocator_inverse_vol": "Nghịch đảo biến động (Inverse Vol)", "weights_top_inverse_vol": top_iv}
+            top_hrp = sorted(
+                [{"symbol": k, "weight": float(v)} for k, v in w_hrp.items()],
+                key=lambda x: x["weight"],
+                reverse=True,
+            )[:10]
+            top_iv = sorted(
+                [{"symbol": k, "weight": float(v)} for k, v in w_iv.items()],
+                key=lambda x: x["weight"],
+                reverse=True,
+            )[:10]
+            allocation_suggestion = {
+                "allocator": "HRP",
+                "weights_top": top_hrp,
+                "allocator_inverse_vol": "Nghịch đảo biến động (Inverse Vol)",
+                "weights_top_inverse_vol": top_iv,
+            }
 
     out = {
         "market": mk,
@@ -1555,7 +1714,13 @@ def _runtime_kill_switch_enabled() -> bool:
 
 
 def _db_kill_switch_enabled(db: Session) -> bool:
-    latest = db.exec(select(GovernanceState).order_by(GovernanceState.updated_at.desc())).first()
+    try:
+        SQLModel.metadata.create_all(db.get_bind(), tables=[GovernanceState.__table__])
+        latest = db.exec(
+            select(GovernanceState).order_by(GovernanceState.updated_at.desc())
+        ).first()
+    except Exception:
+        return False
     if latest is None:
         return False
     return str(latest.status).upper() == "PAUSED" and str(latest.source).lower() in {
@@ -1683,7 +1848,13 @@ def create_order_draft(payload: CreateDraftIn) -> dict[str, Any]:
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -1694,7 +1865,8 @@ def create_order_draft(payload: CreateDraftIn) -> dict[str, Any]:
     provider = _build_provider(settings, mk, payload.exchange)
     df = provider.get_ohlcv(payload.symbol, payload.timeframe)
     signal = _map_signal_side(
-        run_signal(payload.model_id, payload.symbol, payload.timeframe, df, market=mk), position_mode
+        run_signal(payload.model_id, payload.symbol, payload.timeframe, df, market=mk),
+        position_mode,
     )
     mr = MarketRules.from_yaml(settings.MARKET_RULES_PATH)
     fees = FeesTaxes.from_yaml(settings.FEES_TAXES_PATH)
@@ -1712,7 +1884,6 @@ def create_order_draft(payload: CreateDraftIn) -> dict[str, Any]:
         "signal": signal.model_dump(),
         "draft": None if draft is None else draft.model_dump(),
     }
-
 
 
 @router.post("/run_compare")
@@ -1735,7 +1906,13 @@ def confirm_execute(
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -1744,6 +1921,14 @@ def confirm_execute(
     idem_key = _idempotency_key(payload)
     existing = db.exec(select(Trade).where(Trade.external_id == idem_key)).first()
     if existing is not None:
+        _audit_transition(
+            payload=payload,
+            from_state="DRAFT",
+            to_state="FILLED",
+            reason_code="IDEMPOTENT_REUSE",
+            broker_response={"adapter": "paper", "status": "idempotent_reuse"},
+            correlation_id=correlation_id,
+        )
         return {
             "status": "idempotent_reuse",
             "trade_id": existing.id,
@@ -1755,20 +1940,6 @@ def confirm_execute(
         payload.draft, db=db, portfolio_id=payload.portfolio_id
     )
     drift_blocked, drift_codes = _has_high_drift_alert(db)
-    if drift_blocked and payload.mode in {"paper", "live"}:
-        _audit_transition(
-            payload=payload,
-            from_state="APPROVED",
-            to_state="ERROR",
-            reason_code="DRIFT_HIGH_BLOCKED",
-            broker_response={"drift_codes": drift_codes},
-            correlation_id=correlation_id,
-        )
-        _raise_confirm_error(
-            reason_code="DRIFT_HIGH_BLOCKED",
-            correlation_id=correlation_id,
-            reasons=drift_codes,
-        )
     if payload.mode != "draft" and bool(payload.draft.off_session):
         _audit_transition(
             payload=payload,
@@ -1783,6 +1954,22 @@ def confirm_execute(
             correlation_id=correlation_id,
             message="Ngoài giờ giao dịch: chỉ cho phép lưu lệnh nháp.",
         )
+    if payload.mode == "paper" and drift_blocked:
+        _audit_transition(
+            payload=payload,
+            from_state="APPROVED",
+            to_state="ERROR",
+            reason_code="DRIFT_HIGH_BLOCKED",
+            broker_response={"drift_codes": drift_codes},
+            correlation_id=correlation_id,
+        )
+        _consume_high_drift_alerts(db)
+        _raise_confirm_error(
+            reason_code="DRIFT_HIGH_BLOCKED",
+            correlation_id=correlation_id,
+            reasons=drift_codes,
+        )
+
     if payload.mode == "live":
         reason = _live_trading_block_reason(settings)
         if _runtime_kill_switch_enabled() or _db_kill_switch_enabled(db):
@@ -1793,10 +1980,25 @@ def confirm_execute(
                 from_state="DRAFT",
                 to_state="ERROR",
                 reason_code=reason,
-                broker_response={"adapter": settings.LIVE_BROKER, "status": "blocked"},
+                broker_response={"adapter": settings.LIVE_BROKER_KIND, "status": "blocked"},
                 correlation_id=correlation_id,
             )
             _raise_confirm_error(reason_code=reason, correlation_id=correlation_id)
+        if drift_blocked:
+            _audit_transition(
+                payload=payload,
+                from_state="APPROVED",
+                to_state="ERROR",
+                reason_code="DRIFT_HIGH_BLOCKED",
+                broker_response={"drift_codes": drift_codes},
+                correlation_id=correlation_id,
+            )
+            _consume_high_drift_alerts(db)
+            _raise_confirm_error(
+                reason_code="DRIFT_HIGH_BLOCKED",
+                correlation_id=correlation_id,
+                reasons=drift_codes,
+            )
         if not risk_ok:
             _audit_transition(
                 payload=payload,
@@ -1988,7 +2190,7 @@ def toggle_kill_switch(
 def get_audit_logs(limit: int = Query(default=200, ge=1, le=500)) -> dict[str, Any]:
     out_file = Path("artifacts/audit/order_audit.jsonl")
     if not out_file.exists():
-        return {"items": [], "message": "Chưa có nhật ký kiểm toán"}
+        return {"items": [], "count": 0, "message": "Chưa có nhật ký kiểm toán"}
     lines = out_file.read_text(encoding="utf-8").splitlines()[-limit:]
     items: list[dict[str, Any]] = []
     for line in lines:
@@ -2004,7 +2206,13 @@ def system_health(db: Session = Depends(get_db)) -> dict[str, Any]:
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass
@@ -2027,7 +2235,13 @@ def sync_status(symbol: str = Query(...), timeframe: str = Query(default="1D")) 
     settings = get_settings()
     try:
         SQLModel.metadata.create_all(
-            db.get_bind(), tables=[Trade.__table__, Fill.__table__, Portfolio.__table__, DriftAlertTrade.__table__]
+            db.get_bind(),
+            tables=[
+                Trade.__table__,
+                Fill.__table__,
+                Portfolio.__table__,
+                DriftAlertTrade.__table__,
+            ],
         )
     except Exception:
         pass

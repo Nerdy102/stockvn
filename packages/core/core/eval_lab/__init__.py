@@ -1,5 +1,10 @@
 from .bootstrap import block_bootstrap_samples, bootstrap_ci
-from .consistency import check_cost_nonnegativity, check_equity_identity, check_return_identity
+from .consistency import (
+    check_cost_nonnegativity,
+    check_end_identity,
+    check_equity_identity,
+    check_return_identity,
+)
 from .metrics import compute_cost_attribution, compute_performance_metrics, compute_tail_metrics
 from .multiple_testing import (
     benjamini_hochberg,
@@ -23,6 +28,7 @@ __all__ = [
     "compute_cost_attribution",
     "check_cost_nonnegativity",
     "check_equity_identity",
+    "check_end_identity",
     "check_return_identity",
     "compute_performance_metrics",
     "compute_tail_metrics",

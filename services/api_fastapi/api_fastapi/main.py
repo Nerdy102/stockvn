@@ -27,6 +27,8 @@ from api_fastapi.routers import (
     fundamentals,
     health,
     ml,
+    lab_runs,
+    dev_orchestrator,
     orders,
     oms,
     portfolio,
@@ -113,6 +115,12 @@ def create_app() -> FastAPI:
     app.include_router(costs.router)
     app.include_router(universe.router)
     app.include_router(watchlists.router)
+    app.include_router(lab_runs.router)
+    app.include_router(lab_runs.raocmoe_router)
+    app.include_router(lab_runs.eval_router)
+    app.include_router(lab_runs.config_router)
+    app.include_router(lab_runs.data_router)
+    app.include_router(dev_orchestrator.router)
 
     log.info("api_initialized", extra={"event": "api_startup"})
     return app

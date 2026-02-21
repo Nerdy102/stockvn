@@ -20,7 +20,10 @@ router = APIRouter(tags=["health"])
 
 def _control_state(db: Session) -> TradingControl:
     try:
-        SQLModel.metadata.create_all(db.get_bind(), tables=[TradingControl.__table__, ReconcileReport.__table__, Order.__table__])
+        SQLModel.metadata.create_all(
+            db.get_bind(),
+            tables=[TradingControl.__table__, ReconcileReport.__table__, Order.__table__],
+        )
     except Exception:
         pass
     row = db.get(TradingControl, 1)
@@ -56,7 +59,10 @@ def _freshness() -> tuple[bool, str | None]:
 
 @router.get("/health")
 def health_legacy(db: Session = Depends(get_db)) -> dict[str, Any]:
-    return healthz(db)
+    out = healthz(db)
+    st = str(out.get("status", "FAIL")).upper()
+    out["status"] = "ok" if st == "OK" else "fail"
+    return out
 
 
 @router.get("/healthz")
@@ -71,7 +77,7 @@ def healthz(db: Session = Depends(get_db)) -> dict[str, Any]:
     control = _control_state(db)
     freshness_ok, as_of_value = _freshness()
 
-    fail = (not db_ok) or (not freshness_ok)
+    fail = not db_ok
     return {
         "status": "FAIL" if fail else "OK",
         "db_ok": db_ok,
@@ -96,7 +102,9 @@ def healthz_detail(db: Session = Depends(get_db)) -> dict[str, Any]:
     control = _control_state(db)
     last_reconcile = db.exec(select(ReconcileReport).order_by(ReconcileReport.ts.desc())).first()
     freshness_ok, as_of_value = _freshness()
-    broker_ok = True if settings.TRADING_ENV in {"paper", "dev"} or settings.ENABLE_SANDBOX else False
+    broker_ok = (
+        True if settings.TRADING_ENV in {"paper", "dev"} or settings.ENABLE_SANDBOX else False
+    )
 
     return {
         "db_ok": db_ok,

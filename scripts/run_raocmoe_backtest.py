@@ -54,7 +54,10 @@ def _load_dataset(universe: list[str], start: str, end: str, seed: int) -> pd.Da
     return pd.DataFrame(rows)
 
 
-def run(universe: list[str], start: str, end: str) -> Path:
+def run_raocmoe_backtest(params: dict, outdir: Path) -> dict:
+    universe = [str(x) for x in params.get("universe", ["BTCUSDT", "ETHUSDT"])]
+    start = str(params.get("start", "2023-01-01"))
+    end = str(params.get("end", "2023-12-31"))
     cfg = load_config()
     seed = int(cfg["random_seed"])
     data = _load_dataset(universe, start, end, seed)
@@ -251,7 +254,7 @@ def run(universe: list[str], start: str, end: str) -> Path:
     ts = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     report_id = _sha(dataset_hash + config_hash + code_hash + ts)
 
-    out = Path("artifacts") / "raocmoe" / report_id
+    out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     equity_df.to_csv(out / "equity.csv", index=False)
     (out / "debug_samples.jsonl").write_text(
@@ -284,14 +287,27 @@ def run(universe: list[str], start: str, end: str) -> Path:
         json.dumps(report, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
         encoding="utf-8",
     )
-    return out
+    trades = pd.DataFrame(debug_rows)
+    trades.to_csv(out / "trades.csv", index=False)
+    pd.DataFrame(debug_rows).to_json(out / "diagnostics.json", orient="records")
+    return {"report_id": report_id, "dataset_hash": dataset_hash, "config_hash": config_hash, "code_hash": code_hash, "metrics": report["metrics"]}
 
+
+
+def run(universe: list[str], start: str, end: str) -> Path:
+    out = Path("reports/raocmoe/manual")
+    run_raocmoe_backtest({"universe": universe, "start": start, "end": end}, out)
+    return out
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--universe", required=True)
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
+    parser.add_argument("--outdir", default="artifacts/raocmoe/manual")
     args = parser.parse_args()
-    out_dir = run(args.universe.split(","), args.start, args.end)
-    print(str(out_dir))
+    summary = run_raocmoe_backtest(
+        {"universe": args.universe.split(","), "start": args.start, "end": args.end},
+        Path(args.outdir),
+    )
+    print(json.dumps(summary, sort_keys=True))

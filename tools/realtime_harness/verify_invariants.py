@@ -11,21 +11,17 @@ from tools.realtime_harness.invariants import check_invariants
 
 def _to_synthetic_events(events: list[dict[str, Any]]) -> list[SyntheticEvent]:
     converted: list[SyntheticEvent] = []
-    seen: set[tuple[str, str, str, float, int]] = set()
     for raw in events:
         event_type = str(raw.get("event_type", "trade")).lower()
         if event_type != "trade":
             continue
         key = (
             str(raw["symbol"]),
-            str(raw["provider_ts"]),
+            str(raw.get("provider_ts") or raw.get("ts") or ""),
             event_type,
             float(raw["price"]),
             int(raw["qty"]),
         )
-        if key in seen:
-            continue
-        seen.add(key)
         converted.append(
             SyntheticEvent(
                 symbol=key[0],

@@ -48,7 +48,10 @@ class OrderDraftIn(BaseModel):
     config_hash: str = ""
     dataset_hash: str = ""
     code_hash: str = ""
-    execution_pref: str = Field(default="giá đóng cửa (close)", pattern=r"^(giá đóng cửa \(close\)|thanh nến kế tiếp \(next-bar\)|close|next_bar)$")
+    execution_pref: str = Field(
+        default="giá đóng cửa (close)",
+        pattern=r"^(giá đóng cửa \(close\)|thanh nến kế tiếp \(next-bar\)|close|next_bar)$",
+    )
     ts_bucket: str | None = None
 
 
@@ -63,15 +66,19 @@ class ExecuteIn(BaseModel):
     outside_session_vn: bool = False
     data_freshness: dict[str, Any] = Field(default_factory=dict)
     drift_alerts: dict[str, Any] = Field(default_factory=dict)
-    portfolio_snapshot: dict[str, Any] = Field(default_factory=lambda: {"cash": 1_000_000_000.0, "nav_est": 1_000_000_000.0, "orders_today": 0})
+    portfolio_snapshot: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "cash": 1_000_000_000.0,
+            "nav_est": 1_000_000_000.0,
+            "orders_today": 0,
+        }
+    )
     user_age: int = 30
     sandbox_passed: bool = False
 
 
 class CancelIn(BaseModel):
     order_id: str
-
-
 
 
 def _db_control(db: Session) -> TradingControl:
@@ -86,6 +93,7 @@ def _db_control(db: Session) -> TradingControl:
         db.commit()
         db.refresh(row)
     return row
+
 
 @router.post("/draft")
 def create_order_draft(payload: OrderDraftIn, db: Session = Depends(get_db)) -> dict[str, Any]:
@@ -112,32 +120,87 @@ def execute_order(
     t0 = now_ms()
     order = db.get(Order, payload.order_id)
     if order is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"},
+        )
 
     if order.mode == "live" and payload.user_age < 18:
         inc_blocked("AGE_RESTRICTED")
-        raise HTTPException(status_code=403, detail={"message": "Tài khoản dưới 18 tuổi chỉ được Paper/Draft.", "reason_code": "AGE_RESTRICTED"})
-    if order.mode == "live" and not settings.ENABLE_LIVE_TRADING:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": "Tài khoản dưới 18 tuổi chỉ được Paper/Draft.",
+                "reason_code": "AGE_RESTRICTED",
+            },
+        )
+    if order.mode == "live" and (
+        not settings.ENABLE_LIVE_TRADING or settings.TRADING_ENV != "live"
+    ):
         inc_blocked("LIVE_DISABLED")
-        raise HTTPException(status_code=403, detail={"message": "Live trading đang bị tắt.", "reason_code": "LIVE_DISABLED"})
+        raise HTTPException(
+            status_code=403,
+            detail={"message": "Live trading đang bị tắt.", "reason_code": "LIVE_DISABLED"},
+        )
 
     control = _db_control(db)
     if settings.KILL_SWITCH or control.kill_switch_enabled:
         inc_blocked("KILL_SWITCH_ON")
-        log.warning("risk_blocked", extra={"event": "risk_blocked", "correlation_id": order.id, "reason_code": "KILL_SWITCH_ON"})
-        raise HTTPException(status_code=403, detail={"message": "Kill-switch đang bật, chặn mọi execute.", "reason_code": "KILL_SWITCH_ON"})
-    if bool(payload.drift_alerts.get("drift_paused", False)) or (control.paused_reason_code or "").upper() == "DRIFT_PAUSED":
+        log.warning(
+            "risk_blocked",
+            extra={
+                "event": "risk_blocked",
+                "correlation_id": order.id,
+                "reason_code": "KILL_SWITCH_ON",
+            },
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": "Kill-switch đang bật, chặn mọi execute.",
+                "reason_code": "KILL_SWITCH_ON",
+            },
+        )
+    if (
+        bool(payload.drift_alerts.get("drift_paused", False))
+        or (control.paused_reason_code or "").upper() == "DRIFT_PAUSED"
+    ):
         inc_blocked("PAUSED_BY_SYSTEM")
-        log.warning("risk_blocked", extra={"event": "risk_blocked", "correlation_id": order.id, "reason_code": "PAUSED_BY_SYSTEM"})
-        raise HTTPException(status_code=403, detail={"message": "Hệ thống đang tạm dừng do drift hoặc operator.", "reason_code": "PAUSED_BY_SYSTEM"})
+        log.warning(
+            "risk_blocked",
+            extra={
+                "event": "risk_blocked",
+                "correlation_id": order.id,
+                "reason_code": "PAUSED_BY_SYSTEM",
+            },
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": "Hệ thống đang tạm dừng do drift hoặc operator.",
+                "reason_code": "PAUSED_BY_SYSTEM",
+            },
+        )
 
-    risk_input = payload.model_dump(include={"data_freshness", "drift_alerts", "portfolio_snapshot", "outside_session_vn", "sandbox_passed"})
+    risk_input = payload.model_dump(
+        include={
+            "data_freshness",
+            "drift_alerts",
+            "portfolio_snapshot",
+            "outside_session_vn",
+            "sandbox_passed",
+        }
+    )
     risk_input["order_overrides"] = {"outside_session_vn": payload.outside_session_vn}
     log.info("execute_started", extra={"event": "execute_started", "correlation_id": order.id})
     try:
         sent = send(order.id, db, settings, risk_input)
     except HTTPException as exc:
-        reason = (exc.detail or {}).get("reason_code", "UNKNOWN") if isinstance(exc.detail, dict) else "UNKNOWN"
+        reason = (
+            (exc.detail or {}).get("reason_code", "UNKNOWN")
+            if isinstance(exc.detail, dict)
+            else "UNKNOWN"
+        )
         inc_blocked(str(reason))
         observe_api_latency(now_ms() - t0)
         raise
@@ -152,7 +215,8 @@ def execute_order(
             "fill_qty": acked.qty,
             "fill_price": acked.price or 0.0,
             "broker_fill_id": f"auto-fill-{acked.id[:8]}",
-            "cash": float(payload.portfolio_snapshot.get("cash", 0.0)) - float(acked.qty) * float(acked.price or 0.0),
+            "cash": float(payload.portfolio_snapshot.get("cash", 0.0))
+            - float(acked.qty) * float(acked.price or 0.0),
             "positions_json": {acked.symbol: acked.qty},
             "nav_est": float(payload.portfolio_snapshot.get("nav_est", 0.0)),
             "drawdown_est": 0.0,
@@ -162,7 +226,11 @@ def execute_order(
     inc_executed()
     observe_api_latency(now_ms() - t0)
     log.info("execute_completed", extra={"event": "execute_completed", "correlation_id": order.id})
-    return {"message": "Thực thi lệnh thành công (sandbox/paper).", "order": filled.model_dump(), "reason_code": ""}
+    return {
+        "message": "Thực thi lệnh thành công (sandbox/paper).",
+        "order": filled.model_dump(),
+        "reason_code": "",
+    }
 
 
 @router.post("/cancel")
@@ -172,7 +240,9 @@ def cancel_order(payload: CancelIn, db: Session = Depends(get_db)) -> dict[str, 
 
 
 @router.get("/orders")
-def list_orders(limit: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)) -> dict[str, Any]:
+def list_orders(
+    limit: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)
+) -> dict[str, Any]:
     rows = db.exec(select(Order).order_by(Order.created_at.desc()).limit(limit)).all()
     return {"message": "Danh sách lệnh OMS.", "items": [r.model_dump() for r in rows]}
 
@@ -181,14 +251,23 @@ def list_orders(limit: int = Query(default=50, ge=1, le=200), db: Session = Depe
 def get_order(order_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     row = db.get(Order, order_id)
     if row is None:
-        raise HTTPException(status_code=404, detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"message": "Không tìm thấy lệnh.", "reason_code": "ORDER_NOT_FOUND"},
+        )
     return {"message": "Chi tiết lệnh.", "item": row.model_dump()}
 
 
 @router.get("/audit")
-def get_audit(limit: int = Query(default=200, ge=1, le=500), db: Session = Depends(get_db)) -> dict[str, Any]:
+def get_audit(
+    limit: int = Query(default=200, ge=1, le=500), db: Session = Depends(get_db)
+) -> dict[str, Any]:
     rows = db.exec(select(OrderEvent).order_by(OrderEvent.ts.desc()).limit(limit)).all()
-    return {"message": "Nhật ký audit OMS (append-only).", "items": [r.model_dump() for r in rows], "generated_at": dt.datetime.utcnow().isoformat()}
+    return {
+        "message": "Nhật ký audit OMS (append-only).",
+        "items": [r.model_dump() for r in rows],
+        "generated_at": dt.datetime.utcnow().isoformat(),
+    }
 
 
 @router.get("/metrics/simple")
