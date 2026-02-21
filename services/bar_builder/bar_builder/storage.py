@@ -19,6 +19,9 @@ class BarStorage:
             ts = ts.astimezone(dt.timezone.utc).replace(tzinfo=None)
         return ts
 
+    def _supports_list_kv(self) -> bool:
+        return all(hasattr(self.redis, x) for x in ["rpush", "ltrim", "set"])
+
     def append_bar(self, row: dict[str, object]) -> bool:
         symbol = str(row["symbol"])
         timeframe = str(row["timeframe"])
@@ -57,10 +60,16 @@ class BarStorage:
 
     def cache_bar(self, row: dict[str, object]) -> None:
         key = f"realtime:bars:{row['symbol']}:{row['timeframe']}"
+        payload = json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        if self._supports_list_kv():
+            self.redis.rpush(key, payload)
+            self.redis.ltrim(key, -200, -1)
+            return
+
         if not hasattr(self.redis, "_bar_cache"):
             self.redis._bar_cache = {}
         arr = list(self.redis._bar_cache.get(key, []))
-        arr.append(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        arr.append(payload)
         self.redis._bar_cache[key] = arr[-200:]
 
     def publish_bar_close(self, row: dict[str, object]) -> str:

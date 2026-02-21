@@ -1,4 +1,4 @@
-.PHONY: setup run-api run-worker run-ui run-ui-kiosk run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke verify-regression
+.PHONY: setup run-api run-worker run-ui run-ui-kiosk run-stream-ingestor run-realtime replay-demo verify-program rt-load-test rt-chaos-test rt-verify test lint format docker-up docker-down quality-gate ui-guardrails bronze-verify bronze-cleanup replay-smoke verify-regression fetch-vn10 bootstrap-vn10 eval-vn10 redis rt-btc-ingest rt-btc-bars rt-btc-signals rt-btc-demo-order
 
 PYTHONPATH := .:services:packages/core:packages/data:packages:services/api_fastapi:services/worker_scheduler:services/stream_ingestor:apps
 VENV := .venv
@@ -6,6 +6,7 @@ PY := $(VENV)/bin/python
 PY_RUNTIME := $(shell [ -x $(PY) ] && echo $(PY) || echo python)
 PIP := $(VENV)/bin/pip
 SSI_STREAM_MOCK_MESSAGES_PATH ?= tests/fixtures/ssi_streaming
+REDIS_URL ?= redis://localhost:6379/0
 
 setup:
 	python -m venv $(VENV)
@@ -96,3 +97,28 @@ verify-live-sandbox:
 
 verify-regression:
 	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m pytest -q tests/test_regression_offline_e2e.py
+
+fetch-vn10:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.fetch_eodhd_vn_universe10
+
+bootstrap-vn10:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m scripts.bootstrap_vn10_and_seed --reset-db
+
+eval-vn10:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m research.evaluate_model_vn10
+
+
+redis:
+	docker run --name stockvn-redis -p 6379:6379 -d redis:7-alpine || docker start stockvn-redis
+
+rt-btc-ingest:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m services.stream_ingestor.binance_trade_ingestor --symbols BTCUSDT --redis $(REDIS_URL)
+
+rt-btc-bars:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m services.bar_builder.run --redis $(REDIS_URL) --exchange CRYPTO
+
+rt-btc-signals:
+	PYTHONPATH=$(PYTHONPATH) $(PY_RUNTIME) -m services.realtime_signal_engine.run --redis $(REDIS_URL)
+
+rt-btc-demo-order:
+	PYTHONPATH=$(PYTHONPATH) REDIS_URL=$(REDIS_URL) $(PY_RUNTIME) -m scripts.demo_crypto_oms_realtime_exec

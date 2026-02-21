@@ -33,6 +33,13 @@ def build_bar_windows(value_date: dt.date, exchange: str, timeframe: str) -> lis
     tf_map = {"15m": 15, "60m": 60}
     if timeframe not in tf_map:
         raise ValueError("timeframe must be 15m or 60m")
+    if str(exchange).upper() in {"CRYPTO", "BINANCE", "BINANCE_PUBLIC"}:
+        start = dt.datetime.combine(value_date, dt.time(0, 0), tzinfo=dt.timezone.utc)
+        end = start + dt.timedelta(days=1)
+        return _bucket_windows_for_session(
+            SessionWindow(name=f"{exchange}_24x7", start_utc=start, end_utc=end),
+            timeframe_minutes=tf_map[timeframe],
+        )
     sessions = build_sessions(value_date, exchange)
     windows: list[BarWindow] = []
     for s in sessions:
