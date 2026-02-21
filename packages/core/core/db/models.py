@@ -303,6 +303,16 @@ class CorporateActionLedger(SQLModel, table=True):
     notes_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
+class UniverseSnapshot(SQLModel, table=True):
+    __tablename__ = "universe_snapshots"
+    __table_args__ = (Index("ix_universe_snapshot_name_date", "universe_name", "snapshot_date"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    universe_name: str = Field(index=True)
+    snapshot_date: dt.date = Field(index=True)
+    symbols_json: JsonDict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
 class ScreenResult(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     screen_name: str

@@ -25,6 +25,7 @@ class Order(SQLModel, table=True):
     timeframe: str = Field(default="1D")
     mode: str = Field(default="paper", index=True)
     order_type: str = Field(default="market", index=True)
+    execution_pref: str = Field(default="close", index=True)
     side: str = Field(index=True)
     qty: float
     price: float | None = None

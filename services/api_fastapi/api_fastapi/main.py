@@ -23,6 +23,7 @@ from api_fastapi.routers import (
     data_health,
     chart,
     controls,
+    costs,
     fundamentals,
     health,
     ml,
@@ -34,6 +35,7 @@ from api_fastapi.routers import (
     screeners,
     signals,
     simple_mode,
+    tca,
     tickers,
     universe,
     watchlists,
@@ -107,6 +109,8 @@ def create_app() -> FastAPI:
     app.include_router(chart.router)
     app.include_router(controls.router)
     app.include_router(ml.router)
+    app.include_router(tca.router)
+    app.include_router(costs.router)
     app.include_router(universe.router)
     app.include_router(watchlists.router)
 

@@ -1,0 +1,10 @@
+enabled: false
+lookback_orders: 200
+min_orders: 30
+winsor_pctl: [1, 99]
+param_bounds:
+  base_bps: [0.5, 20]
+  k_atr: [0.0, 0.2]
+  k_part: [0.0, 200]
+apply_mode:
+  mode: manual_only
